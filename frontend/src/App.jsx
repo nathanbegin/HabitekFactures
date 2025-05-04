@@ -45,12 +45,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      <header className="bg-white text-blue-700 border-b border-gray-200 p-4 shadow-sm">
+    <div className="">
+      <header className="">
         <h1 className="text-2xl font-semibold tracking-tight">Habitek — Gestion des factures</h1>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-8">
+      <main className="">
         <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
