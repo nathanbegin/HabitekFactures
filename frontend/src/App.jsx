@@ -6,7 +6,7 @@ export default function App() {
   const [file, setFile] = useState(null);
 
   useEffect(() => {
-    fetch('/api/factures?annee=2025')
+    fetch('https://habitekfactures.onrender.com/api/factures?annee=2025')
       .then((res) => res.json())
       .then((data) => setFactures(data));
   }, []);
@@ -17,7 +17,7 @@ export default function App() {
     const data = new FormData(form);
     data.append('fichier', file);
 
-    fetch('/api/factures', {
+    fetch('https://habitekfactures.onrender.com/api/factures', {
       method: 'POST',
       body: data
     })
@@ -57,7 +57,7 @@ export default function App() {
           <li key={f.id}>
             {f.annee}-{f.type}-{f.numero}-UBR-{f.ubr} — {f.fournisseur}
             <br />
-            <a href={`/api/factures/${f.id}/fichier?annee=${f.annee}`} target='_blank' rel='noreferrer'>
+            <a href={`https://habitekfactures.onrender.com/api/factures/${f.id}/fichier?annee=${f.annee}`} target='_blank' rel='noreferrer'>
               Télécharger
             </a>
           </li>
