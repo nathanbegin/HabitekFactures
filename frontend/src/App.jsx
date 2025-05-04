@@ -46,7 +46,7 @@ export default function App() {
 
   return (
   
-    <div className="">
+    <div className="absolute top-0 right-0 bg-white text-gray-900 font-sans antialiased w-full max-w-5xl pt-4">
       <text>HEllo ceci est un test</text>
       <header className="">
         <h1 className="text-2xl font-semibold tracking-tight">Habitek — Gestion des factures</h1>
