@@ -83,6 +83,29 @@ def get_file(id):
         return send_from_directory(app.config["UPLOAD_FOLDER"], row["fichier_nom"], as_attachment=True)
     return "Fichier non trouvé", 404
 
+@app.route("/api/factures/<int:id>", methods=["DELETE"])
+def delete_facture(id):
+    annee = request.args.get("annee", datetime.now().year)
+    conn = get_connection(annee)
+    facture = conn.execute("SELECT * FROM factures WHERE id=?", (id,)).fetchone()
+    if not facture:
+        conn.close()
+        return jsonify({"error": "Facture non trouvée"}), 404
+
+    # Supprimer le fichier s'il existe
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], facture["fichier_nom"])
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+    # Supprimer la ligne de la base de données
+    conn.execute("DELETE FROM factures WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Facture supprimée"}), 200
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
