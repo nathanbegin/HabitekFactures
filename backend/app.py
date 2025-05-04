@@ -36,7 +36,9 @@ def get_connection(annee):
     conn = sqlite3.connect(get_db_path(annee))
     conn.row_factory = sqlite3.Row
     return conn
-
+@app.route("/")
+def home():
+    return "Flask fonctionne sur Render ✅"
 @app.route("/api/factures", methods=["GET"])
 def get_factures():
     annee = request.args.get("annee", datetime.now().year)
