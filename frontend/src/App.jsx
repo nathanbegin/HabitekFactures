@@ -45,7 +45,7 @@ export default function App() {
   };
 
   return (
-    <div className="absolute start-0 top-0 bg-gray-50 text-gray-800 max-w-5xl mx-auto p-6 space-y-8 pt-4">
+    <div className="absolute start-0 top-0 bg-gray-50 text-gray-800 max-w-5xl pt-4">
       <header className="bg-blue-700 text-white p-4 shadow-md">
         <h1 className="text-2xl font-bold">Habitek — Gestion des factures</h1>
       </header>
