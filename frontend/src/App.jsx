@@ -45,7 +45,9 @@ export default function App() {
   };
 
   return (
+  
     <div className="">
+      <text>HEllo ceci est un test</text>
       <header className="">
         <h1 className="text-2xl font-semibold tracking-tight">Habitek — Gestion des factures</h1>
       </header>
