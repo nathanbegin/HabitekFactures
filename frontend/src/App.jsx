@@ -50,7 +50,7 @@ export default function App() {
         <h1 className="text-2xl font-bold">Habitek — Gestion des factures</h1>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-8">
+      <main className="max-w-5xl mx-auto p-6 space-y-8 pt-4">
         <section className="bg-white p-6 rounded-xl shadow space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
