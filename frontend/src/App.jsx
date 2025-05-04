@@ -49,7 +49,7 @@ export default function App() {
       <header className="bg-blue-700 text-white p-4 shadow-md">
         <h1 className="text-2xl font-bold">Habitek — Gestion des factures</h1>
       </header>
-
+{/* 
       <main className="max-w-5xl mx-auto p-6 space-y-8 pt-4">
         <section className="bg-white p-6 rounded-xl shadow space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
@@ -116,7 +116,7 @@ export default function App() {
             {factures.length === 0 && <p className="text-gray-500 mt-2">Aucune facture enregistrée.</p>}
           </div>
         </section>
-      </main>
+      </main> */}
     </div>
   );
 }
