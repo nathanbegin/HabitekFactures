@@ -5,10 +5,13 @@ export default function App() {
   const [factures, setFactures] = useState([]);
   const [file, setFile] = useState(null);
 
+  const BACKEND_URL = "https://habitekfactures.onrender.com"; // À modifier avec ton vrai backend
+
   useEffect(() => {
-    fetch('https://habitekfactures.onrender.com/api/factures?annee=2025')
+    fetch(`${BACKEND_URL}/api/factures?annee=2025`)
       .then((res) => res.json())
-      .then((data) => setFactures(data));
+      .then((data) => setFactures(data))
+      .catch((err) => console.error("Erreur de chargement des factures :", err));
   }, []);
 
   const handleUpload = (event) => {
@@ -17,15 +20,26 @@ export default function App() {
     const data = new FormData(form);
     data.append('fichier', file);
 
-    fetch('https://habitekfactures.onrender.com/api/factures', {
+    console.log("Tentative d'envoi de la facture...");
+
+    fetch(`${BACKEND_URL}/api/factures`, {
       method: 'POST',
       body: data
     })
-    .then(res => res.json())
+    .then(res => {
+      console.log("Réponse brute :", res);
+      if (!res.ok) throw new Error("Erreur lors de l'envoi");
+      return res.json();
+    })
     .then(newFacture => {
+      console.log("Facture ajoutée :", newFacture);
       setFactures([...factures, newFacture]);
       form.reset();
       setFile(null);
+    })
+    .catch(err => {
+      console.error("Erreur d'envoi :", err);
+      alert("Échec de l'envoi de la facture. Vérifie la console.");
     });
   };
 
@@ -57,7 +71,7 @@ export default function App() {
           <li key={f.id}>
             {f.annee}-{f.type}-{f.numero}-UBR-{f.ubr} — {f.fournisseur}
             <br />
-            <a href={`https://habitekfactures.onrender.com/api/factures/${f.id}/fichier?annee=${f.annee}`} target='_blank' rel='noreferrer'>
+            <a href={`${BACKEND_URL}/api/factures/${f.id}/fichier?annee=${f.annee}`} target='_blank' rel='noreferrer'>
               Télécharger
             </a>
           </li>
