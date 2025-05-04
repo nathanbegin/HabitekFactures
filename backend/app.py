@@ -11,7 +11,8 @@ CORS(app)
 
 UPLOAD_FOLDER = "backend/uploads"
 DB_FOLDER = "backend/databases"
-TEMPLATE_PATH = "backend/templates/schema.sql"
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "schema.sql")
+
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
