@@ -45,13 +45,13 @@ export default function App() {
   };
 
   return (
-    <div className="absolute start-0 top-0 bg-gray-50 text-gray-800 max-w-5xl pt-4">
-      <header className="bg-blue-700 text-white p-4 shadow-md">
-        <h1 className="text-2xl font-bold">Habitek — Gestion des factures</h1>
+    <div className="min-h-screen bg-gray-50 text-gray-800">
+      <header className="bg-white text-blue-700 border-b border-gray-200 p-4 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight">Habitek — Gestion des factures</h1>
       </header>
-{/* 
-      <main className="max-w-5xl mx-auto p-6 space-y-8 pt-4">
-        <section className="bg-white p-6 rounded-xl shadow space-y-4">
+
+      <main className="max-w-5xl mx-auto p-6 space-y-8">
+        <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="number" name="annee" placeholder="Année" defaultValue={ANNEE} className="input" required />
@@ -70,13 +70,13 @@ export default function App() {
               <option value="Refusé">Refusé</option>
             </select>
             <input type="file" name="fichier" accept="application/pdf" required onChange={e => setFile(e.target.files[0])} className="input" />
-            <button type="submit" className="col-span-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <button type="submit" className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
               Ajouter la facture
             </button>
           </form>
         </section>
 
-        <section className="bg-white p-6 rounded-xl shadow">
+        <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
           <h2 className="text-xl font-semibold mb-4">📋 Factures ajoutées</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse border border-gray-300">
@@ -116,7 +116,7 @@ export default function App() {
             {factures.length === 0 && <p className="text-gray-500 mt-2">Aucune facture enregistrée.</p>}
           </div>
         </section>
-      </main> */}
+      </main>
     </div>
   );
 }
