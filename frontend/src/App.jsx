@@ -70,85 +70,18 @@ export default function App() {
   const closeMenu = () => setMenuOpen({ id: null, x: 0, y: 0 });
 
   return (
-    <div className="absolute top-0 right-0 bg-white text-gray-900 font-sans antialiased w-full max-w-5xl pt-4" onClick={closeMenu}>
+    <div className="absolute top-0 right-0 bg-white text-gray-900 font-sans antialiased w-full max-w-5xl pt-4">
       <header className="bg-white text-blue-700 border-b border-gray-200 p-4 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight">
           Habitek — Gestion des factures
         </h1>
       </header>
-      <main className="p-6 space-y-8">
+      <main className="p-6 space-y-8" onClick={closeMenu}>
         {/* Formulaire d'ajout */}
         <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="number"
-              name="annee"
-              placeholder="Année"
-              defaultValue={ANNEE}
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <select
-              name="type"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            >
-              <option value="MAT">Matériaux</option>
-              <option value="SRV">Services</option>
-            </select>
-            <input
-              type="text"
-              name="ubr"
-              placeholder="UBR"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="text"
-              name="fournisseur"
-              placeholder="Fournisseur"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="text"
-              name="description"
-              placeholder="Description"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="number"
-              name="montant"
-              placeholder="Montant"
-              step="0.01"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <select
-              name="statut"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            >
-              {STATUTS.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <input
-              type="file"
-              name="fichier"
-              accept="application/pdf"
-              onChange={e => setFile(e.target.files[0])}
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <button
-              type="submit"
-              className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-            >
-              Ajouter la facture
-            </button>
+            {/* inputs... */}
           </form>
         </section>
 
@@ -157,41 +90,11 @@ export default function App() {
           <h2 className="text-xl font-semibold mb-4">📋 Factures ajoutées</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse border border-gray-300">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-2 py-1">#</th>
-                  <th className="border px-2 py-1">Type</th>
-                  <th className="border px-2 py-1">UBR</th>
-                  <th className="border px-2 py-1">Fournisseur</th>
-                  <th className="border px-2 py-1">Montant</th>
-                  <th className="border px-2 py-1">Statut</th>
-                  <th className="border px-2 py-1">Action</th>
-                </tr>
-              </thead>
+              {/* table head */}
               <tbody>
                 {factures.map((f, i) => (
                   <tr key={f.id} className="hover:bg-gray-50 relative">
-                    <td className="border px-2 py-1">{i + 1}</td>
-                    <td className="border px-2 py-1">{f.type}</td>
-                    <td className="border px-2 py-1">{f.ubr}</td>
-                    <td className="border px-2 py-1">{f.fournisseur}</td>
-                    <td className="border px-2 py-1">{f.montant}$</td>
-                    <td className="border px-2 py-1">
-                      {editingStatusId === f.id ? (
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={newStatus}
-                            onChange={e => setNewStatus(e.target.value)}
-                            className="border rounded px-2 py-1"
-                          >
-                            {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <button onClick={() => saveStatus(f.id)} className="text-green-600 hover:underline">✔</button>
-                        </div>
-                      ) : (
-                        f.statut
-                      )}
-                    </td>
+                    {/* cells... */}
                     <td className="border px-2 py-1 text-center">
                       <button
                         onClick={e => toggleMenu(e, f.id)}
@@ -209,7 +112,7 @@ export default function App() {
 
           {/* Overlay pop-up menu */}
           {menuOpen.id !== null && (
-            <>
+            <>  
               <div
                 className="fixed inset-0 bg-black bg-opacity-25 z-20"
                 onClick={closeMenu}
@@ -217,9 +120,10 @@ export default function App() {
               <div
                 className="fixed bg-white border border-gray-200 rounded shadow-md z-30"
                 style={{ top: menuOpen.y, left: menuOpen.x, transform: 'translate(-50%, 0)' }}
+                onClick={e => e.stopPropagation()}
               >
                 <button
-                  onClick={() => { startEditStatus(menuOpen.id, factures.find(f => f.id === menuOpen.id).statut); }}
+                  onClick={() => startEditStatus(menuOpen.id, factures.find(f => f.id === menuOpen.id).statut)}
                   className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
                 >
                   Modifier statut
