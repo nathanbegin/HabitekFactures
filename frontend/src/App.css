@@ -1,42 +1,46 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  
+/* src/index.css */
+
+/* 1. Import de Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 2. Styles globaux */
+body {
+  @apply bg-white text-gray-900 font-sans antialiased;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* 3. Classe utilitaire pour les champs de formulaire */
+.input {
+  @apply border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* 4. Boutons principaux */
+.btn-primary {
+  @apply bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* 5. Tableau épuré */
+.table {
+  @apply min-w-full table-auto border border-gray-300;
+}
+.table th,
+.table td {
+  @apply border px-2 py-1;
+}
+.table thead {
+  @apply bg-gray-100;
 }
 
-.card {
-  padding: 2em;
+/* 6. Overlay de menu */
+.overlay {
+  @apply fixed inset-0 bg-black bg-opacity-25 z-20;
+}
+.popup-menu {
+  @apply fixed bg-white border border-gray-200 rounded shadow-md z-30;
 }
 
-.read-the-docs {
-  color: #888;
+/* 7. Petit bouton “⋮” */
+.menu-button {
+  @apply px-2 py-1 hover:bg-gray-200 rounded;
 }

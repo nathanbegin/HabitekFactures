@@ -1,33 +1,31 @@
 import React, { useState, useEffect } from 'react';
 
 export default function App() {
-  const [factures, setFactures] = useState([]);
-  const [file, setFile] = useState(null);
-
-  // Gestion du menu pop-up
-  const [menuOpen, setMenuOpen] = useState({ id: null, x: 0, y: 0 });
+  const [factures, setFactures]             = useState([]);
+  const [file, setFile]                    = useState(null);
+  const [menuOpen, setMenuOpen]            = useState({ id: null, x: 0, y: 0 });
   const [editingStatusId, setEditingStatusId] = useState(null);
-  const [newStatus, setNewStatus] = useState("");
+  const [newStatus, setNewStatus]          = useState("");
 
-  const BACKEND_URL   = "https://habitekfactures.onrender.com";
-  const ANNEE         = 2025;
-  const STATUTS       = ["Soumis","Traité","En attente de paiement","Refusé"];
+  const BACKEND_URL = "https://habitekfactures.onrender.com";
+  const ANNEE       = 2025;
+  const STATUTS     = ["Soumis","Traité","En attente de paiement","Refusé"];
 
-  // Chargement initial
+  // Chargement initial des factures
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/factures?annee=${ANNEE}`)
-      .then(res => res.json())
+      .then(r => r.json())
       .then(setFactures)
       .catch(console.error);
   }, []);
 
-  // Ajout de facture
+  // Ajout d'une facture
   const handleUpload = e => {
     e.preventDefault();
     const data = new FormData(e.target);
     data.append("fichier", file);
     fetch(`${BACKEND_URL}/api/factures`, { method: "POST", body: data })
-      .then(res => res.json())
+      .then(r => r.json())
       .then(f => {
         setFactures([...factures, f]);
         e.target.reset();
@@ -40,15 +38,15 @@ export default function App() {
   const deleteFacture = id => {
     if (!window.confirm("Supprimer cette facture ?")) return;
     fetch(`${BACKEND_URL}/api/factures/${id}?annee=${ANNEE}`, { method: "DELETE" })
-      .then(res => {
-        if (!res.ok) throw new Error();
+      .then(r => {
+        if (!r.ok) throw new Error();
         setFactures(factures.filter(f => f.id !== id));
       })
       .catch(() => alert("Erreur suppression"));
     closeMenu();
   };
 
-  // Edition inline du statut
+  // Édition inline du statut
   const startEditStatus = (id, current) => {
     setEditingStatusId(id);
     setNewStatus(current);
@@ -60,7 +58,7 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ statut: newStatus, annee: ANNEE })
     })
-    .then(res => res.json())
+    .then(r => r.json())
     .then(updated => {
       setFactures(factures.map(f => f.id === id ? updated : f));
       setEditingStatusId(null);
@@ -68,19 +66,16 @@ export default function App() {
     .catch(() => alert("Erreur mise à jour"));
   };
 
-  // Ouvre/ferme le menu en capturant la position du clic
+  // Ouvre/ferme le menu en pop-up
   const toggleMenu = (e, id) => {
-    e.stopPropagation();
+    e.stopPropagation();  // empêche le clic de remonter à l'overlay
     const { clientX: x, clientY: y } = e;
+    console.log("toggleMenu", id, x, y);
     setMenuOpen(prev => prev.id === id ? { id: null, x: 0, y: 0 } : { id, x, y });
   };
-  const closeMenu = () => setMenuOpen({ id: null, x: 0, y: 0 });
-
-  // Ferme le menu au clic hors menu
-  useEffect(() => {
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
+  const closeMenu = () => {
+    setMenuOpen({ id: null, x: 0, y: 0 });
+  };
 
   return (
     <div className="absolute top-0 right-0 bg-white text-gray-900 font-sans antialiased w-full max-w-5xl pt-4">
@@ -95,65 +90,45 @@ export default function App() {
         <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm space-y-4">
           <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="number" name="annee" placeholder="Année" defaultValue={ANNEE}
+            {/* Champs année, type, ubr, fournisseur, description, montant, statut, fichier */}
+            <input type="number" name="annee" placeholder="Année" defaultValue={ANNEE}
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <select
-              name="type"
-              className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            >
+              required />
+            <select name="type" className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300" required>
               <option value="MAT">Matériaux</option>
               <option value="SRV">Services</option>
             </select>
-            <input
-              type="text" name="ubr" placeholder="UBR"
+            <input type="text" name="ubr" placeholder="UBR"
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="text" name="fournisseur" placeholder="Fournisseur"
+              required />
+            <input type="text" name="fournisseur" placeholder="Fournisseur"
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="text" name="description" placeholder="Description"
+              required />
+            <input type="text" name="description" placeholder="Description"
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <input
-              type="number" name="montant" placeholder="Montant" step="0.01"
+              required />
+            <input type="number" name="montant" placeholder="Montant" step="0.01"
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <select
-              name="statut"
+              required />
+            <select name="statut"
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            >
+              required>
               {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input
-              type="file" name="fichier" accept="application/pdf"
-              onChange={e => setFile(e.target.files[0])}
+            <input type="file" name="fichier" accept="application/pdf" onChange={e=>setFile(e.target.files[0])}
               className="border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-              required
-            />
-            <button
-              type="submit"
-              className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-            >
+              required />
+            <button type="submit"
+              className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
               Ajouter la facture
             </button>
           </form>
         </section>
 
         {/* Tableau des factures */}
-        <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+        <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm relative">
           <h2 className="text-xl font-semibold mb-4">📋 Factures ajoutées</h2>
-          <div className="overflow-x-auto relative">
+          <div className="overflow-x-auto">
             <table className="min-w-full table-auto border border-gray-300">
               <thead className="bg-gray-100">
                 <tr>
@@ -167,32 +142,33 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {factures.map((f, i) => (
+                {factures.map((f,i) => (
                   <tr key={f.id} className="hover:bg-gray-50">
-                    <td className="border px-2 py-1">{i + 1}</td>
+                    <td className="border px-2 py-1">{i+1}</td>
                     <td className="border px-2 py-1">{f.type}</td>
                     <td className="border px-2 py-1">{f.ubr}</td>
                     <td className="border px-2 py-1">{f.fournisseur}</td>
                     <td className="border px-2 py-1">{f.montant}$</td>
                     <td className="border px-2 py-1">
-                      {editingStatusId === f.id ? (
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={newStatus}
-                            onChange={e => setNewStatus(e.target.value)}
-                            className="border rounded px-2 py-1"
-                          >
-                            {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <button onClick={() => saveStatus(f.id)} className="text-green-600 hover:underline">
-                            ✔
-                          </button>
-                        </div>
-                      ) : f.statut}
+                      {editingStatusId === f.id
+                        ? (
+                          <div className="flex items-center space-x-2">
+                            <select
+                              value={newStatus}
+                              onChange={e => setNewStatus(e.target.value)}
+                              className="border rounded px-2 py-1"
+                            >
+                              {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <button onClick={()=>saveStatus(f.id)} className="text-green-600 hover:underline">✔</button>
+                          </div>
+                        )
+                        : f.statut
+                      }
                     </td>
                     <td className="border px-2 py-1 text-center">
                       <button
-                        onClick={e => toggleMenu(e, f.id)}
+                        onClick={e => toggleMenu(e,f.id)}
                         className="px-2 py-1 hover:bg-gray-200 rounded"
                       >
                         ⋮
@@ -203,7 +179,7 @@ export default function App() {
               </tbody>
             </table>
 
-            {/* Overlay semi-transparent */}
+            {/* Overlay pour fermer le menu */}
             {menuOpen.id !== null && (
               <div
                 className="fixed inset-0 bg-black bg-opacity-25 z-20"
@@ -222,7 +198,7 @@ export default function App() {
                 }}
               >
                 <button
-                  onClick={() => startEditStatus(menuOpen.id, factures.find(f => f.id === menuOpen.id).statut)}
+                  onClick={() => startEditStatus(menuOpen.id, factures.find(f=>f.id===menuOpen.id).statut)}
                   className="block px-4 py-2 hover:bg-gray-100 w-32 text-left"
                 >
                   Modifier statut
