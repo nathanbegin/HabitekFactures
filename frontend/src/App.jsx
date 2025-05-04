@@ -5,10 +5,11 @@ export default function App() {
   const [factures, setFactures] = useState([]);
   const [file, setFile] = useState(null);
 
-  const BACKEND_URL = "https://habitekfactures.onrender.com"; // À modifier avec ton vrai backend
+  const BACKEND_URL = "https://ton-backend.onrender.com"; // Remplace avec ton backend réel
+  const ANNEE = 2025;
 
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/factures?annee=2025`)
+    fetch(`${BACKEND_URL}/api/factures?annee=${ANNEE}`)
       .then((res) => res.json())
       .then((data) => setFactures(data))
       .catch((err) => console.error("Erreur de chargement des factures :", err));
@@ -20,33 +21,44 @@ export default function App() {
     const data = new FormData(form);
     data.append('fichier', file);
 
-    console.log("Tentative d'envoi de la facture...");
-
     fetch(`${BACKEND_URL}/api/factures`, {
       method: 'POST',
       body: data
     })
     .then(res => {
-      console.log("Réponse brute :", res);
       if (!res.ok) throw new Error("Erreur lors de l'envoi");
       return res.json();
     })
     .then(newFacture => {
-      console.log("Facture ajoutée :", newFacture);
       setFactures([...factures, newFacture]);
       form.reset();
       setFile(null);
     })
     .catch(err => {
       console.error("Erreur d'envoi :", err);
-      alert("Échec de l'envoi de la facture. Vérifie la console.");
+      alert("Échec de l'envoi de la facture.");
+    });
+  };
+
+  const supprimerFacture = (id) => {
+    if (!window.confirm("Supprimer cette facture ?")) return;
+    fetch(`${BACKEND_URL}/api/factures/${id}?annee=${ANNEE}`, {
+      method: 'DELETE'
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Erreur suppression");
+      setFactures(factures.filter(f => f.id !== id));
+    })
+    .catch(err => {
+      console.error("Erreur suppression :", err);
+      alert("Échec de la suppression.");
     });
   };
 
   return (
     <div className='p-4 max-w-xl mx-auto space-y-4'>
       <form onSubmit={handleUpload} className='space-y-2'>
-        <input type='number' name='annee' placeholder='Année' required />
+        <input type='number' name='annee' placeholder='Année' defaultValue={ANNEE} required />
         <select name='type' required>
           <option value='MAT'>Matériaux</option>
           <option value='SRV'>Services</option>
@@ -74,6 +86,10 @@ export default function App() {
             <a href={`${BACKEND_URL}/api/factures/${f.id}/fichier?annee=${f.annee}`} target='_blank' rel='noreferrer'>
               Télécharger
             </a>
+            {" | "}
+            <button onClick={() => supprimerFacture(f.id)} style={{ color: "red", marginLeft: "10px" }}>
+              Supprimer
+            </button>
           </li>
         ))}
       </ul>
