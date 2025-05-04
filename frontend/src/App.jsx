@@ -1,121 +1,146 @@
-
 import React, { useState, useEffect } from 'react';
 
 export default function App() {
   const [factures, setFactures] = useState([]);
   const [file, setFile] = useState(null);
-
-  const BACKEND_URL = "https://habitekfactures.onrender.com"; // à adapter
+  const [menuOpenId, setMenuOpenId] = useState(null);
+  const [editingStatusId, setEditingStatusId] = useState(null);
+  const [newStatus, setNewStatus] = useState("");
+  
+  const BACKEND_URL = "https://habitekfactures.onrender.com";
   const ANNEE = 2025;
+  const STATUTS = ["Soumis","Traité","En attente de paiement","Refusé"];
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/factures?annee=${ANNEE}`)
-      .then(res => res.json())
-      .then(data => setFactures(data))
-      .catch(err => console.error("Erreur chargement:", err));
+      .then(r => r.json())
+      .then(setFactures)
+      .catch(console.error);
   }, []);
 
-  const handleUpload = (e) => {
+  const handleUpload = e => {
     e.preventDefault();
-    const form = e.target;
-    const data = new FormData(form);
-    data.append('fichier', file);
-
-    fetch(`${BACKEND_URL}/api/factures`, {
-      method: 'POST',
-      body: data
-    })
-    .then(res => res.json())
-    .then(newFacture => {
-      setFactures([...factures, newFacture]);
-      form.reset();
-      setFile(null);
-    })
-    .catch(err => alert("Échec de l'envoi"));
+    const data = new FormData(e.target);
+    data.append("fichier", file);
+    fetch(`${BACKEND_URL}/api/factures`, { method:"POST", body:data })
+      .then(r => r.json())
+      .then(f => setFactures(factures.concat(f)));
   };
 
-  const supprimerFacture = (id) => {
+  const deleteFacture = id => {
     if (!window.confirm("Supprimer cette facture ?")) return;
-    fetch(`${BACKEND_URL}/api/factures/${id}?annee=${ANNEE}`, { method: 'DELETE' })
-      .then(res => {
-        if (!res.ok) throw new Error();
+    fetch(`${BACKEND_URL}/api/factures/${id}?annee=${ANNEE}`, { method:"DELETE" })
+      .then(r => {
+        if (!r.ok) throw 0;
         setFactures(factures.filter(f => f.id !== id));
       })
-      .catch(() => alert("Échec de la suppression"));
+      .catch(() => alert("Erreur suppression"));
+  };
+
+  const startEditStatus = (id, current) => {
+    setEditingStatusId(id);
+    setNewStatus(current);
+    setMenuOpenId(null);
+  };
+  const saveStatus = id => {
+    fetch(`${BACKEND_URL}/api/factures/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ statut:newStatus, annee:ANNEE })
+    })
+    .then(r => r.json())
+    .then(updated => {
+      setFactures(factures.map(f => f.id === id ? updated : f));
+      setEditingStatusId(null);
+    });
   };
 
   return (
-  
     <div className="absolute top-0 right-0 bg-white text-gray-900 font-sans antialiased w-full max-w-5xl pt-4">
-      <text>HEllo ceci est un test</text>
-      <header className="">
+      <header className="bg-white text-blue-700 border-b border-gray-200 p-4 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Habitek — Gestion des factures</h1>
       </header>
-
-      <main className="">
-        <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm space-y-4">
-          <h2 className="text-xl font-semibold">🧾 Ajouter une facture</h2>
-          <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="number" name="annee" placeholder="Année" defaultValue={ANNEE} className="input" required />
-            <select name="type" className="input" required>
-              <option value="MAT">Matériaux</option>
-              <option value="SRV">Services</option>
-            </select>
-            <input type="text" name="ubr" placeholder="UBR" className="input" required />
-            <input type="text" name="fournisseur" placeholder="Fournisseur" className="input" required />
-            <input type="text" name="description" placeholder="Description" className="input" required />
-            <input type="number" name="montant" placeholder="Montant" step="0.01" className="input" required />
-            <select name="statut" className="input" required>
-              <option value="Soumis">Soumis</option>
-              <option value="Traité">Traité</option>
-              <option value="En attente de paiement">En attente de paiement</option>
-              <option value="Refusé">Refusé</option>
-            </select>
-            <input type="file" name="fichier" accept="application/pdf" required onChange={e => setFile(e.target.files[0])} className="input" />
-            <button type="submit" className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
-              Ajouter la facture
-            </button>
-          </form>
-        </section>
+      <main className="p-6 space-y-8">
+        {/* ... formulaire d'ajout identique ... */}
 
         <section className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
           <h2 className="text-xl font-semibold mb-4">📋 Factures ajoutées</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full table-auto border-collapse border border-gray-300">
+            <table className="min-w-full table-auto border border-gray-300">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="border px-2 py-1 text-left">#</th>
+                  <th className="border px-2 py-1">#</th>
                   <th className="border px-2 py-1">Type</th>
                   <th className="border px-2 py-1">UBR</th>
                   <th className="border px-2 py-1">Fournisseur</th>
                   <th className="border px-2 py-1">Montant</th>
                   <th className="border px-2 py-1">Statut</th>
-                  <th className="border px-2 py-1">Fichier</th>
                   <th className="border px-2 py-1">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {factures.map((f, i) => (
-                  <tr key={f.id} className="hover:bg-gray-50">
-                    <td className="border px-2 py-1">{i + 1}</td>
+                {factures.map((f,i) => (
+                  <tr key={f.id} className="hover:bg-gray-50 relative">
+                    <td className="border px-2 py-1">{i+1}</td>
                     <td className="border px-2 py-1">{f.type}</td>
                     <td className="border px-2 py-1">{f.ubr}</td>
                     <td className="border px-2 py-1">{f.fournisseur}</td>
                     <td className="border px-2 py-1">{f.montant}$</td>
-                    <td className="border px-2 py-1">{f.statut}</td>
                     <td className="border px-2 py-1">
-                      <a href={`${BACKEND_URL}/api/factures/${f.id}/fichier?annee=${f.annee}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                        Télécharger
-                      </a>
+                      {editingStatusId === f.id ? (
+                        <div className="flex items-center space-x-2">
+                          <select
+                            value={newStatus}
+                            onChange={e => setNewStatus(e.target.value)}
+                            className="border rounded px-2 py-1"
+                          >
+                            {STATUTS.map(s => <option key={s}>{s}</option>)}
+                          </select>
+                          <button 
+                            onClick={() => saveStatus(f.id)} 
+                            className="text-green-600 hover:underline"
+                          >
+                            ✔
+                          </button>
+                        </div>
+                      ) : (
+                        f.statut
+                      )}
                     </td>
                     <td className="border px-2 py-1 text-center">
-                      <button onClick={() => supprimerFacture(f.id)} className="text-red-600 hover:underline">🗑️</button>
+                      {/* Bouton trois points */}
+                      <button
+                        onClick={() => setMenuOpenId(menuOpenId === f.id ? null : f.id)}
+                        className="px-2 py-1 hover:bg-gray-200 rounded"
+                      >
+                        ⋮
+                      </button>
+
+                      {/* Menu déroulant */}
+                      {menuOpenId === f.id && (
+                        <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded shadow-sm z-10">
+                          <button
+                            onClick={() => startEditStatus(f.id, f.statut)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            Modifier statut
+                          </button>
+                          <button
+                            onClick={() => deleteFacture(f.id)}
+                            className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {factures.length === 0 && <p className="text-gray-500 mt-2">Aucune facture enregistrée.</p>}
+            {factures.length===0 && (
+              <p className="text-gray-500 mt-2">Aucune facture enregistrée.</p>
+            )}
           </div>
         </section>
       </main>

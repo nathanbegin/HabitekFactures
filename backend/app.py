@@ -105,6 +105,33 @@ def delete_facture(id):
     return jsonify({"message": "Facture supprimée"}), 200
 
 
+@app.route("/api/factures/<int:id>", methods=["PUT"])
+def update_facture(id):
+    data = request.get_json()
+    annee = data.get("annee") or datetime.now().year
+    conn = get_connection(annee)
+
+    # Construire dynamiquement la requête UPDATE selon les champs fournis
+    allowed = ["type","ubr","fournisseur","description","montant","statut"]
+    fields = []
+    values = []
+    for key in allowed:
+        if key in data:
+            fields.append(f"{key} = ?")
+            values.append(data[key])
+    if not fields:
+        conn.close()
+        return jsonify({"error": "Aucun champ à mettre à jour"}), 400
+
+    values.append(id)
+    sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = ?"
+    conn.execute(sql, values)
+    conn.commit()
+
+    facture = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
+    conn.close()
+    return jsonify(dict(facture))
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
