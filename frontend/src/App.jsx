@@ -6,19 +6,25 @@ import logo from './Logo Habitek_WEB_Transparent-06.png';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
 const API_URL = import.meta.env.VITE_API_URL || 'https://habitekfactures.onrender.com';
-const SOCKET_URL = `${API_URL.replace('https', 'wss')}/`; // URL WebSocket
+const SOCKET_URL = `${API_URL.replace('https', 'wss')}`; // URL WebSocket
 
 function App() {
   const [factures, setFactures] = useState([]);
   const [annee, setAnnee] = useState(new Date().getFullYear());
+  const [clientCount, setClientCount] = useState(0);
 
   useEffect(() => {
     fetchFactures();
+
     // Connexion WebSocket
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    const socket = io(SOCKET_URL, { path: '/socket.io', transports: ['websocket'] });
 
     socket.on('connect', () => {
-      console.log('Connecté au WebSocket');
+      console.log('Connecté au WebSocket :', socket.id);
+    });
+
+    socket.on('client_count', (count) => {
+      setClientCount(count);
     });
 
     socket.on('new_facture', (newFacture) => {
@@ -35,11 +41,10 @@ function App() {
       );
     });
 
-    socket.on('disconnect', () => {
-      console.log('Déconnecté du WebSocket');
+    socket.on('disconnect', (reason) => {
+      console.log('Déconnecté du WebSocket :', reason);
     });
 
-    // Nettoyage de la connexion WebSocket
     return () => {
       socket.disconnect();
     };
@@ -63,7 +68,7 @@ function App() {
       await fetch(`${API_URL}/api/factures`, { method: 'POST', body: formData });
       // Pas besoin de recharger manuellement, le WebSocket s'en charge
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de la facture:', error);
+      console.error('Erreur lors de l\u2019ajout de la facture:', error);
     }
   };
 
@@ -90,12 +95,19 @@ function App() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="relative container mx-auto p-4">
+      {/* Logo Habitek en haut à gauche */}
       <img
         src={logo}
         alt="Logo Habitek"
         className="absolute top-4 left-4 w-32 h-auto"
       />
+
+      {/* Nombre de clients connectés en temps réel */}
+      <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
+        <span className="font-medium">Clients en ligne :</span> {clientCount}
+      </div>
+
       <h1 className="text-2xl font-bold mb-4 text-blue-600">Habitek — Gestion des factures</h1>
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
@@ -110,3 +122,4 @@ function App() {
 }
 
 export default App;
+
