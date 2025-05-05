@@ -145,13 +145,17 @@ from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import os
 import sqlite3
+import eventlet
+
 from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
+eventlet.monkey_patch()
 # Initialisation de SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+
 
 UPLOAD_FOLDER = "backend/uploads"
 DB_FOLDER = "backend/databases"
@@ -312,6 +316,8 @@ def update_facture(id):
     return jsonify(dict(facture))
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    #port = int(os.environ.get("PORT", 5000))
     # Allow Werkzeug despite production warning
-    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=port)
+
+
