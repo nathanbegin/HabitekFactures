@@ -15,6 +15,7 @@ function TableFactures({ factures, onDelete, onUpdate }) {
       const blob = await response.blob();
       // 2. On lit le header Content-Disposition pour l'extraire
       const disposition = response.headers.get('Content-Disposition');
+      console.log('Content-Disposition:', disposition);
       let filename = `facture-${id}.pdf`; // fallback
       if (disposition) {
         const match = disposition.match(/filename="?(.+?)"?($|;)/);
