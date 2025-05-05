@@ -16,6 +16,11 @@ CORS(app)
 # Initialisation de SocketIO en mode eventlet
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
+@socketio.on('connect')
+def on_connect():
+    print(f"🔌 Client connecté : {request.sid}")
+
+
 UPLOAD_FOLDER = "backend/uploads"
 DB_FOLDER = "backend/databases"
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "schema.sql")
