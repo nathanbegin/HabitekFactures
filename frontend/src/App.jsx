@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './index.css';
-
 
 export default function App() {
   const [factures, setFactures]               = useState([]);
@@ -50,6 +48,7 @@ export default function App() {
     setNewStatus(current);
     setMenuOpen({ id: null, x: 0, y: 0 });
   };
+
   const saveStatus = id => {
     fetch(`${BACKEND_URL}/api/factures/${id}`, {
       method: "PUT",
@@ -73,6 +72,7 @@ export default function App() {
         : { id, x: rect.left + rect.width / 2, y: rect.bottom + 8 }
     );
   };
+
   const closeMenu = () => setMenuOpen({ id: null, x: 0, y: 0 });
 
   return (
@@ -92,11 +92,16 @@ export default function App() {
               <span className="text-xl">🧾</span>
               <span>Ajouter une facture</span>
             </h2>
+
+            {/* Formulaire avec bouton submit */}
             <form onSubmit={handleUpload} className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
-                type="number" name="annee" defaultValue={ANNEE}
+                type="number"
+                name="annee"
+                defaultValue={ANNEE}
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Année" required
+                placeholder="Année"
+                required
               />
               <select
                 name="type"
@@ -107,24 +112,33 @@ export default function App() {
                 <option value="SRV">Services</option>
               </select>
               <input
-                type="text" name="ubr"
+                type="text"
+                name="ubr"
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="UBR" required
+                placeholder="UBR"
+                required
               />
               <input
-                type="text" name="fournisseur"
+                type="text"
+                name="fournisseur"
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Fournisseur" required
+                placeholder="Fournisseur"
+                required
               />
               <input
-                type="text" name="description"
+                type="text"
+                name="description"
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Description" required
+                placeholder="Description"
+                required
               />
               <input
-                type="number" name="montant" step="0.01"
+                type="number"
+                name="montant"
+                step="0.01"
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Montant" required
+                placeholder="Montant"
+                required
               />
               <select
                 name="statut"
@@ -136,20 +150,22 @@ export default function App() {
                 ))}
               </select>
               <input
-                type="file" name="fichier" accept="application/pdf"
+                type="file"
+                name="fichier"
+                accept="application/pdf"
                 onChange={e => setFile(e.target.files[0])}
                 className="border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 required
               />
+
+              {/* BOUTON SUBMIT DANS LE FORM */}
+              <button
+                type="submit"
+                className="col-span-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-b-lg transition"
+              >
+                Ajouter la facture
+              </button>
             </form>
-          </div>
-          <div className="px-6 pb-6">
-            <button
-              onClick={handleUpload}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-b-lg transition"
-            >
-              Ajouter la facture
-            </button>
           </div>
         </div>
 
@@ -175,7 +191,7 @@ export default function App() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {factures.map((f, i) => (
                   <tr key={f.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-700">{i+1}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{i + 1}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{f.type}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{f.ubr}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{f.fournisseur}</td>
@@ -210,13 +226,14 @@ export default function App() {
             </table>
           </div>
 
-          {/* Overlay */}
+          {/* Overlay pour fermer le menu */}
           {menuOpen.id !== null && (
             <div
               className="fixed inset-0 bg-black bg-opacity-25 z-40"
               onClick={closeMenu}
             />
           )}
+
           {/* Pop-up menu */}
           {menuOpen.id !== null && (
             <div
@@ -224,7 +241,7 @@ export default function App() {
               style={{ top: menuOpen.y, left: menuOpen.x }}
             >
               <button
-                onClick={() => startEditStatus(menuOpen.id, factures.find(f=>f.id===menuOpen.id).statut)}
+                onClick={() => startEditStatus(menuOpen.id, factures.find(f => f.id === menuOpen.id).statut)}
                 className="block w-32 text-left px-4 py-2 text-sm hover:bg-gray-100"
               >
                 Modifier statut
