@@ -11,7 +11,15 @@ import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(
+  app,
+  resources={
+    r"/api/factures/*": {
+      "origins": "*",
+      "expose_headers": ["Content-Disposition"]
+    }
+  }
+)
 
 # Initialisation de SocketIO en mode eventlet
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
