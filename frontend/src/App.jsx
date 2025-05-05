@@ -94,7 +94,7 @@ function App() {
       <img
         src={logo}
         alt="Logo Habitek"
-        className="absolute top-4 left-4 w-48 h-auto"
+        className="absolute top-4 left-4 w-32 h-auto"
       />
       <h1 className="text-2xl font-bold mb-4 text-blue-600">Habitek — Gestion des factures</h1>
       <div className="bg-white p-6 rounded-lg shadow-md">
