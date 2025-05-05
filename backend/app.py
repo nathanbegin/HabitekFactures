@@ -4,7 +4,7 @@ eventlet.monkey_patch()
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
 import sqlite3
@@ -15,10 +15,24 @@ CORS(app)
 
 # Initialisation de SocketIO en mode eventlet
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+# 1. compteur global du nombre de client connectés par WS
+client_count = 0
 
 @socketio.on('connect')
 def on_connect():
     print(f"🔌 Client connecté : {request.sid}")
+def handle_connect():
+    global client_count
+    client_count += 1
+    print(f"🔌 Client connecté: {request.sid} — total = {client_count}")
+    # 3. émettre à tous les clients le nouveau compteur
+    emit('client_count', client_count, broadcast=True)
+@socketio.on('disconnect')
+def handle_disconnect():
+    global client_count
+    client_count -= 1
+    print(f"❌ Client déconnecté: {request.sid} — total = {client_count}")
+    emit('client_count', client_count, broadcast=True)
 
 
 UPLOAD_FOLDER = "backend/uploads"
