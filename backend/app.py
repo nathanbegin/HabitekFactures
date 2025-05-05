@@ -5,6 +5,7 @@ eventlet.monkey_patch()
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from decimal import Decimal
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -43,7 +44,7 @@ def handle_disconnect():
     print(f"❌ Client déconnecté: {request.sid} — total = {client_count}")
     socketio.emit('client_count', client_count)
 
-# URL de connexion PostgreSQL fournie par Render (Environment → DATABASE_URL)
+# URL de connexion PostgreSQL fournie par Render
 DATABASE_URL = os.environ['DATABASE_URL']
 
 def get_connection():
@@ -79,6 +80,9 @@ def init_db_postgres():
     cur.close()
     conn.close()
 
+# Initialisation de la table à chaque démarrage
+init_db_postgres()
+
 # Dossier de stockage des fichiers uploadés
 UPLOAD_FOLDER = "backend/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -92,6 +96,7 @@ def home():
 def get_factures():
     """
     Récupère toutes les factures pour l'année demandée.
+    Convertit les Decimal en float pour JSON.
     """
     annee = request.args.get("annee", datetime.now().year)
     conn = get_connection()
@@ -103,17 +108,23 @@ def get_factures():
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return jsonify(rows)
+
+    # Conversion Decimal → float
+    result = [
+        {k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()}
+        for row in rows
+    ]
+    return jsonify(result)
 
 @app.route("/api/factures", methods=["POST"])
 def upload_facture():
     """
     Upload et insertion d'une nouvelle facture :
-      1. Vérifie la présence du fichier et des champs requis.
-      2. Génère un nom de fichier sécurisé.
-      3. Sauvegarde le fichier sur disque.
-      4. Insère la facture en DB avec RETURNING *.
-      5. Émet l’événement 'new_facture' à tous les clients.
+    - Vérifie la présence du fichier et des champs requis.
+    - Génère un nom de fichier sécurisé.
+    - Sauvegarde le fichier sur disque.
+    - Insère la facture en DB avec RETURNING *.
+    - Émet l’événement 'new_facture' à tous les clients.
     """
     file = request.files.get("fichier")
     if not file:
@@ -124,7 +135,7 @@ def upload_facture():
     if not annee:
         return jsonify({"error": "Champ 'annee' manquant"}), 400
 
-    # Nom de fichier sécurisé
+    # Préparation du nom de fichier
     ext = os.path.splitext(file.filename)[1] or ".pdf"
     filename = secure_filename(
         f"{annee}-{data.get('type')}-{data.get('ubr')}-"
@@ -141,9 +152,10 @@ def upload_facture():
         "SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s",
         (annee, data.get("type"))
     )
-    numero = cur.fetchone()['count'] + 1
+    count = cur.fetchone()['count']
+    numero = count + 1
 
-    # Insertion et récupération de la ligne insérée
+    # Insertion en base et récupération de la nouvelle ligne
     sql = """
         INSERT INTO factures (
             annee, type, ubr, fournisseur,
@@ -173,6 +185,11 @@ def upload_facture():
     conn.commit()
     cur.close()
     conn.close()
+
+    # Conversion Decimal → float avant émission
+    for k, v in new_facture.items():
+        if isinstance(v, Decimal):
+            new_facture[k] = float(v)
 
     socketio.emit('new_facture', new_facture)
     return jsonify(new_facture), 201
@@ -217,7 +234,7 @@ def delete_facture(id):
         if os.path.exists(path):
             os.remove(path)
 
-    # Suppression de la ligne en base
+    # Suppression en base
     cur.execute("DELETE FROM factures WHERE id = %s", (id,))
     conn.commit()
     cur.close()
@@ -255,13 +272,15 @@ def update_facture(id):
     cur.close()
     conn.close()
 
+    # Conversion Decimal → float
+    for k, v in updated.items():
+        if isinstance(v, Decimal):
+            updated[k] = float(v)
+
     socketio.emit('update_facture', updated)
     return jsonify(updated), 200
 
 if __name__ == '__main__':
-    # Initialisation de la table si nécessaire
-    init_db_postgres()
-
     port = int(os.environ.get("PORT", 5000))
-    # Autoriser Werkzeug malgré l’avertissement de prod
+    # Autoriser Werkzeug malgré l’avertissement de production
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
