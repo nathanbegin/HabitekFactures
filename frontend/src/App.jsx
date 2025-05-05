@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import FormFacture from './components/FormFacture';
 import TableFactures from './components/TableFactures';
+import { io } from 'socket.io-client';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
-const API_URL = import.meta.env.VITE_API_URL || 'https://habitekfactures.onrender.com/';
+const API_URL = import.meta.env.VITE_API_URL || 'https://votre-backend-render.com';
+const SOCKET_URL = `${API_URL.replace('http', 'ws')}/`; // URL WebSocket
 
 function App() {
   const [factures, setFactures] = useState([]);
@@ -11,6 +13,35 @@ function App() {
 
   useEffect(() => {
     fetchFactures();
+    // Connexion WebSocket
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+
+    socket.on('connect', () => {
+      console.log('Connecté au WebSocket');
+    });
+
+    socket.on('new_facture', (newFacture) => {
+      setFactures((prev) => [newFacture, ...prev]);
+    });
+
+    socket.on('delete_facture', (data) => {
+      setFactures((prev) => prev.filter((f) => f.id !== data.id));
+    });
+
+    socket.on('update_facture', (updatedFacture) => {
+      setFactures((prev) =>
+        prev.map((f) => (f.id === updatedFacture.id ? updatedFacture : f))
+      );
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Déconnecté du WebSocket');
+    });
+
+    // Nettoyage de la connexion WebSocket
+    return () => {
+      socket.disconnect();
+    };
   }, [annee]);
 
   const fetchFactures = async () => {
@@ -25,11 +56,11 @@ function App() {
 
   const addFacture = async (factureData) => {
     const formData = new FormData();
-    Object.keys(factureData).forEach(key => formData.append(key, factureData[key]));
+    Object.keys(factureData).forEach((key) => formData.append(key, factureData[key]));
     formData.append('fichier', factureData.fichier);
     try {
       await fetch(`${API_URL}/api/factures`, { method: 'POST', body: formData });
-      fetchFactures();
+      // Pas besoin de recharger manuellement, le WebSocket s'en charge
     } catch (error) {
       console.error('Erreur lors de l\'ajout de la facture:', error);
     }
@@ -38,7 +69,7 @@ function App() {
   const deleteFacture = async (id) => {
     try {
       await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
-      fetchFactures();
+      // Pas besoin de recharger manuellement, le WebSocket s'en charge
     } catch (error) {
       console.error('Erreur lors de la suppression de la facture:', error);
     }
@@ -49,9 +80,9 @@ function App() {
       await fetch(`${API_URL}/api/factures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...updatedData, annee })
+        body: JSON.stringify({ ...updatedData, annee }),
       });
-      fetchFactures();
+      // Pas besoin de recharger manuellement, le WebSocket s'en charge
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la facture:', error);
     }
