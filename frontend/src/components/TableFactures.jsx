@@ -3,19 +3,42 @@ function TableFactures({ factures, onDelete, onUpdate }) {
 
   const downloadFile = async (id, annee) => {
     try {
-      const response = await fetch(`${API_URL}/api/factures/${id}/fichier?annee=${annee}`);
+      const response = await fetch(
+        `${API_URL}/api/factures/${id}/fichier?annee=${annee}`
+      );
+  
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+  
+      // 1. On récupère le blob
       const blob = await response.blob();
+      // 2. On lit le header Content-Disposition pour l'extraire
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `facture-${id}.pdf`; // fallback
+      if (disposition) {
+        const match = disposition.match(/filename="?(.+?)"?($|;)/);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+      }
+  
+      // 3. Création du lien de téléchargement avec le bon nom
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `facture-${id}.pdf`; // Ajustez selon le type de fichier
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      // 4. Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+  
     } catch (error) {
-      console.error('Erreur lors du téléchargement du fichier:', error);
+      console.error("Erreur lors du téléchargement du fichier :", error);
     }
   };
+  
 
   return (
     <table className="w-full text-left border-collapse">
