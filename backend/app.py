@@ -143,11 +143,12 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
-import os
-import sqlite3
+
 import eventlet
 eventlet.monkey_patch()
 
+import os
+import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
