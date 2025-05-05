@@ -1,5 +1,5 @@
 import eventlet
-# Appliquer le monkey-patch d’Eventlet AVANT tout autre import
+# Appliquer le monkey-patch d’Eventlet avant tout autre import
 eventlet.monkey_patch()
 
 import os
@@ -14,7 +14,7 @@ from datetime import datetime
 # Création de l’application Flask
 app = Flask(__name__)
 
-# Configuration CORS pour exposer Content-Disposition sur nos endpoints de factures
+# Configuration CORS pour exposer Content-Disposition sur les endpoints de factures
 CORS(
     app,
     resources={ r"/api/factures/*": {
@@ -23,7 +23,7 @@ CORS(
     }}
 )
 
-# Initialisation de SocketIO en mode eventlet
+# Initialisation de Flask-SocketIO en mode eventlet
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 # Compteur global du nombre de clients WebSocket connectés
@@ -49,10 +49,35 @@ DATABASE_URL = os.environ['DATABASE_URL']
 def get_connection():
     """
     Ouvre et retourne une connexion psycopg2 vers PostgreSQL,
-    en forçant SSL (sslmode='require') et
-    avec RealDictCursor pour fetch* renvoyant des dicts.
+    en forçant SSL et en utilisant RealDictCursor.
     """
     return psycopg2.connect(DATABASE_URL, sslmode='require')
+
+def init_db_postgres():
+    """
+    Crée la table factures si elle n'existe pas déjà.
+    """
+    ddl = """
+    CREATE TABLE IF NOT EXISTS factures (
+      id          SERIAL      PRIMARY KEY,
+      annee       INTEGER     NOT NULL,
+      type        TEXT,
+      ubr         TEXT,
+      fournisseur TEXT,
+      description TEXT,
+      montant     NUMERIC,
+      statut      TEXT,
+      fichier_nom TEXT,
+      numero      INTEGER,
+      date_ajout  TIMESTAMP
+    );
+    """
+    conn = get_connection()
+    cur  = conn.cursor()
+    cur.execute(ddl)
+    conn.commit()
+    cur.close()
+    conn.close()
 
 # Dossier de stockage des fichiers uploadés
 UPLOAD_FOLDER = "backend/uploads"
@@ -70,7 +95,7 @@ def get_factures():
     """
     annee = request.args.get("annee", datetime.now().year)
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur  = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         "SELECT * FROM factures WHERE annee = %s ORDER BY id DESC",
         (annee,)
@@ -87,7 +112,7 @@ def upload_facture():
       1. Vérifie la présence du fichier et des champs requis.
       2. Génère un nom de fichier sécurisé.
       3. Sauvegarde le fichier sur disque.
-      4. Insère la facture en DB avec RETURNING * pour récupérer la ligne.
+      4. Insère la facture en DB avec RETURNING *.
       5. Émet l’événement 'new_facture' à tous les clients.
     """
     file = request.files.get("fichier")
@@ -100,23 +125,25 @@ def upload_facture():
         return jsonify({"error": "Champ 'annee' manquant"}), 400
 
     # Nom de fichier sécurisé
+    ext = os.path.splitext(file.filename)[1] or ".pdf"
     filename = secure_filename(
-        f"{annee}-{data.get('type')}-{data.get('ubr')}-{data.get('fournisseur')}-{datetime.now().strftime('%Y%m%d%H%M%S')}{os.path.splitext(file.filename)[1] or '.pdf'}"
+        f"{annee}-{data.get('type')}-{data.get('ubr')}-"
+        f"{data.get('fournisseur')}-{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
     )
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur  = conn.cursor(cursor_factory=RealDictCursor)
 
-    # Calcul du numéro séquentiel pour ce type / année
+    # Calcul du numéro séquentiel
     cur.execute(
         "SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s",
         (annee, data.get("type"))
     )
     numero = cur.fetchone()['count'] + 1
 
-    # Insertion en DB et récupération de la ligne insérée
+    # Insertion et récupération de la ligne insérée
     sql = """
         INSERT INTO factures (
             annee, type, ubr, fournisseur,
@@ -153,10 +180,10 @@ def upload_facture():
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 def get_file(id):
     """
-    Téléchargement du fichier d'une facture par son ID.
+    Téléchargement du fichier d'une facture par ID.
     """
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur  = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT fichier_nom FROM factures WHERE id = %s", (id,))
     row = cur.fetchone()
     cur.close()
@@ -176,7 +203,7 @@ def delete_facture(id):
     Suppression d'une facture et de son fichier associé.
     """
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur  = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT fichier_nom FROM factures WHERE id = %s", (id,))
     row = cur.fetchone()
     if not row:
@@ -184,13 +211,13 @@ def delete_facture(id):
         conn.close()
         return jsonify({"error": "Facture non trouvée"}), 404
 
-    # Suppression du fichier sur disque
+    # Suppression du fichier physique
     if row['fichier_nom']:
         path = os.path.join(app.config["UPLOAD_FOLDER"], row['fichier_nom'])
         if os.path.exists(path):
             os.remove(path)
 
-    # Suppression de la ligne DB
+    # Suppression de la ligne en base
     cur.execute("DELETE FROM factures WHERE id = %s", (id,))
     conn.commit()
     cur.close()
@@ -206,7 +233,7 @@ def update_facture(id):
     """
     data = request.get_json() or {}
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur  = conn.cursor(cursor_factory=RealDictCursor)
 
     allowed = ["type", "ubr", "fournisseur", "description", "montant", "statut"]
     fields, values = [], []
@@ -232,6 +259,9 @@ def update_facture(id):
     return jsonify(updated), 200
 
 if __name__ == '__main__':
+    # Initialisation de la table si nécessaire
+    init_db_postgres()
+
     port = int(os.environ.get("PORT", 5000))
-    # Autoriser Werkzeug en développement/staging
+    # Autoriser Werkzeug malgré l’avertissement de prod
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
