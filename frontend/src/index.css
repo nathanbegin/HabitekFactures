@@ -2,46 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Card */
+/* Custom utilities */
+.input {
+  @apply border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:border-blue-500;
+}
+.btn-primary {
+  @apply w-full bg-blue-600 text-white font-medium py-2 rounded-b-lg hover:bg-blue-700 transition;
+}
 .card {
   @apply bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden;
 }
 .card-content {
   @apply px-6 py-4;
 }
-
-/* Input et select */
-.input {
-  @apply border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:border-blue-500;
-}
-
-/* Bouton principal */
-.btn-primary {
-  @apply w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-b-lg transition;
-}
-
-/* Tableau épuré */
 .table {
   @apply min-w-full divide-y divide-gray-200;
 }
 .table th,
 .table td {
-  @apply px-4 py-2 text-left text-sm text-gray-700;
+  @apply px-4 py-2 text-sm text-gray-700;
 }
 .table thead th {
   @apply text-xs font-medium text-gray-500 uppercase bg-gray-50;
 }
-
-/* Overlay & popup */
 .overlay {
   @apply fixed inset-0 bg-black bg-opacity-25 z-40;
 }
 .popup-menu {
   @apply fixed bg-white border border-gray-200 rounded-md shadow-lg z-50;
 }
-
-/* Bouton menu */
 .menu-button {
   @apply text-gray-500 hover:text-gray-700 px-2 py-1 rounded;
 }
-body { background-color: hotpink !important; }
