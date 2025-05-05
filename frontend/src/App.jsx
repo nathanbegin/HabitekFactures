@@ -194,7 +194,7 @@ export default function App() {
                 style={{
                   top:   menuOpen.y,
                   left:  menuOpen.x,
-                  transform: 'translate(-50%, 0)'
+                  // transform: 'translate(-50%, 0)'
                 }}
               >
                 <button
