@@ -95,27 +95,38 @@ function App() {
   };
 
   return (
-    <div className="relative container mx-auto p-4">
-      {/* Logo Habitek en haut à gauche */}
-      <img
-        src={logo}
-        alt="Logo Habitek"
-        className="absolute top-4 left-4 w-32 h-auto"
-      />
-
-      {/* Nombre de clients connectés en temps réel */}
-      <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
-        <span className="font-medium">Clients en ligne :</span> {clientCount}
+    <div className="container mx-auto p-4">
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <img
+            src={logo}
+            alt="Logo Habitek"
+            className="w-32 h-auto mr-4"
+          />
+          <h1 className="text-2xl font-bold text-blue-600">
+            Habitek — Gestion des factures
+          </h1>
+        </div>
+        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+          Clients en ligne&nbsp;: {clientCount}
+        </div>
       </div>
 
-      <h1 className="text-2xl font-bold mb-4 text-blue-600">Habitek — Gestion des factures</h1>
+      {/* FORMULAIRE D'AJOUT */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
         <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
       </div>
+
+      {/* TABLEAU DES FACTURES */}
       <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
-        <TableFactures factures={factures} onDelete={deleteFacture} onUpdate={updateFacture} />
+        <TableFactures
+          factures={factures}
+          onDelete={deleteFacture}
+          onUpdate={updateFacture}
+        />
       </div>
     </div>
   );
