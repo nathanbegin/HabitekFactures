@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import FormFacture from './components/FormFacture';
 import TableFactures from './components/TableFactures';
 import { io } from 'socket.io-client';
+import logo from './Logo Habitek_WEB_Transparent-06.png';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
 const API_URL = import.meta.env.VITE_API_URL || 'https://habitekfactures.onrender.com';
@@ -90,6 +91,11 @@ function App() {
 
   return (
     <div className="container mx-auto p-4">
+      <img
+        src={logo}
+        alt="Logo Habitek"
+        className="absolute top-4 right-4 w-16 h-auto"
+      />
       <h1 className="text-2xl font-bold mb-4 text-blue-600">Habitek — Gestion des factures</h1>
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
