@@ -15,18 +15,18 @@ CORS(app)
 
 # Initialisation de SocketIO en mode eventlet
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
-# 1. compteur global du nombre de client connectés par WS
+
+# Compteur global du nombre de clients connectés
 client_count = 0
 
 @socketio.on('connect')
-def on_connect():
-    print(f"🔌 Client connecté : {request.sid}")
 def handle_connect():
     global client_count
     client_count += 1
     print(f"🔌 Client connecté: {request.sid} — total = {client_count}")
-    # 3. émettre à tous les clients le nouveau compteur
+    # Broadcast updated client count
     emit('client_count', client_count, broadcast=True)
+
 @socketio.on('disconnect')
 def handle_disconnect():
     global client_count
@@ -34,11 +34,11 @@ def handle_disconnect():
     print(f"❌ Client déconnecté: {request.sid} — total = {client_count}")
     emit('client_count', client_count, broadcast=True)
 
-
 UPLOAD_FOLDER = "backend/uploads"
-DB_FOLDER = "backend/databases"
+DB_FOLDER     = "backend/databases"
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "schema.sql")
 
+# Création des dossiers si nécessaire
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DB_FOLDER, exist_ok=True)
@@ -78,37 +78,32 @@ def get_factures():
 @app.route("/api/factures", methods=["POST"])
 def upload_facture():
     file = request.files.get("fichier")
-    if file is None:
+    if not file:
         return jsonify({"error": "Aucun fichier envoyé"}), 400
+
     data = request.form
     annee = data.get("annee")
     if not annee:
         return jsonify({"error": "Champ 'annee' manquant"}), 400
-    conn = get_connection(annee)
 
-    count = conn.execute(
-        "SELECT COUNT(*) FROM factures WHERE type = ?", (data.get("type"),)
+    conn = get_connection(annee)
+    count  = conn.execute(
+        "SELECT COUNT(*) FROM factures WHERE type = ?",
+        (data.get("type"),)
     ).fetchone()[0]
     numero = count + 1
 
     filename = secure_filename(
-        f"{annee}-{data.get('type')}-{numero}-UBR-{data.get('ubr')}-{file.filename}"
+        f"{annee}-{data['type']}-{numero}-UBR-{data['ubr']}-{file.filename}"
     )
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
     sql = """
     INSERT INTO factures (
-        annee,
-        type,
-        ubr,
-        fournisseur,
-        description,
-        montant,
-        statut,
-        fichier_nom,
-        numero,
-        date_ajout
+        annee, type, ubr, fournisseur,
+        description, montant, statut,
+        fichier_nom, numero, date_ajout
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     params = (
@@ -126,11 +121,11 @@ def upload_facture():
     conn.execute(sql, params)
     conn.commit()
 
-    # Émettre un événement WebSocket pour notifier tous les clients
     new_facture = conn.execute(
         "SELECT * FROM factures WHERE id = last_insert_rowid()"
     ).fetchone()
-    socketio.emit('new_facture', dict(new_facture))
+    # Notifier tous les clients
+    socketio.emit('new_facture', dict(new_facture), broadcast=True)
     conn.close()
     return jsonify(dict(new_facture)), 201
 
@@ -159,13 +154,14 @@ def delete_facture(id):
         conn.close()
         return jsonify({"error": "Facture non trouvée"}), 404
 
+    # Supprimer le fichier
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], facture["fichier_nom"])
     if os.path.exists(filepath):
         os.remove(filepath)
 
     conn.execute("DELETE FROM factures WHERE id = ?", (id,))
     conn.commit()
-    socketio.emit('delete_facture', {'id': id})
+    socketio.emit('delete_facture', {'id': id}, broadcast=True)
     conn.close()
     return jsonify({"message": "Facture supprimée"}), 200
 
@@ -181,6 +177,7 @@ def update_facture(id):
         if key in data:
             fields.append(f"{key} = ?")
             values.append(data[key])
+
     if not fields:
         conn.close()
         return jsonify({"error": "Aucun champ à mettre à jour"}), 400
@@ -193,10 +190,11 @@ def update_facture(id):
     facture = conn.execute(
         "SELECT * FROM factures WHERE id = ?", (id,)
     ).fetchone()
-    socketio.emit('update_facture', dict(facture))
+    socketio.emit('update_facture', dict(facture), broadcast=True)
     conn.close()
     return jsonify(dict(facture)), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
+    # Autoriser Werkzeug malgré l’avertissement
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
