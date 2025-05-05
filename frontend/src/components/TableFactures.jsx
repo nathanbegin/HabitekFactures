@@ -37,7 +37,7 @@ function TableFactures({ factures, onDelete, onUpdate }) {
             <td className="p-2 border">{facture.type}</td>
             <td className="p-2 border">{facture.ubr}</td>
             <td className="p-2 border">{facture.fournisseur}</td>
-            <td className="p-2 border">{facture.montant}€</td>
+            <td className="p-2 border">{facture.montant}$</td>
             <td className="p-2 border">{facture.statut}</td>
             <td className="p-2 border">
               <button onClick={() => downloadFile(facture.id, facture.annee)} className="text-green-500 mr-2">Télécharger</button>
