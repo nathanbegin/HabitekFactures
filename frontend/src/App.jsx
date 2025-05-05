@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
 const API_URL = import.meta.env.VITE_API_URL || 'https://votre-backend-render.com';
-const SOCKET_URL = `${API_URL.replace('http', 'ws')}/`; // URL WebSocket
+const SOCKET_URL = `${API_URL.replace('https', 'wss')}/`; // URL WebSocket
 
 function App() {
   const [factures, setFactures] = useState([]);
