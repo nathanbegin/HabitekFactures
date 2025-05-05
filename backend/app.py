@@ -25,14 +25,14 @@ def handle_connect():
     client_count += 1
     print(f"🔌 Client connecté: {request.sid} — total = {client_count}")
     # Broadcast updated client count
-    emit('client_count', client_count, broadcast=True)
+    socketio.emit('client_count', client_count)
 
 @socketio.on('disconnect')
 def handle_disconnect():
     global client_count
     client_count -= 1
     print(f"❌ Client déconnecté: {request.sid} — total = {client_count}")
-    emit('client_count', client_count, broadcast=True)
+    socketio.emit('client_count', client_count)
 
 UPLOAD_FOLDER = "backend/uploads"
 DB_FOLDER     = "backend/databases"
@@ -125,7 +125,7 @@ def upload_facture():
         "SELECT * FROM factures WHERE id = last_insert_rowid()"
     ).fetchone()
     # Notifier tous les clients
-    socketio.emit('new_facture', dict(new_facture), broadcast=True)
+    socketio.emit('new_facture', dict(new_facture))
     conn.close()
     return jsonify(dict(new_facture)), 201
 
@@ -161,7 +161,7 @@ def delete_facture(id):
 
     conn.execute("DELETE FROM factures WHERE id = ?", (id,))
     conn.commit()
-    socketio.emit('delete_facture', {'id': id}, broadcast=True)
+    socketio.emit('delete_facture', {'id': id})
     conn.close()
     return jsonify({"message": "Facture supprimée"}), 200
 
@@ -190,7 +190,7 @@ def update_facture(id):
     facture = conn.execute(
         "SELECT * FROM factures WHERE id = ?", (id,)
     ).fetchone()
-    socketio.emit('update_facture', dict(facture), broadcast=True)
+    socketio.emit('update_facture', dict(facture))
     conn.close()
     return jsonify(dict(facture)), 200
 
