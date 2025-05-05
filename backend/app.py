@@ -139,9 +139,9 @@ if __name__ == '__main__':
 
  """
 
- from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import os
 import sqlite3
@@ -200,23 +200,50 @@ def upload_facture():
     annee = data["annee"]
     conn = get_connection(annee)
 
-    count = conn.execute("SELECT COUNT(*) FROM factures WHERE type=?", (data["type"],)).fetchone()[0]
+    count = conn.execute(
+        "SELECT COUNT(*) FROM factures WHERE type = ?", (data["type"],)
+    ).fetchone()[0]
     numero = count + 1
 
-    filename = secure_filename(f"{annee}-{data['type']}-{numero}-UBR-{data['ubr']}-{file.filename}")
+    filename = secure_filename(
+        f"{annee}-{data['type']}-{numero}-UBR-{data['ubr']}-{file.filename}"
+    )
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    conn.execute("""INSERT INTO factures 
-        (annee, type, ubr, fournisseur, description, montant, statut, fichier_nom, numero, date_ajout)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-        annee, data["type"], data["ubr"], data["fournisseur"], data["description"],
-        float(data["montant"]), data["statut"], filename, numero, datetime.now().isoformat()
-    ))
+    sql = """
+    INSERT INTO factures (
+        annee,
+        type,
+        ubr,
+        fournisseur,
+        description,
+        montant,
+        statut,
+        fichier_nom,
+        numero,
+        date_ajout
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    params = (
+        annee,
+        data["type"],
+        data["ubr"],
+        data["fournisseur"],
+        data["description"],
+        float(data["montant"]),
+        data["statut"],
+        filename,
+        numero,
+        datetime.now().isoformat()
+    )
+    conn.execute(sql, params)
     conn.commit()
 
     # Émettre un événement WebSocket pour notifier tous les clients
-    new_facture = conn.execute("SELECT * FROM factures WHERE id = last_insert_rowid()").fetchone()
+    new_facture = conn.execute(
+        "SELECT * FROM factures WHERE id = last_insert_rowid()"
+    ).fetchone()
     socketio.emit('new_facture', dict(new_facture))
     conn.close()
     return jsonify(dict(new_facture))
@@ -225,17 +252,23 @@ def upload_facture():
 def get_file(id):
     annee = request.args.get("annee", datetime.now().year)
     conn = get_connection(annee)
-    row = conn.execute("SELECT fichier_nom FROM factures WHERE id=?", (id,)).fetchone()
+    row = conn.execute(
+        "SELECT fichier_nom FROM factures WHERE id = ?", (id,)
+    ).fetchone()
     conn.close()
     if row:
-        return send_from_directory(app.config["UPLOAD_FOLDER"], row["fichier_nom"], as_attachment=True)
+        return send_from_directory(
+            app.config["UPLOAD_FOLDER"], row["fichier_nom"], as_attachment=True
+        )
     return "Fichier non trouvé", 404
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 def delete_facture(id):
     annee = request.args.get("annee", datetime.now().year)
     conn = get_connection(annee)
-    facture = conn.execute("SELECT * FROM factures WHERE id=?", (id,)).fetchone()
+    facture = conn.execute(
+        "SELECT * FROM factures WHERE id = ?", (id,)
+    ).fetchone()
     if not facture:
         conn.close()
         return jsonify({"error": "Facture non trouvée"}), 404
@@ -244,7 +277,7 @@ def delete_facture(id):
     if os.path.exists(filepath):
         os.remove(filepath)
 
-    conn.execute("DELETE FROM factures WHERE id=?", (id,))
+    conn.execute("DELETE FROM factures WHERE id = ?", (id,))
     conn.commit()
     socketio.emit('delete_facture', {'id': id})
     conn.close()
@@ -257,8 +290,7 @@ def update_facture(id):
     conn = get_connection(annee)
 
     allowed = ["type", "ubr", "fournisseur", "description", "montant", "statut"]
-    fields = []
-    values = []
+    fields, values = [], []
     for key in allowed:
         if key in data:
             fields.append(f"{key} = ?")
@@ -272,7 +304,9 @@ def update_facture(id):
     conn.execute(sql, values)
     conn.commit()
 
-    facture = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
+    facture = conn.execute(
+        "SELECT * FROM factures WHERE id = ?", (id,)
+    ).fetchone()
     socketio.emit('update_facture', dict(facture))
     conn.close()
     return jsonify(dict(facture))
