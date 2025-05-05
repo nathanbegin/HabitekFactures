@@ -4,7 +4,7 @@ import TableFactures from './components/TableFactures';
 import { io } from 'socket.io-client';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
-const API_URL = import.meta.env.VITE_API_URL || 'https://votre-backend-render.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://habitekfactures.onrender.com/';
 const SOCKET_URL = `${API_URL.replace('https', 'wss')}/`; // URL WebSocket
 
 function App() {
