@@ -11,6 +11,9 @@ function App() {
   const [factures,       setFactures]       = useState([]);
   const [annee,          setAnnee]          = useState(new Date().getFullYear());
   const [clientCount,    setClientCount]    = useState(0);
+  // New state for sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
 
   // États pour upload
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -110,7 +113,7 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 relative"> {/* Added relative positioning */}
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
@@ -119,10 +122,48 @@ function App() {
             Habitek — Gestion des factures
           </h1>
         </div>
-        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
-          Clients en ligne : {clientCount}
+        <div className="flex items-center"> {/* Container for client count and menu button */}
+          <div className="px-3 py-1 bg-gray-100 rounded-full text-sm mr-4"> {/* Added margin-right */}
+            Clients en ligne : {clientCount}
+          </div>
+          {/* Menu button (hamburger icon placeholder) */}
+          <button
+            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40" // Fixed position, covers screen, semi-transparent black, lower z-index
+          onClick={() => setIsSidebarOpen(false)} // Close sidebar on click outside
+        ></div>
+      )}
+
+
+      {/* Sidebar */}
+      <div
+        className={`fixed top-0 right-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 ${ // Fixed position, top-right, set width and height, shadow, transition, higher z-index
+          isSidebarOpen ? 'translate-x-0' : 'translate-x-full' // Translate based on state
+        }`}
+      >
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Menu</h2>
+          {/* Add your sidebar content here */}
+          <ul>
+            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 1</a></li>
+            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 2</a></li>
+            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 3</a></li>
+          </ul>
+        </div>
+      </div>
+
 
       {/* FORMULAIRE D'AJOUT */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
