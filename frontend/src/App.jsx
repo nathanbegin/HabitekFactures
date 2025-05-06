@@ -12,7 +12,7 @@ function App() {
   const [annee,          setAnnee]          = useState(new Date().getFullYear());
   const [clientCount,    setClientCount]    = useState(0);
 
-  // États upload
+  // États pour upload
   const [uploadProgress, setUploadProgress] = useState(null);
   const [timeLeft,       setTimeLeft]       = useState('');
 
@@ -32,20 +32,18 @@ function App() {
       const data = await res.json();
       setFactures(data);
     } catch (e) {
-      console.error(e);
+      console.error('Erreur fetch factures :', e);
     }
   }
 
   function addFacture(factureData) {
-    const files = factureData.fichiers;
+    const file = factureData.fichier;
     const formData = new FormData();
-    Object.keys(factureData).forEach(k => {
-      if (k !== 'fichiers') formData.append(k, factureData[k]);
-    });
-    files.forEach(f => formData.append('fichiers', f));
+    Object.keys(factureData).forEach(k => formData.append(k, factureData[k]));
+    formData.append('fichier', file);
 
     const startTime  = Date.now();
-    const totalBytes = files.reduce((sum,f)=>sum+f.size,0);
+    const totalBytes = file.size;
 
     setUploadProgress(0);
     setTimeLeft('');
@@ -56,20 +54,21 @@ function App() {
     xhr.upload.onprogress = e => {
       if (!e.lengthComputable) return;
       const loaded  = e.loaded;
-      const percent = Math.round((loaded*100)/e.total);
+      const percent = Math.round((loaded * 100) / e.total);
       setUploadProgress(percent);
 
       if (loaded >= e.total) {
-        setTimeLeft('0m  0s');
+        setTimeLeft('0m 0s');
         return;
       }
+
       const elapsedMs = Date.now() - startTime;
-      if (elapsedMs>0) {
-        const speed    = loaded/elapsedMs;
-        const remainMs = (totalBytes-loaded)/speed;
-        const secTotal = Math.max(Math.ceil(remainMs/1000),0);
-        const m        = Math.floor(secTotal/60);
-        const s        = secTotal%60;
+      if (elapsedMs > 0) {
+        const speed    = loaded / elapsedMs;
+        const remainMs = (totalBytes - loaded) / speed;
+        const secTotal = Math.max(Math.ceil(remainMs / 1000), 0);
+        const m        = Math.floor(secTotal / 60);
+        const s        = secTotal % 60;
         setTimeLeft(`${m}m ${s}s`);
       }
     };
@@ -77,29 +76,37 @@ function App() {
     xhr.onload = () => {
       setUploadProgress(null);
       setTimeLeft('');
-      if (!(xhr.status>=200&&xhr.status<300)) {
-        console.error('Échec upload',xhr.status);
+      if (!(xhr.status >= 200 && xhr.status < 300)) {
+        console.error('Upload failed:', xhr.status);
       }
     };
     xhr.onerror = () => {
       setUploadProgress(null);
       setTimeLeft('');
-      console.error('Erreur réseau');
+      console.error('Network error during upload');
     };
     xhr.send(formData);
   }
 
   async function deleteFacture(id) {
     if (!window.confirm("Supprimer cette facture ?")) return;
-    await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`,{method:'DELETE'});
+    try {
+      await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Erreur suppression :', e);
+    }
   }
 
-  async function updateFacture(id,data) {
-    await fetch(`${API_URL}/api/factures/${id}`,{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({...data,annee})
-    });
+  async function updateFacture(id, data) {
+    try {
+      await fetch(`${API_URL}/api/factures/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, annee })
+      });
+    } catch (e) {
+      console.error('Erreur mise à jour :', e);
+    }
   }
 
   return (
@@ -107,7 +114,7 @@ function App() {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
-          <img src={logo} alt="Logo" className="w-32 mr-4"/>
+          <img src={logo} alt="Logo Habitek" className="w-32 mr-4" />
           <h1 className="text-2xl font-bold text-blue-600">
             Habitek — Gestion des factures
           </h1>
@@ -117,17 +124,16 @@ function App() {
         </div>
       </div>
 
-      {/* AJOUT DE FACTURE */}
+      {/* FORMULAIRE D'AJOUT */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
-
-        {/* Barre de progression */}
+        {/* Barre de progression juste au-dessus */}
         {uploadProgress !== null && (
           <div className="mb-4">
             <div className="w-full bg-gray-200 rounded">
               <div
                 className="text-center text-white py-1 rounded bg-blue-500"
-                style={{ width:`${uploadProgress}%`, transition:'width 0.2s' }}
+                style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
               >
                 {uploadProgress}%
               </div>
@@ -137,7 +143,6 @@ function App() {
             </div>
           </div>
         )}
-
         <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
       </div>
 
