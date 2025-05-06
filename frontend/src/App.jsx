@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import logo from './Logo Habitek_WEB_Transparent-06.png';
 
 // Remplacez cette URL par celle de votre backend déployé sur Render
-const API_URL = import.meta.env.VITE_API_URL || 'https://habitekfactures.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 const SOCKET_URL = `${API_URL.replace('https', 'wss')}`; // URL WebSocket
 
 function App() {
