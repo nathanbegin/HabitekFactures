@@ -23,6 +23,10 @@ function App() {
       console.log('Connecté au WebSocket :', socket.id);
     });
 
+    socket.on('connect_error', (error) => {
+      console.error('WebSocket error:', error);
+    });
+
     socket.on('client_count', (count) => {
       setClientCount(count);
     });
