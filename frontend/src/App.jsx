@@ -8,10 +8,11 @@ const API_URL    = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.
 const SOCKET_URL = `${API_URL.replace('https', 'wss')}`;
 
 function App() {
-  const [factures,       setFactures]       = useState([]);
-  const [annee,          setAnnee]          = useState(new Date().getFullYear());
-  const [clientCount,    setClientCount]    = useState(0);
+  const [factures, setFactures]         = useState([]);
+  const [annee, setAnnee]               = useState(new Date().getFullYear());
+  const [clientCount, setClientCount]   = useState(0);
 
+<<<<<<< HEAD
   // États pour upload
   const [uploadProgress, setUploadProgress] = useState(null);
   const [timeLeft,       setTimeLeft]       = useState('');
@@ -24,6 +25,30 @@ function App() {
     socket.on('delete_facture', d  => setFactures(prev => prev.filter(f=>f.id!==d.id)));
     socket.on('update_facture', uf => setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)));
     return () => socket.disconnect();
+=======
+  // États pour l'upload
+  const [uploadProgress, setUploadProgress] = useState(null); // null = pas d'upload
+  const [timeLeft, setTimeLeft]             = useState('');   // mm:ss
+
+  useEffect(() => {
+    fetchFactures();
+
+    const socket = io(SOCKET_URL, {
+      path: '/socket.io',
+      transports: ['websocket']
+    });
+
+    socket.on('connect', () => {
+      console.log('Connecté au WebSocket :', socket.id);
+    });
+    socket.on('client_count', setClientCount);
+    socket.on('new_facture', newF => setFactures(prev => [newF, ...prev]));
+    socket.on('delete_facture', ({ id }) => setFactures(prev => prev.filter(f => f.id !== id)));
+    socket.on('update_facture', updated => setFactures(prev => prev.map(f => f.id === updated.id ? updated : f)));
+    socket.on('disconnect', reason => console.log('Déconnecté du WebSocket :', reason));
+
+    return () => { socket.disconnect(); };
+>>>>>>> parent of 582e8dd (Update App.jsx)
   }, [annee]);
 
   async function fetchFactures() {
@@ -42,6 +67,10 @@ function App() {
     Object.keys(factureData).forEach(k => formData.append(k, factureData[k]));
     formData.append('fichier', file);
 
+<<<<<<< HEAD
+=======
+    // Variables locales pour calcul du temps restant
+>>>>>>> parent of 582e8dd (Update App.jsx)
     const startTime  = Date.now();
     const totalBytes = file.size;
 
@@ -57,6 +86,10 @@ function App() {
       const percent = Math.round((loaded * 100) / e.total);
       setUploadProgress(percent);
 
+<<<<<<< HEAD
+=======
+      // Pas de temps négatif
+>>>>>>> parent of 582e8dd (Update App.jsx)
       if (loaded >= e.total) {
         setTimeLeft('0m 0s');
         return;
@@ -79,6 +112,10 @@ function App() {
       if (!(xhr.status >= 200 && xhr.status < 300)) {
         console.error('Upload failed:', xhr.status);
       }
+<<<<<<< HEAD
+=======
+      // Le WebSocket rafraîchira automatiquement la liste
+>>>>>>> parent of 582e8dd (Update App.jsx)
     };
     xhr.onerror = () => {
       setUploadProgress(null);
@@ -89,9 +126,16 @@ function App() {
   }
 
   async function deleteFacture(id) {
+<<<<<<< HEAD
     if (!window.confirm("Supprimer cette facture ?")) return;
+=======
+    if (!window.confirm("Êtes-vous sûr(e) de vouloir supprimer cette facture ?")) {
+      return;
+    }
+>>>>>>> parent of 582e8dd (Update App.jsx)
     try {
       await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
+      // WebSocket gère la suppression dans l'UI
     } catch (e) {
       console.error('Erreur suppression :', e);
     }
@@ -104,6 +148,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, annee })
       });
+      // WebSocket gère la mise à jour dans l'UI
     } catch (e) {
       console.error('Erreur mise à jour :', e);
     }
@@ -124,6 +169,7 @@ function App() {
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* FORMULAIRE D'AJOUT */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
@@ -148,6 +194,33 @@ function App() {
 
       {/* TABLEAU DES FACTURES */}
       <div className="bg-white p-6 rounded-lg shadow-md">
+=======
+      {/* BARRE DE PROGRESSION */}
+      {uploadProgress !== null && (
+        <div className="mb-4">
+          <div className="w-full bg-gray-200 rounded">
+            <div
+              className="text-center text-white py-1 rounded bg-blue-500"
+              style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
+            >
+              {uploadProgress}%
+            </div>
+          </div>
+          <div className="text-right text-sm text-gray-600 mt-1">
+            Temps restant estimé : {timeLeft}
+          </div>
+        </div>
+      )}
+
+      {/* FORMULAIRE */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
+        <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
+      </div>
+
+      {/* TABLEAU */}
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+>>>>>>> parent of 582e8dd (Update App.jsx)
         <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
         <TableFactures
           factures={factures}

@@ -1,5 +1,5 @@
 import eventlet
-# Monkey-patch nécessaire pour eventlet
+# Monkey-patch pour eventlet
 eventlet.monkey_patch()
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -8,17 +8,16 @@ from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
 import sqlite3
-import json
 from datetime import datetime
 
 app = Flask(__name__)
-# Limite de 100 Mo par requête
+# Limite à 100 Mo
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# CORS pour tout /api/*
+# CORS pour toutes les routes /api/*
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
 
-# SocketIO en mode eventlet
+# SocketIO avec compteur de clients
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 client_count = 0
 
@@ -34,7 +33,7 @@ def handle_disconnect():
     client_count -= 1
     emit('client_count', client_count, broadcast=True)
 
-# Dossiers de stockage
+# Dossiers
 UPLOAD_FOLDER = "backend/uploads"
 DB_FOLDER     = "backend/databases"
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "schema.sql")
@@ -72,46 +71,35 @@ def get_factures():
     annee = request.args.get("annee", datetime.now().year)
     conn = get_connection(annee)
     rows = conn.execute("SELECT * FROM factures ORDER BY id DESC").fetchall()
-    factures = []
-    for row in rows:
-        d = dict(row)
-        # Parse JSON stocké en base
-        try:
-            d["fichiers"] = json.loads(d.get("fichiers","[]"))
-        except:
-            d["fichiers"] = []
-        factures.append(d)
+    result = [dict(r) for r in rows]
     conn.close()
-    return jsonify(factures)
+    return jsonify(result)
 
 @app.route("/api/factures", methods=["POST"])
 def upload_facture():
-    data  = request.form
+    file = request.files.get("fichier")
+    data = request.form
     annee = data.get("annee")
-    files = request.files.getlist("fichiers")
-    if not files or not annee:
-        return jsonify({"error": "Champs manquants"}), 400
+    if not file or not annee:
+        return jsonify({"error": "Fichier ou année manquant(e)"}), 400
 
     conn = get_connection(annee)
-    # Numérotation
-    count  = conn.execute("SELECT COUNT(*) FROM factures WHERE type = ?", (data.get("type"),)).fetchone()[0]
+    count  = conn.execute(
+        "SELECT COUNT(*) FROM factures WHERE type = ?", (data.get("type"),)
+    ).fetchone()[0]
     numero = count + 1
 
-    saved = []
-    for file in files:
-        filename = secure_filename(
-            f"{annee}-{data.get('type')}-{numero}-UBR-{data.get('ubr')}-{file.filename}"
-        )
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(filepath)
-        saved.append(filename)
+    filename = secure_filename(
+        f"{annee}-{data.get('type')}-{numero}-UBR-{data.get('ubr')}-{file.filename}"
+    )
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
 
-    # On stocke la liste JSON des noms de fichiers
     sql = """
-        INSERT INTO factures
-          (annee, type, ubr, fournisseur, description, montant,
-           statut, fichiers, numero, date_ajout)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO factures (
+      annee, type, ubr, fournisseur, description,
+      montant, statut, fichier_nom, numero, date_ajout
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     params = (
         annee,
@@ -121,7 +109,7 @@ def upload_facture():
         data.get("description"),
         float(data.get("montant", 0)),
         data.get("statut"),
-        json.dumps(saved),
+        filename,
         numero,
         datetime.now().isoformat()
     )
@@ -129,36 +117,21 @@ def upload_facture():
     conn.commit()
 
     new_f = conn.execute("SELECT * FROM factures WHERE id = last_insert_rowid()").fetchone()
-    fact = dict(new_f)
-    fact["fichiers"] = saved
+    facture = dict(new_f)
     conn.close()
 
-    # Émission via WebSocket
-    socketio.emit('new_facture', fact)
-    return jsonify(fact), 201
+    socketio.emit('new_facture', facture)
+    return jsonify(facture), 201
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 def get_file(id):
-    annee    = request.args.get("annee", datetime.now().year)
-    filename = request.args.get("filename")
-    if not filename:
-        return jsonify({"error": "Param 'filename' manquant"}), 400
-
+    annee = request.args.get("annee", datetime.now().year)
     conn = get_connection(annee)
-    row  = conn.execute("SELECT fichiers FROM factures WHERE id = ?", (id,)).fetchone()
+    row  = conn.execute("SELECT fichier_nom FROM factures WHERE id = ?", (id,)).fetchone()
     conn.close()
-    if not row:
-        return jsonify({"error": "Facture non trouvée"}), 404
-
-    try:
-        files = json.loads(row["fichiers"])
-    except:
-        files = []
-
-    if filename not in files:
-        return jsonify({"error": "Fichier non enregistré"}), 404
-
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+    if not row or not row["fichier_nom"]:
+        return jsonify({"error": "Fichier non trouvé"}), 404
+    return send_from_directory(app.config["UPLOAD_FOLDER"], row["fichier_nom"], as_attachment=True)
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 def delete_facture(id):
@@ -169,15 +142,10 @@ def delete_facture(id):
         conn.close()
         return jsonify({"error": "Facture non trouvée"}), 404
 
-    # Supprimer les fichiers physiquement
-    try:
-        files = json.loads(row["fichiers"])
-    except:
-        files = []
-    for fname in files:
-        p = os.path.join(app.config["UPLOAD_FOLDER"], fname)
-        if os.path.exists(p):
-            os.remove(p)
+    # Supprime le fichier
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], row["fichier_nom"])
+    if os.path.exists(filepath):
+        os.remove(filepath)
 
     conn.execute("DELETE FROM factures WHERE id = ?", (id,))
     conn.commit()
@@ -188,7 +156,7 @@ def delete_facture(id):
 
 @app.route("/api/factures/<int:id>", methods=["PUT"])
 def update_facture(id):
-    data = request.get_json() or {}
+    data  = request.get_json() or {}
     annee = data.get("annee", datetime.now().year)
     conn  = get_connection(annee)
 
@@ -200,24 +168,19 @@ def update_facture(id):
             vals.append(data[key])
     if not fields:
         conn.close()
-        return jsonify({"error": "Rien à mettre à jour"}), 400
+        return jsonify({"error": "Aucun champ à mettre à jour"}), 400
 
     vals.append(id)
     sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = ?"
     conn.execute(sql, vals)
     conn.commit()
-
-    frow = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
-    fact = dict(frow)
-    try:
-        fact["fichiers"] = json.loads(fact.get("fichiers","[]"))
-    except:
-        fact["fichiers"] = []
+    updated = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
+    facture = dict(updated)
     conn.close()
 
-    socketio.emit('update_facture', fact)
-    return jsonify(fact), 200
+    socketio.emit('update_facture', facture)
+    return jsonify(facture), 200
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
