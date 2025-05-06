@@ -115,21 +115,12 @@ function App() {
   return (
     <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
       {/* HEADER */}
-      {/* Adjusted header for better mobile layout */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4">
-        <div className="flex items-center mb-4 sm:mb-0"> {/* Added margin-bottom for stacking on mobile */}
-          <img src={logo} alt="Logo Habitek" className="w-32 mr-4" />
-          <h1 className="text-2xl font-bold text-blue-600">
-            Habitek — Gestion des factures
-          </h1>
-        </div>
-        <div className="flex items-center"> {/* Container for client count and menu button */}
-          <div className="px-3 py-1 bg-gray-100 rounded-full text-sm mr-4"> {/* Added margin-right */}
-            Clients en ligne : {clientCount}
-          </div>
-          {/* Menu button (hamburger icon) */}
+      {/* Adjusted header for better mobile layout and hamburger button position */}
+      <div className="flex items-center justify-between mb-6 p-4"> {/* Combined flex and justify-between for overall header */}
+        <div className="flex items-center"> {/* Container for hamburger, logo and title */}
+           {/* Menu button (hamburger icon) - Moved to the left */}
           <button
-            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+            className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4" // Added right margin
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
           >
@@ -137,6 +128,15 @@ function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </button>
+          <img src={logo} alt="Logo Habitek" className="w-32 mr-4" /> {/* Logo */}
+          <h1 className="text-2xl font-bold text-blue-600"> {/* Title */}
+            Habitek — Gestion des factures
+          </h1>
+        </div>
+        <div className="flex items-center"> {/* Container for client count */}
+          <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+            Clients en ligne : {clientCount}
+          </div>
         </div>
       </div>
 
