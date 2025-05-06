@@ -12,28 +12,18 @@ function App() {
   const [annee,          setAnnee]          = useState(new Date().getFullYear());
   const [clientCount,    setClientCount]    = useState(0);
 
-  // États pour l'upload
-  const [uploadProgress, setUploadProgress] = useState(null); // null = pas d'upload
-  const [timeLeft,       setTimeLeft]       = useState('');   // mm:ss
+  // États upload
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [timeLeft,       setTimeLeft]       = useState('');
 
   useEffect(() => {
     fetchFactures();
-
-    const socket = io(SOCKET_URL, {
-      path: '/socket.io',
-      transports: ['websocket']
-    });
-
-    socket.on('client_count', setClientCount);
-    socket.on('new_facture', newF => setFactures(prev => [newF, ...prev]));
-    socket.on('delete_facture', ({ id }) =>
-      setFactures(prev => prev.filter(f => f.id !== id))
-    );
-    socket.on('update_facture', updated =>
-      setFactures(prev => prev.map(f => f.id === updated.id ? updated : f))
-    );
-
-    return () => { socket.disconnect(); };
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    socket.on('client_count',   setClientCount);
+    socket.on('new_facture',    nf => setFactures(prev => [nf, ...prev]));
+    socket.on('delete_facture', d  => setFactures(prev => prev.filter(f=>f.id!==d.id)));
+    socket.on('update_facture', uf => setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)));
+    return () => socket.disconnect();
   }, [annee]);
 
   async function fetchFactures() {
@@ -42,19 +32,20 @@ function App() {
       const data = await res.json();
       setFactures(data);
     } catch (e) {
-      console.error('Erreur fetch factures :', e);
+      console.error(e);
     }
   }
 
   function addFacture(factureData) {
-    const file = factureData.fichier;
+    const files = factureData.fichiers;
     const formData = new FormData();
-    Object.keys(factureData).forEach(key => formData.append(key, factureData[key]));
-    formData.append('fichier', file);
+    Object.keys(factureData).forEach(k => {
+      if (k !== 'fichiers') formData.append(k, factureData[k]);
+    });
+    files.forEach(f => formData.append('fichiers', f));
 
-    // Variables locales pour le calcul du temps restant
     const startTime  = Date.now();
-    const totalBytes = file.size;
+    const totalBytes = files.reduce((sum,f)=>sum+f.size,0);
 
     setUploadProgress(0);
     setTimeLeft('');
@@ -65,22 +56,20 @@ function App() {
     xhr.upload.onprogress = e => {
       if (!e.lengthComputable) return;
       const loaded  = e.loaded;
-      const percent = Math.round((loaded * 100) / e.total);
+      const percent = Math.round((loaded*100)/e.total);
       setUploadProgress(percent);
 
-      // On évite un temps restant négatif
       if (loaded >= e.total) {
-        setTimeLeft('0m 0s');
+        setTimeLeft('0m  0s');
         return;
       }
-
       const elapsedMs = Date.now() - startTime;
-      if (elapsedMs > 0) {
-        const speed    = loaded / elapsedMs;            // octets/ms
-        const remainMs = (totalBytes - loaded) / speed; // ms
-        const secTotal = Math.max(Math.ceil(remainMs / 1000), 0);
-        const m        = Math.floor(secTotal / 60);
-        const s        = secTotal % 60;
+      if (elapsedMs>0) {
+        const speed    = loaded/elapsedMs;
+        const remainMs = (totalBytes-loaded)/speed;
+        const secTotal = Math.max(Math.ceil(remainMs/1000),0);
+        const m        = Math.floor(secTotal/60);
+        const s        = secTotal%60;
         setTimeLeft(`${m}m ${s}s`);
       }
     };
@@ -88,49 +77,37 @@ function App() {
     xhr.onload = () => {
       setUploadProgress(null);
       setTimeLeft('');
-      if (!(xhr.status >= 200 && xhr.status < 300)) {
-        console.error('Échec upload :', xhr.status, xhr.responseText);
+      if (!(xhr.status>=200&&xhr.status<300)) {
+        console.error('Échec upload',xhr.status);
       }
-      // Le WebSocket mettra à jour la liste automatiquement
     };
-
     xhr.onerror = () => {
       setUploadProgress(null);
       setTimeLeft('');
-      console.error('Erreur réseau pendant l’upload');
+      console.error('Erreur réseau');
     };
-
     xhr.send(formData);
   }
 
   async function deleteFacture(id) {
-    if (!window.confirm("Êtes-vous sûr(e) de vouloir supprimer cette facture ?")) return;
-    try {
-      await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
-    } catch (e) {
-      console.error('Erreur suppression :', e);
-    }
+    if (!window.confirm("Supprimer cette facture ?")) return;
+    await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`,{method:'DELETE'});
   }
 
-  async function updateFacture(id, updatedData) {
-    try {
-      await fetch(`${API_URL}/api/factures/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...updatedData, annee })
-      });
-    } catch (e) {
-      console.error('Erreur mise à jour :', e);
-    }
+  async function updateFacture(id,data) {
+    await fetch(`${API_URL}/api/factures/${id}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...data,annee})
+    });
   }
 
   return (
     <div className="container mx-auto p-4">
-
       {/* HEADER */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
-          <img src={logo} alt="Logo Habitek" className="w-32 h-auto mr-4" />
+          <img src={logo} alt="Logo" className="w-32 mr-4"/>
           <h1 className="text-2xl font-bold text-blue-600">
             Habitek — Gestion des factures
           </h1>
@@ -140,17 +117,17 @@ function App() {
         </div>
       </div>
 
-      {/* FORMULAIRE D'AJOUT */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      {/* AJOUT DE FACTURE */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
 
-        {/* BARRE DE PROGRESSION & TEMPS RESTANT (juste ici) */}
+        {/* Barre de progression */}
         {uploadProgress !== null && (
           <div className="mb-4">
             <div className="w-full bg-gray-200 rounded">
               <div
                 className="text-center text-white py-1 rounded bg-blue-500"
-                style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
+                style={{ width:`${uploadProgress}%`, transition:'width 0.2s' }}
               >
                 {uploadProgress}%
               </div>
@@ -165,7 +142,7 @@ function App() {
       </div>
 
       {/* TABLEAU DES FACTURES */}
-      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
         <TableFactures
           factures={factures}
