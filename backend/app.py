@@ -24,7 +24,7 @@ app = Flask(__name__)
 app.logger.setLevel(logging.DEBUG)
 
 # 1. Limite Flask à 100 Mo par requête
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 Mo
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1 GB
 
 # 2. CORS pour votre frontend Vercel sur toutes les routes /api/*
 CORS(
