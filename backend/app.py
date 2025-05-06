@@ -11,8 +11,8 @@ import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
-# Limite à 100 Mo
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+# Limite à 2 GB
+app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
 
 # CORS pour toutes les routes /api/*
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
