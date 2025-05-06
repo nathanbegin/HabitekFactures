@@ -23,14 +23,21 @@ logging.basicConfig(
 app = Flask(__name__)
 app.logger.setLevel(logging.DEBUG)
 
-# CORS : exposer Content-Disposition
+# 1. Limite Flask à 100 Mo par requête
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 Mo
+
+# 2. CORS pour votre frontend Vercel sur toutes les routes /api/*
 CORS(
     app,
-    resources={ r"/api/factures/*": {
-        "origins": "*",
-        "expose_headers": ["Content-Disposition"]
+    resources={r"/api/*": {
+        "origins": "https://habitek-factures.vercel.app",
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Disposition"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "supports_credentials": True
     }}
 )
+
 
 # Socket.IO en eventlet, avec logs activés
 socketio = SocketIO(
