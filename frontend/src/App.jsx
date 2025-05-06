@@ -11,7 +11,7 @@ function App() {
   const [factures,       setFactures]       = useState([]);
   const [annee,          setAnnee]          = useState(new Date().getFullYear());
   const [clientCount,    setClientCount]    = useState(0);
-  // New state for sidebar visibility
+  // State for sidebar visibility
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 
@@ -113,10 +113,11 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4 relative"> {/* Added relative positioning */}
+    <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center">
+      {/* Adjusted header for better mobile layout */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4">
+        <div className="flex items-center mb-4 sm:mb-0"> {/* Added margin-bottom for stacking on mobile */}
           <img src={logo} alt="Logo Habitek" className="w-32 mr-4" />
           <h1 className="text-2xl font-bold text-blue-600">
             Habitek — Gestion des factures
@@ -126,10 +127,11 @@ function App() {
           <div className="px-3 py-1 bg-gray-100 rounded-full text-sm mr-4"> {/* Added margin-right */}
             Clients en ligne : {clientCount}
           </div>
-          {/* Menu button (hamburger icon placeholder) */}
+          {/* Menu button (hamburger icon) */}
           <button
             className="text-gray-500 hover:text-gray-700 focus:outline-none"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -143,14 +145,14 @@ function App() {
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40" // Fixed position, covers screen, semi-transparent black, lower z-index
           onClick={() => setIsSidebarOpen(false)} // Close sidebar on click outside
+          aria-hidden="true" // Hide from screen readers when sidebar is closed
         ></div>
       )}
 
-
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 ${ // Fixed position, top-right, set width and height, shadow, transition, higher z-index
-          isSidebarOpen ? 'translate-x-0' : 'translate-x-full' // Translate based on state
+        className={`fixed top-0 left-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 ${ // Fixed position, top-left, set width and height, shadow, transition, higher z-index
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full' // Translate based on state (now from the left)
         }`}
       >
         <div className="p-4">
@@ -164,37 +166,39 @@ function App() {
         </div>
       </div>
 
-
-      {/* FORMULAIRE D'AJOUT */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
-        {/* Barre de progression juste au-dessus */}
-        {uploadProgress !== null && (
-          <div className="mb-4">
-            <div className="w-full bg-gray-200 rounded">
-              <div
-                className="text-center text-white py-1 rounded bg-blue-500"
-                style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
-              >
-                {uploadProgress}%
+      {/* MAIN CONTENT - Adjusted padding based on sidebar visibility (optional but good for UX) */}
+       <div className={`container mx-auto p-4 transition-all duration-300 ${isSidebarOpen ? 'ml-0 sm:ml-64' : ''}`}>
+        {/* FORMULAIRE D'AJOUT */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
+          {/* Barre de progression juste au-dessus */}
+          {uploadProgress !== null && (
+            <div className="mb-4">
+              <div className="w-full bg-gray-200 rounded">
+                <div
+                  className="text-center text-white py-1 rounded bg-blue-500"
+                  style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
+                >
+                  {uploadProgress}%
+                </div>
+              </div>
+              <div className="text-right text-sm text-gray-600 mt-1">
+                Temps restant estimé : {timeLeft}
               </div>
             </div>
-            <div className="text-right text-sm text-gray-600 mt-1">
-              Temps restant estimé : {timeLeft}
-            </div>
-          </div>
-        )}
-        <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
-      </div>
+          )}
+          <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
+        </div>
 
-      {/* TABLEAU DES FACTURES */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
-        <TableFactures
-          factures={factures}
-          onDelete={deleteFacture}
-          onUpdate={updateFacture}
-        />
+        {/* TABLEAU DES FACTURES */}
+        <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto"> {/* Added overflow-x-auto for table scrolling on small screens */}
+          <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
+          <TableFactures
+            factures={factures}
+            onDelete={deleteFacture}
+            onUpdate={updateFacture}
+          />
+        </div>
       </div>
     </div>
   );
