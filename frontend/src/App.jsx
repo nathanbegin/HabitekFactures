@@ -272,7 +272,7 @@ function App() {
        console.log(`Workspaceing budget for financial year ${year}`); // Corrected typo
        try {
            // Use 'annee' as query param for financial year as implemented in backend
-           const res = await fetch(`${API_URL}/api/budget?annee=${year}`); // Use 'annee' as query param as implemented in backend
+           const res = await fetch(`${API_URL}/api/budget?financial_year=${year}`); // Use 'annee' as query param as implemented in backend
            if (!res.ok) {
                const errorText = await res.text();
                throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
