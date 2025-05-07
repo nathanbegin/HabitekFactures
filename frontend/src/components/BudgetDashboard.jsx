@@ -72,7 +72,9 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
         // Fetch budget data for the current financial year
         fetchBudget(anneeFinanciere).then(data => {
             if (data) {
-                const processedData = data.map(entry => ({
+                // Ne garder que les entrées dont financial_year === anneeFinanciere
+                const filtered = data.filter(e => String(e.financial_year) === anneeFinanciere);
+                const processedData = filtered.map(entry => ({
                     ...entry,
                     amount: parseFloat(entry.amount)
                 }));
