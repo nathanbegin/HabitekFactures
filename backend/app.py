@@ -13,8 +13,6 @@ from datetime import datetime
 import csv
 import io
 from urllib.parse import urlparse # Pour parser l'URL de la base de données
-from decimal import Decimal # Import Decimal type
-
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
@@ -63,7 +61,7 @@ def get_db_connection():
             host=url.hostname,
             port=url.port
         )
-        # Use DictCursor for fetching rows as dictionaries by default
+        # Return connection with DictCursor to fetch rows as dictionaries by default
         # Use cursor_factory=psycopg2.extras.RealDictCursor for case-sensitive keys
         return conn
     except psycopg2.Error as e:
@@ -124,8 +122,7 @@ def init_db():
         print(f"An unexpected error occurred during database initialization: {e}")
     finally:
         cursor.close()
-        if conn:
-            conn.close()
+        conn.close()
 
 # Initialize database on startup
 init_db()
@@ -141,6 +138,10 @@ def get_financial_year(date=None):
         return str(date.year)
     else:
         return str(date.year - 1)
+
+@app.route("/")
+def home():
+    return "Flask fonctionne ✅"
 
 # --- Factures Endpoints ---
 
@@ -158,14 +159,7 @@ def get_factures():
         cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
         rows = cursor.fetchall()
         # Convert DictRow objects to standard dictionaries for jsonify
-        result = []
-        for row in rows:
-            facture_dict = dict(row)
-            # Convert Decimal amount to string for JSON serialization
-            if isinstance(facture_dict.get('montant'), Decimal):
-                facture_dict['montant'] = str(facture_dict['montant'])
-            result.append(facture_dict)
-
+        result = [dict(row) for row in rows]
         return jsonify(result)
     except psycopg2.Error as e:
         print(f"Database error fetching factures: {e}")
@@ -175,8 +169,7 @@ def get_factures():
         return jsonify({"error": "Une erreur est survenue lors de la récupération des factures."}), 500
     finally:
         cursor.close()
-        if conn:
-            conn.close()
+        conn.close()
 
 
 @app.route("/api/factures", methods=["POST"])
@@ -253,11 +246,6 @@ def upload_facture():
         dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
         new_f = dict_cursor.fetchone()
         facture = dict(new_f) # Convert DictRow to dict
-
-        # --- FIX: Convert Decimal amount to string ---
-        if isinstance(facture.get('montant'), Decimal):
-             facture['montant'] = str(facture['montant'])
-
         dict_cursor.close()
 
 
@@ -357,6 +345,7 @@ def delete_facture(id):
                 except Exception as e:
                     print(f"Error deleting file {filepath}: {e}") # Log error but don't stop deletion
 
+
         socketio.emit('delete_facture', {'id': id})
         return jsonify({"message": "Facture supprimée"}), 200
     except psycopg2.Error as e:
@@ -368,7 +357,7 @@ def delete_facture(id):
         if conn:
             conn.rollback()
         print(f"An unexpected error occurred deleting facture: {e}")
-        return jsonify({"error": f"Une erreur est survenue lors de la suppression."}), 500
+        return jsonify({"error": "Une erreur est survenue lors de la suppression."}), 500
     finally:
         cursor.close()
         if conn:
@@ -423,10 +412,6 @@ def update_facture(id):
         # Convert DictRow to dict
         facture = dict(updated_facture)
 
-        # --- FIX: Convert Decimal amount to string ---
-        if isinstance(facture.get('montant'), Decimal):
-             facture['montant'] = str(facture['montant'])
-
         socketio.emit('update_facture', facture)
         return jsonify(facture), 200
     except psycopg2.Error as e:
@@ -475,9 +460,8 @@ def export_factures_csv():
 
         # Write data rows
         for row in cursor.fetchall():
-            # Ensure Decimal amounts are converted to string for CSV
-            processed_row = [str(item) if isinstance(item, Decimal) else item for item in row]
-            csv_writer.writerow(processed_row)
+            # Psycopg2 rows are tuples by default, which is fine for csv.writer.
+            csv_writer.writerow(row)
 
         # Get the CSV content from the buffer
         csv_content = csv_buffer.getvalue()
@@ -541,14 +525,7 @@ def get_budget_entries():
         # Select entries for the specified financial year from the 'budgets' table
         cursor.execute("SELECT * FROM budgets WHERE financial_year = %s ORDER BY date_added DESC", (financial_year,)) # Renamed table to 'budgets'
         rows = cursor.fetchall()
-        result = []
-        for row in rows:
-             entry_dict = dict(row)
-             # Convert Decimal amount to string for JSON serialization
-             if isinstance(entry_dict.get('amount'), Decimal):
-                 entry_dict['amount'] = str(entry_dict['amount'])
-             result.append(entry_dict)
-
+        result = [dict(row) for row in rows] # Convert DictRow to dict
         return jsonify(result)
     except psycopg2.OperationalError as e:
          # Handle case where budgets table might not exist yet
@@ -617,14 +594,8 @@ def add_budget_entry():
         # Fetch the newly inserted row
         cursor.execute("SELECT * FROM budgets WHERE id = %s", (new_entry_id,))
         new_entry = cursor.fetchone()
-        entry_dict = dict(new_entry)
 
-        # --- FIX: Convert Decimal amount to string ---
-        if isinstance(entry_dict.get('amount'), Decimal):
-             entry_dict['amount'] = str(entry_dict['amount'])
-
-
-        return jsonify(entry_dict), 201
+        return jsonify(dict(new_entry)), 201
 
     except ValueError:
         return jsonify({"error": "Montant invalide."}), 400
@@ -681,7 +652,6 @@ def update_budget_entry(entry_id):
 
         for field in allowed_fields:
             if field in data:
-                # Validate and add field and value
                 if field == 'amount':
                     try:
                         update_values.append(float(data[field]))
@@ -695,7 +665,7 @@ def update_budget_entry(entry_id):
                      # Validate revenue type against the selected fund type (either original or updated)
                      current_fund_type = data.get('fund_type', existing_entry['fund_type'])
                      if current_fund_type not in REVENUE_TYPES or data[field] not in REVENUE_TYPES[current_fund_type]:
-                          return jsonify({"error": "Type de revenu invalide pour le type de fond."}), 4 inconvénients
+                          return jsonify({"error": "Type de revenu invalide pour le type de fond."}), 400
                      update_values.append(data[field])
                 else:
                      update_values.append(data[field])
@@ -715,13 +685,8 @@ def update_budget_entry(entry_id):
              # This case should ideally not happen if the initial SELECT found the entry
              return jsonify({"error": "Erreur lors de la r\u00e9cup\u00e9ration de l'entr\u00e9e mise \u00e0 jour apr\u00e8s update."}), 500
 
-        entry_dict = dict(updated_entry)
-        # --- FIX: Convert Decimal amount to string ---
-        if isinstance(entry_dict.get('amount'), Decimal):
-             entry_dict['amount'] = str(entry_dict['amount'])
 
-
-        return jsonify(entry_dict), 200
+        return jsonify(dict(updated_entry)), 200
 
     except psycopg2.Error as e:
         if conn:
@@ -732,7 +697,7 @@ def update_budget_entry(entry_id):
         if conn:
             conn.rollback()
         print(f"An unexpected error occurred updating budget entry: {e}")
-        return jsonify({"error": f"Une erreur est survenue lors de la mise à jour de l'entrée budgétaire."}), 500
+        return jsonify({"error": "Une erreur est survenue lors de la mise à jour de l'entrée budgétaire."}), 500
     finally:
         if cursor:
             cursor.close()
