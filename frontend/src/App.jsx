@@ -77,22 +77,27 @@ function App() {
 
   function addFacture(factureData) {
     const file = factureData.fichier;
+    console.log('Fichier fourni :', file); // Débogage : vérifier si le fichier existe
+    if (file) {
+        console.log('Nom du fichier :', file.name, 'Taille :', file.size, 'Type :', file.type);
+    }
+
     const formData = new FormData();
-    // Use the selected financial year when adding a facture
     formData.append('annee', anneeFinanciere);
     formData.append('type', factureData.type);
-    formData.append('ubr', factureData.ubr);
-    formData.append('fournisseur', factureData.fournisseur);
-    formData.append('description', factureData.description);
+    formData.append('ubr', factureData.ubr || ''); // Gérer les champs optionnels
+    formData.append('fournisseur', factureData.fournisseur || '');
+    formData.append('description', factureData.description || '');
     formData.append('montant', factureData.montant);
     formData.append('statut', factureData.statut);
 
     if (file) {
         formData.append('fichier', file);
+    } else {
+        console.warn('Aucun fichier fourni pour l\'upload.');
     }
 
-
-    const startTime  = Date.now();
+    const startTime = Date.now();
     const totalBytes = file ? file.size : 0;
 
     setUploadProgress(0);
@@ -102,53 +107,63 @@ function App() {
     xhr.open('POST', `${API_URL}/api/factures`);
 
     xhr.upload.onprogress = e => {
-      if (!e.lengthComputable) return;
-      const loaded  = e.loaded;
-      const percent = Math.round((loaded * 100) / e.total);
-      setUploadProgress(percent);
+        if (!e.lengthComputable) return;
+        const loaded = e.loaded;
+        const percent = Math.round((loaded * 100) / e.total);
+        setUploadProgress(percent);
+        console.log(`Progression : ${percent}%`); // Débogage : suivre la progression
 
-      if (loaded >= e.total) {
-        setTimeLeft('0m 0s');
-        return;
-      }
+       43
+        if (loaded >= e.total) {
+            setTimeLeft('0m 0s');
+            return;
+        }
 
-      const elapsedMs = Date.now() - startTime;
-      if (elapsedMs > 0) {
-        const speed    = loaded / elapsedMs;
-        const remainMs = (totalBytes - loaded) / speed;
-        const secTotal = Math.max(Math.ceil(remainMs / 1000), 0);
-        const m        = Math.floor(secTotal / 60);
-        const s        = secTotal % 60;
-        setTimeLeft(`${m}m ${s}s`);
-      }
+        const elapsedMs = Date.now() - startTime;
+        if (elapsedMs > 0) {
+            const speed = loaded / elapsedMs;
+            const remainMs = (totalBytes - loaded) / speed;
+            const secTotal = Math.max(Math.ceil(remainMs / 1000), 0);
+            const m = Math.floor(secTotal / 60);
+            const s = secTotal % 60;
+            setTimeLeft(`${m}m ${s}s`);
+        }
     };
 
     xhr.onload = () => {
-      setUploadProgress(null);
-      setTimeLeft('');
-      if (!(xhr.status >= 200 && xhr.status < 300)) {
-        console.error('Upload failed:', xhr.status);
-          alert('Erreur lors de l\'ajout de la facture.'); // User feedback
-      } else {
-           // Re-fetch factures after successful upload if on the manage view and the year matches
-           if (currentView === 'manage-invoices' && String(xhr.response.annee) === anneeFinanciere) { // Check the year from the response if available
-               // Socket event might update this, but re-fetching ensures consistency
-               fetchFactures(anneeFinanciere);
-           } else if (currentView === 'manage-invoices') {
-              // If year doesn't match the current view's year, just log success
-              console.log('Facture added to a different financial year.');
-           }
-           console.log('Facture added successfully.');
-      }
+        setUploadProgress(null);
+        setTimeLeft('');
+        if (!(xhr.status >= 200 && xhr.status < 300)) {
+            console.error('Échec de l\'upload :', xhr.status, xhr.responseText);
+            alert('Erreur lors de l\'ajout de la facture.');
+        } else {
+            console.log('Réponse du serveur :', xhr.responseText); // Débogage : voir la réponse
+            let response;
+            try {
+                response = JSON.parse(xhr.responseText);
+            } catch (e) {
+                console.error('Erreur de parsing JSON :', e);
+                alert('Erreur lors du traitement de la réponse du serveur.');
+                return;
+            }
+            if (currentView === 'manage-invoices' && String(response.annee) === anneeFinanciere) {
+                fetchFactures(anneeFinanciere);
+            } else if (currentView === 'manage-invoices') {
+                console.log('Facture ajoutée pour une année différente.');
+            }
+            console.log('Facture ajoutée avec succès.');
+        }
     };
+
     xhr.onerror = () => {
-      setUploadProgress(null);
-      setTimeLeft('');
-      console.error('Network error during upload');
-      alert('Erreur réseau lors de l\'ajout de la facture.'); // User feedback
+        setUploadProgress(null);
+        setTimeLeft('');
+        console.error('Erreur réseau lors de l\'upload');
+        alert('Erreur réseau lors de l\'ajout de la facture.');
     };
+
     xhr.send(formData);
-  }
+}
 
   async function deleteFacture(id) {
     // Only confirm and delete if on the manage-invoices view
