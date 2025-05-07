@@ -7,10 +7,12 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
-import sqlite3
+import psycopg2
+import psycopg2.extras
 from datetime import datetime
-import csv  # Import the csv module
-import io   # Import the io module for in-memory text handling
+import csv
+import io
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 # Limite à 2 GB
@@ -35,34 +37,65 @@ def handle_disconnect():
     client_count -= 1
     emit('client_count', client_count, broadcast=True)
 
-# Dossiers
+# Dossier pour les uploads
 UPLOAD_FOLDER = "backend/uploads"
-DB_FOLDER     = "backend/databases"
-TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "schema.sql")
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(DB_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-def get_db_path(annee):
-    return os.path.join(DB_FOLDER, f"{annee}.db")
+# URL de connexion PostgreSQL
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://minio:Habitek2025@localhost:5432/factures_db")
 
-def init_db_if_needed(annee):
-    db_path = get_db_path(annee)
-    if not os.path.exists(db_path):
-        with open(TEMPLATE_PATH, "r") as f:
-            schema = f.read()
-        conn = sqlite3.connect(db_path)
-        conn.executescript(schema)
+def get_db_connection():
+    """Établit une connexion à la base de données PostgreSQL."""
+    try:
+        url = urlparse(DATABASE_URL)
+        conn = psycopg2.connect(
+            database=url.path[1:],
+            user=url.username,
+            password=url.password,
+            host=url.hostname,
+            port=url.port
+        )
+        return conn
+    except psycopg2.Error as e:
+        print(f"Erreur de connexion à PostgreSQL : {e}")
+        return None
+
+def init_db():
+    """Initialise la base de données PostgreSQL en créant la table factures si elle n'existe pas."""
+    conn = get_db_connection()
+    if conn is None:
+        print("Échec de la connexion à la base de données, impossible d'initialiser les tables.")
+        return
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS factures (
+                id SERIAL PRIMARY KEY,
+                annee VARCHAR(4) NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                ubr VARCHAR(50),
+                fournisseur VARCHAR(255),
+                description TEXT,
+                montant DECIMAL(10,2) NOT NULL,
+                statut VARCHAR(50) NOT NULL,
+                fichier_nom VARCHAR(255),
+                numero INTEGER,
+                date_ajout TIMESTAMP NOT NULL
+            );
+        """)
         conn.commit()
+        print("Tableau de factures vérifié/créé.")
+    except psycopg2.Error as e:
+        print(f"Erreur d'initialisation de la base de données : {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
         conn.close()
-    return db_path
 
-def get_connection(annee):
-    init_db_if_needed(annee)
-    conn = sqlite3.connect(get_db_path(annee))
-    conn.row_factory = sqlite3.Row
-    return conn
+# Initialiser la base de données au démarrage
+init_db()
 
 @app.route("/")
 def home():
@@ -70,12 +103,22 @@ def home():
 
 @app.route("/api/factures", methods=["GET"])
 def get_factures():
-    annee = request.args.get("annee", str(datetime.now().year)) # Ensure annee is string
-    conn = get_connection(annee)
-    rows = conn.execute("SELECT * FROM factures ORDER BY id DESC").fetchall()
-    result = [dict(r) for r in rows]
-    conn.close()
-    return jsonify(result)
+    annee = request.args.get("annee", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
+        rows = cursor.fetchall()
+        result = [dict(row) for row in rows]
+        return jsonify(result)
+    except psycopg2.Error as e:
+        print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
+        return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route("/api/factures", methods=["POST"])
 def upload_facture():
@@ -85,187 +128,208 @@ def upload_facture():
     if not file or not annee:
         return jsonify({"error": "Fichier ou année manquant(e)"}), 400
 
-    conn = get_connection(annee)
-    # Get count for the specific type within the year's database
-    count  = conn.execute(
-        "SELECT COUNT(*) FROM factures WHERE type = ?", (data.get("type"),)
-    ).fetchone()[0]
-    numero = count + 1
-
-    # Create a more robust filename to avoid conflicts and include relevant info
-    original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
-    filename = secure_filename(
-        f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr')}_{original_filename}{file_extension}"
-    )
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
+    filepath = None
     try:
+        # Compter les factures du même type pour générer le numéro
+        cursor.execute("SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s", 
+                       (annee, data.get("type")))
+        count = cursor.fetchone()[0]
+        numero = count + 1
+
+        # Créer un nom de fichier sécurisé
+        original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
+        filename = secure_filename(
+            f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr')}_{original_filename}{file_extension}"
+        )
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         file.save(filepath)
-    except Exception as e:
-        conn.close()
-        return jsonify({"error": f"Erreur lors de l'enregistrement du fichier : {e}"}), 500
 
+        # Validation des données
+        if not data.get("type") or data.get("montant") is None:
+            return jsonify({"error": "Données de facture manquantes (type, montant)."}), 400
 
-    sql = """
-    INSERT INTO factures (
-      annee, type, ubr, fournisseur, description,
-      montant, statut, fichier_nom, numero, date_ajout
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
-    params = (
-        annee,
-        data.get("type"),
-        data.get("ubr"),
-        data.get("fournisseur"),
-        data.get("description"),
-        float(data.get("montant", 0)), # Ensure montant is float
-        data.get("statut"),
-        filename,
-        numero,
-        datetime.now().isoformat()
-    )
-    try:
-        conn.execute(sql, params)
+        # Insérer la facture
+        sql = """
+        INSERT INTO factures (
+            annee, type, ubr, fournisseur, description,
+            montant, statut, fichier_nom, numero, date_ajout
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """
+        params = (
+            annee,
+            data.get("type"),
+            data.get("ubr"),
+            data.get("fournisseur"),
+            data.get("description"),
+            float(data.get("montant", 0)),
+            data.get("statut"),
+            filename,
+            numero,
+            datetime.now()
+        )
+        cursor.execute(sql, params)
+        new_id = cursor.fetchone()[0]
         conn.commit()
-        new_f = conn.execute("SELECT * FROM factures WHERE id = last_insert_rowid()").fetchone()
+
+        # Récupérer la facture insérée
+        dict_cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
+        new_f = dict_cursor.fetchone()
         facture = dict(new_f)
-        conn.close()
+        dict_cursor.close()
+
         socketio.emit('new_facture', facture)
         return jsonify(facture), 201
-    except Exception as e:
-        conn.rollback() # Rollback changes if insertion fails
-        conn.close()
-        # Clean up the saved file if DB insertion failed
-        if os.path.exists(filepath):
+    except psycopg2.Error as e:
+        conn.rollback()
+        if filepath and os.path.exists(filepath):
             os.remove(filepath)
+        print(f"Erreur PostgreSQL lors de l'enregistrement de la facture : {e}")
         return jsonify({"error": f"Erreur lors de l'enregistrement en base de données : {e}"}), 500
-
+    except Exception as e:
+        conn.rollback()
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+        print(f"Erreur inattendue lors de l'enregistrement de la facture : {e}")
+        return jsonify({"error": f"Une erreur est survenue : {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 def get_file(id):
-    annee = request.args.get("annee", str(datetime.now().year)) # Ensure annee is string
-    conn = get_connection(annee)
-    row  = conn.execute("SELECT fichier_nom FROM factures WHERE id = ?", (id,)).fetchone()
-    conn.close()
-    if not row or not row["fichier_nom"]:
-        return jsonify({"error": "Fichier non trouvé"}), 404
-    # Ensure the filename is secure even for sending
-    safe_filename = secure_filename(row["fichier_nom"])
-    return send_from_directory(app.config["UPLOAD_FOLDER"], safe_filename, as_attachment=True)
-
+    annee = request.args.get("annee", str(datetime-now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s", (id, annee))
+        row = cursor.fetchone()
+        if not row or not row[0]:
+            return jsonify({"error": "Fichier non trouvé"}), 404
+        safe_filename = secure_filename(row[0])
+        return send_from_directory(app.config["UPLOAD_FOLDER"], safe_filename, as_attachment=True)
+    except psycopg2.Error as e:
+        print(f"Erreur PostgreSQL lors de la récupération du fichier : {e}")
+        return jsonify({"error": "Erreur lors de l'accès au fichier."}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 def delete_facture(id):
-    annee = request.args.get("annee", str(datetime.now().year)) # Ensure annee is string
-    conn  = get_connection(annee)
-    row   = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
-    if not row:
+    annee = request.args.get("annee", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s", (id, annee))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({"error": "Facture non trouvée"}), 404
+
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row[0]))
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                print(f"Erreur lors de la suppression du fichier {filepath} : {e}")
+
+        cursor.execute("DELETE FROM factures WHERE id = %s AND annee = %s", (id, annee))
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Facture non trouvée après tentative de suppression"}), 404
+        conn.commit()
+
+        socketio.emit('delete_facture', {'id': id})
+        return jsonify({"message": "Facture supprimée"}), 200
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"Erreur PostgreSQL lors de la suppression de la facture : {e}")
+        return jsonify({"error": f"Erreur lors de la suppression : {e}"}), 500
+    finally:
+        cursor.close()
         conn.close()
-        return jsonify({"error": "Facture non trouvée"}), 404
-
-    # Supprime le fichier
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row["fichier_nom"])) # Use secure_filename here too
-    if os.path.exists(filepath):
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            print(f"Error deleting file {filepath}: {e}") # Log error but don't stop deletion
-
-
-    conn.execute("DELETE FROM factures WHERE id = ?", (id,))
-    conn.commit()
-    conn.close()
-
-    socketio.emit('delete_facture', {'id': id})
-    return jsonify({"message": "Facture supprimée"}), 200
 
 @app.route("/api/factures/<int:id>", methods=["PUT"])
 def update_facture(id):
-    data  = request.get_json() or {}
-    annee = data.get("annee", str(datetime.now().year)) # Ensure annee is string
-    conn  = get_connection(annee)
-
-    allowed = ["type","ubr","fournisseur","description","montant","statut"]
-    fields, vals = [], []
-    for key in allowed:
-        if key in data:
-            fields.append(f"{key} = ?")
-            vals.append(data[key])
-
-    # Convert montant to float if it's being updated
-    if 'montant' in data:
-        try:
-            vals[fields.index('montant = ?')] = float(data['montant'])
-        except (ValueError, IndexError):
-             conn.close()
-             return jsonify({"error": "Montant invalide"}), 400
-
-
-    if not fields:
-        conn.close()
-        return jsonify({"error": "Aucun champ à mettre à jour"}), 400
-
-    vals.append(id)
-    sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = ?"
+    data = request.get_json() or {}
+    annee = data.get("annee", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        conn.execute(sql, vals)
+        allowed = ["type", "ubr", "fournisseur", "description", "montant", "statut"]
+        fields, vals = [], []
+        for key in allowed:
+            if key in data:
+                fields.append(f"{key} = %s")
+                if key == "montant":
+                    try:
+                        vals.append(float(data[key]))
+                    except ValueError:
+                        return jsonify({"error": "Montant invalide"}), 400
+                else:
+                    vals.append(data[key])
+
+        if not fields:
+            return jsonify({"error": "Aucun champ à mettre à jour"}), 400
+
+        vals.append(id)
+        vals.append(annee)
+        sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = %s AND annee = %s RETURNING *"
+        cursor.execute(sql, vals)
+        updated = cursor.fetchone()
+        if not updated:
+            return jsonify({"error": "Facture non trouvée"}), 404
         conn.commit()
-        updated = conn.execute("SELECT * FROM factures WHERE id = ?", (id,)).fetchone()
         facture = dict(updated)
-        conn.close()
         socketio.emit('update_facture', facture)
         return jsonify(facture), 200
-    except Exception as e:
+    except psycopg2.Error as e:
         conn.rollback()
-        conn.close()
+        print(f"Erreur PostgreSQL lors de la mise à jour de la facture : {e}")
         return jsonify({"error": f"Erreur lors de la mise à jour : {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
-
-# New route for CSV export
 @app.route("/api/factures/export-csv", methods=["GET"])
 def export_factures_csv():
-    annee = request.args.get("annee", str(datetime.now().year)) # Get year from query params
-    conn = None # Initialize conn to None
+    annee = request.args.get("annee", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
     try:
-        conn = get_connection(annee)
-        cursor = conn.execute("SELECT * FROM factures ORDER BY id DESC")
+        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
+        rows = cursor.fetchall()
 
-        # Use io.StringIO to write CSV to memory
         csv_buffer = io.StringIO()
         csv_writer = csv.writer(csv_buffer)
-
-        # Write header row (column names)
-        # Get column names from cursor description
-        header = [description[0] for description in cursor.description]
+        header = [desc[0] for desc in cursor.description]
         csv_writer.writerow(header)
+        for row in rows:
+            csv_writer.writerow(row)
 
-        # Write data rows
-        for row in cursor.fetchall():
-            # Convert row (sqlite3.Row) to a list of values
-            csv_writer.writerow(list(row))
-
-        # Get the CSV content from the buffer
         csv_content = csv_buffer.getvalue()
-
-        # Create a Flask Response
         response = Response(csv_content, mimetype='text/csv')
-        # Set the Content-Disposition header to trigger download
         response.headers.set("Content-Disposition", "attachment", filename=f"factures_{annee}.csv")
-
         return response
-
-    except sqlite3.Error as e:
-        print(f"Database error during CSV export: {e}")
+    except psycopg2.Error as e:
+        print(f"Erreur PostgreSQL lors de l'exportation CSV : {e}")
         return jsonify({"error": "Erreur lors de l'accès à la base de données pour l'exportation."}), 500
-    except Exception as e:
-        print(f"An error occurred during CSV export: {e}")
-        return jsonify({"error": "Une erreur est survenue lors de l'exportation CSV."}), 500
     finally:
-        # Ensure the connection is closed even if an error occurs
-        if conn:
-            conn.close()
-
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # Use socketio.run for the app to handle WebSocket connections
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
