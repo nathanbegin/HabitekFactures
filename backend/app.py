@@ -13,6 +13,7 @@ from datetime import datetime
 import csv
 import io
 from urllib.parse import urlparse
+from decimal import Decimal
 
 app = Flask(__name__)
 # Limite à 2 GB
@@ -97,42 +98,33 @@ def init_db():
 # Initialiser la base de données au démarrage
 init_db()
 
+# Fonction utilitaire pour convertir les Decimal en float pour JSON
+def convert_decimals(obj):
+    if isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
 @app.route("/")
 def home():
     return "Flask fonctionne ✅"
-
-@app.route("/api/factures", methods=["GET"])
-def get_factures():
-    annee = request.args.get("annee", str(datetime.now().year))
-    conn = get_db_connection()
-    if conn is None:
-        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
-        rows = cursor.fetchall()
-        result = [dict(row) for row in rows]
-        return jsonify(result)
-    except psycopg2.Error as e:
-        print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
-        return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
-    finally:
-        cursor.close()
-        conn.close()
 
 @app.route("/api/factures", methods=["POST"])
 def upload_facture():
     file = request.files.get("fichier")
     data = request.form
     annee = data.get("annee")
-    if not file or not annee:
-        return jsonify({"error": "Fichier ou année manquant(e)"}), 400
+    print(f"Données reçues : annee={annee}, fichier={file}")  # Débogage
+
+    # Validation des données obligatoires
+    if not annee or not data.get("type") or not data.get("montant"):
+        return jsonify({"error": "Données obligatoires manquantes (année, type, montant)."}), 400
 
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
     cursor = conn.cursor()
     filepath = None
+    filename = None
     try:
         # Compter les factures du même type pour générer le numéro
         cursor.execute("SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s", 
@@ -140,17 +132,32 @@ def upload_facture():
         count = cursor.fetchone()[0]
         numero = count + 1
 
-        # Créer un nom de fichier sécurisé
-        original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
-        filename = secure_filename(
-            f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr')}_{original_filename}{file_extension}"
-        )
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(filepath)
+        # Gérer le fichier s'il est fourni
+        if file and file.filename:
+            print(f"Tentative de sauvegarde du fichier : {file.filename}")  # Débogage
+            original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
+            filename = secure_filename(
+                f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr', 'N-A')}_{original_filename}{file_extension}"
+            )
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            try:
+                file.save(filepath)
+                print(f"Fichier sauvegardé : {filepath}")  # Débogage
+                if not os.path.exists(filepath):
+                    print(f"Erreur : le fichier {filepath} n'a pas été créé.")  # Débogage
+                    return jsonify({"error": "Échec de la sauvegarde du fichier."}), 500
+            except Exception as e:
+                print(f"Erreur lors de la sauvegarde du fichier : {e}")  # Débogage
+                return jsonify({"error": f"Erreur lors de l'enregistrement du fichier : {e}"}), 500
+        else:
+            print("Aucun fichier fourni ou fichier vide.")  # Débogage
 
-        # Validation des données
-        if not data.get("type") or data.get("montant") is None:
-            return jsonify({"error": "Données de facture manquantes (type, montant)."}), 400
+        # Valider le montant
+        try:
+            montant = float(data.get("montant"))
+        except ValueError:
+            print("Erreur : Montant invalide.")  # Débogage
+            return jsonify({"error": "Montant invalide."}), 400
 
         # Insérer la facture
         sql = """
@@ -166,9 +173,9 @@ def upload_facture():
             data.get("ubr"),
             data.get("fournisseur"),
             data.get("description"),
-            float(data.get("montant", 0)),
+            montant,
             data.get("statut"),
-            filename,
+            filename,  # Peut être None si aucun fichier
             numero,
             datetime.now()
         )
@@ -180,7 +187,7 @@ def upload_facture():
         dict_cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
         new_f = dict_cursor.fetchone()
-        facture = dict(new_f)
+        facture = {key: convert_decimals(value) for key, value in dict(new_f).items()}  # Convertir les Decimal
         dict_cursor.close()
 
         socketio.emit('new_facture', facture)
@@ -189,21 +196,41 @@ def upload_facture():
         conn.rollback()
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
-        print(f"Erreur PostgreSQL lors de l'enregistrement de la facture : {e}")
+        print(f"Erreur PostgreSQL lors de l'enregistrement de la facture : {e}")  # Débogage
         return jsonify({"error": f"Erreur lors de l'enregistrement en base de données : {e}"}), 500
     except Exception as e:
         conn.rollback()
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
-        print(f"Erreur inattendue lors de l'enregistrement de la facture : {e}")
-        return jsonify({"error": f"Une erreur est survenue : {e}"}), 500
+        print(f"Erreur inattendue lors de l'enregistrement de la facture : {e}")  # Débogage
+        return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/factures", methods=["GET"])
+def get_factures():
+    annee = request.args.get("annee", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
+        rows = cursor.fetchall()
+        # Convertir les Decimal en float pour toutes les factures
+        result = [{key: convert_decimals(value) for key, value in dict(row).items()} for row in rows]
+        return jsonify(result)
+    except psycopg2.Error as e:
+        print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
+        return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
     finally:
         cursor.close()
         conn.close()
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 def get_file(id):
-    annee = request.args.get("annee", str(datetime-now().year))
+    annee = request.args.get("annee", str(datetime.now().year))
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
@@ -290,7 +317,7 @@ def update_facture(id):
         if not updated:
             return jsonify({"error": "Facture non trouvée"}), 404
         conn.commit()
-        facture = dict(updated)
+        facture = {key: convert_decimals(value) for key, value in dict(updated).items()}  # Convertir les Decimal
         socketio.emit('update_facture', facture)
         return jsonify(facture), 200
     except psycopg2.Error as e:
