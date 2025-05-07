@@ -26,6 +26,25 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disp
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 client_count = 0
 
+# map front values → valeur en base
+FUND_TYPE_MAP = {
+    "Fond 1":         "fonds de type 1",
+    "fonds de type 1":"fonds de type 1",
+    "Fond 3":         "fonds de type 3",
+    "fonds de type 3":"fonds de type 3",
+}
+
+def normalize_fund_type(raw: str) -> str:
+    """Accepte 'Fond 1' ou 'Fond 3' ou déjà en minuscule, retourne la clé en base."""
+    normalized = FUND_TYPE_MAP.get(raw)
+    if not normalized:
+        raise ValueError(f"Type de fonds invalide: {raw!r}")
+    return normalized
+
+
+
+
+
 @socketio.on('connect')
 def handle_connect():
     global client_count
@@ -452,33 +471,35 @@ def get_budgets():
 @app.route("/api/budget", methods=["POST"])
 def create_budget():
     data = request.get_json() or {}
-    # champs obligatoires
+    print("DEBUG create_budget payload:", data)
+
+    # 1) champs obligatoires
     for f in ("financial_year", "fund_type", "revenue_type", "amount"):
         if not data.get(f):
             return jsonify({"error": f"Le champ '{f}' est requis"}), 400
 
-    # validation fund_type
-    if data["fund_type"] not in ("fonds de type 1", "fonds de type 3"):
-        return jsonify({
-            "error": "fund_type invalide (‘fonds de type 1’ ou ‘fonds de type 3’ attendu)"
-        }), 400
+    # 2) normalisation fund_type (accepte 'Fond 1'/'Fond 3')
+    try:
+        data["fund_type"] = normalize_fund_type(data["fund_type"])
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
-    # conversion amount
+    # 3) conversion du montant
     try:
         amt = float(data["amount"])
     except ValueError:
         return jsonify({"error": "Montant invalide"}), 400
 
+    # 4) insertion
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
-
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute("""
             INSERT INTO budgets
-               (financial_year, fund_type, revenue_type, amount)
-            VALUES (%s, %s, %s, %s)
+              (financial_year, fund_type, revenue_type, amount)
+            VALUES (%s,%s,%s,%s)
             RETURNING *
         """, (
             data["financial_year"],
@@ -488,7 +509,6 @@ def create_budget():
         ))
         new_row = cur.fetchone()
         conn.commit()
-
         budget = {k: convert_to_json_serializable(v) for k, v in dict(new_row).items()}
         socketio.emit("new_budget", budget)
         return jsonify(budget), 201
@@ -502,19 +522,22 @@ def create_budget():
         cur.close()
         conn.close()
 
-
 @app.route("/api/budget/<int:id>", methods=["PUT"])
 def update_budget(id):
     data = request.get_json() or {}
     allowed = ["financial_year", "fund_type", "revenue_type", "amount"]
     fields, vals = [], []
 
+    # 1) Normalisation fund_type si présent
+    if "fund_type" in data:
+        try:
+            data["fund_type"] = normalize_fund_type(data["fund_type"])
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+    # 2) Préparation dynamique des champs à mettre à jour
     for f in allowed:
         if f in data:
-            if f == "fund_type" and data[f] not in ("fonds de type 1", "fonds de type 3"):
-                return jsonify({
-                    "error": "fund_type invalide (‘fonds de type 1’ ou ‘fonds de type 3’ attendu)"
-                }), 400
             if f == "amount":
                 try:
                     vals.append(float(data[f]))
@@ -527,6 +550,7 @@ def update_budget(id):
     if not fields:
         return jsonify({"error": "Aucun champ à mettre à jour"}), 400
 
+    # 3) Construction et exécution de la requête
     vals.append(id)
     sql = f"""
         UPDATE budgets
@@ -534,7 +558,6 @@ def update_budget(id):
          WHERE id = %s
       RETURNING *
     """
-
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
@@ -553,7 +576,7 @@ def update_budget(id):
 
     except psycopg2.Error as e:
         conn.rollback()
-        print("Erreur PUT /api/budgets/:id :", e)
+        print("Erreur PUT /api/budget/:id :", e)
         return jsonify({"error": "Impossible de mettre à jour le budget"}), 500
 
     finally:
