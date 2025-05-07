@@ -517,7 +517,7 @@ function App() {
       {/* MAIN CONTENT - Adjusted padding-top to clear the fixed header */}
        {/* Added pt-20 to push content down */}
        {/* Adjusted px-4 for consistent horizontal padding */}
-       <div className="container mx-auto px-4 pb-4 pt-20 sm:pt-75 transition-all duration-300">
+       <div className="container mx-auto px-4 pb-4 pt-80 sm:pt-75 transition-all duration-300">
         {/* Conditional Rendering based on currentView */}
         {currentView === 'home' && (
           <div className="text-center mt-10">
