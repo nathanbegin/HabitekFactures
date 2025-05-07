@@ -286,9 +286,11 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
     };
 
     // Data Processing for Expenses Chart
-    const expenseTotals = factures.reduce((totals, facture) => {
+    const relevantFactures = factures.filter(f => String(f.annee) === anneeFinanciere);
+    console.log("Filtered factures for year", anneeFinanciere, relevantFactures); // Debug log
+    const expenseTotals = relevantFactures.reduce((totals, facture) => {
         const amount = typeof facture.montant === 'string' ? parseFloat(facture.montant) : facture.montant;
-        if (!isNaN(amount)) {
+        if (!isNaN(amount) && facture.type) {
             totals[facture.type] = (totals[facture.type] || 0) + amount;
         }
         return totals;
@@ -369,7 +371,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
             {/* Expenses Summary and Chart */}
             <div className="bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-6">
                 <div className="w-full md:w-1/2 h-64 flex justify-center items-center">
-                    {factures.length > 0 && Object.keys(expenseTotals).length > 0 ? (
+                    {relevantFactures.length > 0 && Object.keys(expenseTotals).length > 0 ? (
                         <Pie data={expenseChartData} options={chartOptions} />
                     ) : (
                         <p className="text-gray-500">Aucune dépense pour cet exercice pour afficher le diagramme.</p>
