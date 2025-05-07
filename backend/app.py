@@ -238,18 +238,45 @@ def get_file(id):
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s", (id, annee))
+        # On récupère le nom de fichier en base
+        cursor.execute(
+            "SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s",
+            (id, annee)
+        )
         row = cursor.fetchone()
+
+        # Si pas de ligne ou fichier_nom déjà NULL
         if not row or not row[0]:
-            return jsonify({"error": "Fichier non trouvé"}), 404
-        safe_filename = secure_filename(row[0])
-        return send_from_directory(app.config["UPLOAD_FOLDER"], safe_filename, as_attachment=True)
+            return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
+
+        filename = secure_filename(row[0])
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+        # Si le fichier a été supprimé du système de fichiers
+        if not os.path.exists(filepath):
+            # Mettre à jour la BD pour nullifier fichier_nom
+            cursor.execute(
+                "UPDATE factures SET fichier_nom = NULL WHERE id = %s AND annee = %s",
+                (id, annee)
+            )
+            conn.commit()
+            return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
+
+        # Tout va bien : on renvoie le fichier
+        return send_from_directory(
+            app.config["UPLOAD_FOLDER"],
+            filename,
+            as_attachment=True
+        )
+
     except psycopg2.Error as e:
         print(f"Erreur PostgreSQL lors de la récupération du fichier : {e}")
         return jsonify({"error": "Erreur lors de l'accès au fichier."}), 500
+
     finally:
         cursor.close()
         conn.close()
+
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 def delete_facture(id):
