@@ -74,7 +74,18 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
 
     useEffect(() => {
         // Fetch budget data for the current financial year
-        fetchBudget(anneeFinanciere).then(data => setBudgetEntries(data || [])); // Assuming fetchBudget returns data or undefined
+        fetchBudget(anneeFinanciere).then(data => {
+             if (data) {
+                // --- FIX: Convert amount strings to numbers ---
+                const processedData = data.map(entry => ({
+                    ...entry,
+                    amount: parseFloat(entry.amount) // Convert amount to float
+                }));
+                setBudgetEntries(processedData);
+            } else {
+                 setBudgetEntries([]); // Set empty if fetch failed
+            }
+        });
 
         // Fetch revenue types
         const fetchRevenueTypes = async () => {
@@ -167,9 +178,9 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
     // --- Action Execution Functions (Called after PIN verification) ---
     const executeAddEntry = async () => {
         // Call the addBudgetEntry function from App.jsx
-        const success = await addBudgetEntry(newEntryData); // Assuming addBudgetEntry returns success status or fetches data
+        const success = await addBudgetEntry(newEntryData); // Assuming addBudgetEntry returns true/false
 
-        if (success !== false) { // Assuming success means something other than explicit false
+        if (success) { // Check for explicit true
             setIsAddingEntry(false); // Hide the form
             setNewEntryData({ // Reset form data
                 fund_type: 'Fond 1',
@@ -177,29 +188,59 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                 amount: ''
             });
              // Re-fetch budget data to update the list and chart
-            fetchBudget(anneeFinanciere).then(data => setBudgetEntries(data || []));
+            fetchBudget(anneeFinanciere).then(data => {
+                 if (data) {
+                     const processedData = data.map(entry => ({
+                         ...entry,
+                         amount: parseFloat(entry.amount)
+                     }));
+                     setBudgetEntries(processedData);
+                 } else {
+                      setBudgetEntries([]);
+                 }
+             });
         }
     };
 
      const executeEditEntry = async (editedData) => {
          // Call the updateBudgetEntry function from App.jsx
-        const success = await updateBudgetEntry(editingEntryId, editedData); // Assuming updateBudgetEntry returns success status
+        const success = await updateBudgetEntry(editingEntryId, editedData); // Assuming updateBudgetEntry returns true/false
 
-        if (success !== false) {
+        if (success) {
              setEditingEntryId(null); // Exit editing mode
              setEditedEntryData(null); // Clear edited data
              // Re-fetch budget data
-            fetchBudget(anneeFinanciere).then(data => setBudgetEntries(data || []));
+            fetchBudget(anneeFinanciere).then(data => {
+                 if (data) {
+                     const processedData = data.map(entry => ({
+                         ...entry,
+                         amount: parseFloat(entry.amount)
+                     }));
+                     setBudgetEntries(processedData);
+                 } else {
+                      setBudgetEntries([]);
+                 }
+             });
         }
      };
 
      const executeDeleteEntry = async (entryId) => {
          // Call the deleteBudgetEntry function from App.jsx
-        const success = await deleteBudgetEntry(entryId); // Assuming deleteBudgetEntry returns success status
+        const success = await deleteBudgetEntry(entryId); // Assuming deleteBudgetEntry returns true/false
 
-        if (success !== false) {
+        if (success) {
              // Re-fetch budget data
-            fetchBudget(anneeFinanciere).then(data => setBudgetEntries(data || []));
+            fetchBudget(anneeFinanciere).then(data => {
+                 if (data) {
+                     const processedData = data.map(entry => ({
+                         ...entry,
+                         amount: parseFloat(entry.amount)
+                     }));
+                     setBudgetEntries(processedData);
+                 } else {
+                      setBudgetEntries([]);
+                 }
+             });
         }
      };
 
@@ -208,12 +249,12 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
      const handleAddSubmit = (e) => {
          e.preventDefault();
           // Basic frontend validation
-         if (!newEntryData.fund_type || !newEntryData.revenue_type || !newEntryData.amount) {
+         if (!newEntryData.fund_type || !newEntryData.revenue_type || newEntryData.amount === '' || newEntryData.amount === null) {
              alert("Veuillez remplir tous les champs.");
              return;
          }
          if (isNaN(parseFloat(newEntryData.amount))) {
-              alert("Le montant doit être un nombre.");
+              alert("Le montant doit être un nombre valide.");
               return;
          }
          requestPin('add'); // Request PIN for adding
@@ -224,19 +265,19 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
         // Set edited data, ensuring amount is a string for input value
         setEditedEntryData({
             ...entry,
-             amount: String(entry.amount)
+             amount: String(entry.amount) // Keep as string for input field
         });
     };
 
     const handleEditSubmit = (e) => {
         e.preventDefault();
          // Basic frontend validation for edited data
-         if (!editedEntryData.fund_type || !editedEntryData.revenue_type || !editedEntryData.amount) {
+         if (!editedEntryData.fund_type || !editedEntryData.revenue_type || editedEntryData.amount === '' || editedEntryData.amount === null) {
              alert("Veuillez remplir tous les champs.");
              return;
          }
           if (isNaN(parseFloat(editedEntryData.amount))) {
-              alert("Le montant doit être un nombre.");
+              alert("Le montant doit être un nombre valide.");
               return;
          }
         requestPin('edit', editedEntryData); // Request PIN for editing, pass edited data
@@ -250,8 +291,13 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
 
 
     // --- Data Processing for Chart ---
+    // Ensure amounts are treated as numbers here
     const budgetTotals = budgetEntries.reduce((totals, entry) => {
-        totals[entry.fund_type] = (totals[entry.fund_type] || 0) + entry.amount;
+        // Ensure entry.amount is a number before adding
+        const amount = typeof entry.amount === 'string' ? parseFloat(entry.amount) : entry.amount;
+        if (!isNaN(amount)) { // Add check if parsing failed
+            totals[entry.fund_type] = (totals[entry.fund_type] || 0) + amount;
+        }
         return totals;
     }, {});
 
@@ -308,7 +354,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
             {/* Budget Summary and Chart */}
             <div className="bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-6">
                  <div className="w-full md:w-1/2 h-64 flex justify-center items-center"> {/* Container for chart */}
-                    {budgetEntries.length > 0 ? (
+                    {budgetEntries.length > 0 && Object.keys(budgetTotals).length > 0 ? ( // Also check if there are totals
                         <Pie data={chartData} options={chartOptions} />
                     ) : (
                         <p className="text-gray-500">Aucune donnée budgétaire pour cet exercice pour afficher le diagramme.</p>
@@ -317,15 +363,16 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                  <div className="w-full md:w-1/2">
                      <h3 className="text-lg font-semibold mb-4">Répartition par Fond</h3>
                      <ul className="space-y-2">
-                         {Object.keys(budgetTotals).map(fund => (
-                             <li key={fund} className="flex justify-between text-gray-700">
-                                 <span>{fund}:</span>
-                                 <span>{budgetTotals[fund].toFixed(2)}$</span>
-                             </li>
-                         ))}
-                          {Object.keys(budgetTotals).length === 0 && (
+                         {Object.keys(budgetTotals).length > 0 ? ( // Only map if there are totals
+                              Object.keys(budgetTotals).map(fund => (
+                                 <li key={fund} className="flex justify-between text-gray-700">
+                                     <span>{fund}:</span>
+                                     <span>{budgetTotals[fund].toFixed(2)}$</span>
+                                 </li>
+                             ))
+                         ) : (
                              <li className="text-gray-500">Aucune donnée disponible.</li>
-                          )}
+                         )}
                      </ul>
                  </div>
             </div>
@@ -349,9 +396,10 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                             name="fund_type"
                             value={newEntryData.fund_type}
                             onChange={handleNewEntryChange}
-                            className="mt-1 w-full p-2 border rounded"
+                            className="mt-1 w-full p-2 border rounded text-gray-700"
                             required
                         >
+                             {/* Ensure revenueTypes is loaded before mapping */}
                             {Object.keys(revenueTypes).map(fund => (
                                 <option key={fund} value={fund}>{fund}</option>
                             ))}
@@ -366,12 +414,13 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                             name="revenue_type"
                             value={newEntryData.revenue_type}
                             onChange={handleNewEntryChange}
-                            className="mt-1 w-full p-2 border rounded"
+                            className="mt-1 w-full p-2 border rounded text-gray-700"
                             required
                         >
+                             {/* Ensure revenueTypes and the selected fund type exist */}
                             {revenueTypes[newEntryData.fund_type]?.map(type => (
                                 <option key={type} value={type}>{type}</option>
-                            ))}
+                            )) || <option value="">Chargement...</option>} {/* Add a loading/default option */}
                         </select>
                     </div>
 
@@ -419,11 +468,12 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                                                 <select
                                                     id={`edit_fund_type_${entry.id}`}
                                                     name="fund_type"
-                                                    value={editedEntryData.fund_type}
+                                                    value={editedEntryData?.fund_type || ''} // Use optional chaining and default empty string
                                                     onChange={handleEditedEntryChange}
                                                     className="mt-1 w-full p-2 border rounded text-gray-700"
                                                     required
                                                 >
+                                                     {/* Ensure revenueTypes is loaded before mapping */}
                                                      {Object.keys(revenueTypes).map(fund => (
                                                         <option key={fund} value={fund}>{fund}</option>
                                                     ))}
@@ -435,14 +485,15 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                                                 <select
                                                     id={`edit_revenue_type_${entry.id}`}
                                                     name="revenue_type"
-                                                    value={editedEntryData.revenue_type}
+                                                     value={editedEntryData?.revenue_type || ''} // Use optional chaining and default empty string
                                                     onChange={handleEditedEntryChange}
                                                     className="mt-1 w-full p-2 border rounded text-gray-700"
                                                     required
                                                 >
-                                                    {revenueTypes[editedEntryData.fund_type]?.map(type => (
+                                                    {/* Ensure revenueTypes and the selected fund type exist */}
+                                                    {revenueTypes[editedEntryData?.fund_type]?.map(type => ( // Use optional chaining
                                                         <option key={type} value={type}>{type}</option>
-                                                    ))}
+                                                    )) || <option value="">Chargement...</option>} {/* Add a loading/default option */}
                                                 </select>
                                             </div>
                                           {/* Amount (Editable) */}
@@ -452,7 +503,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                                                     type="number"
                                                     id={`edit_amount_${entry.id}`}
                                                     name="amount"
-                                                    value={editedEntryData.amount}
+                                                    value={editedEntryData?.amount || ''} // Use optional chaining and default empty string
                                                     onChange={handleEditedEntryChange}
                                                     className="mt-1 w-full p-2 border rounded text-gray-700"
                                                     placeholder="Montant"
@@ -486,7 +537,8 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                                             <p className="text-sm text-gray-600">{new Date(entry.date_added).toLocaleDateString()}</p>
                                         </div>
                                         <div className="flex items-center">
-                                            <span className="text-green-600 font-bold mr-4">{entry.amount.toFixed(2)}$</span>
+                                            {/* Ensure entry.amount is treated as a number here */}
+                                            <span className="text-green-600 font-bold mr-4">{parseFloat(entry.amount)?.toFixed(2)}$</span> {/* Added parseFloat and optional chaining */}
                                             <button
                                                 onClick={() => handleEditClick(entry)}
                                                 className="text-blue-500 hover:text-blue-700 text-sm mr-2"
