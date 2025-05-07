@@ -587,13 +587,21 @@ def delete_budget(id):
         conn.close()
 
 @app.route("/api/budget/revenue-types", methods=["GET"])
-def get_revenue_types():
-    # si statique, sinon tirer dynamiquement de la base
-    types = {
-      "fonds de type 1": ["Type A", "Type B"],
-      "fonds de type 3": ["Type C", "Type D"]
+def get_revenue_types_alias():
+    revenue_types = {
+        "Fond 1": [
+            "Subvention Services à la vie étudiante",
+            "Travail étudiant au compte de club pour un service ou un département",
+            "Subvention au club pour la participation aux portes ouvertes",
+            "Autre revenu interne"  # ajoutez ou ajustez selon vos besoins
+        ],
+        "Fond 3": [
+            "Dons",
+            "Levée de fonds",
+            "Bourses d'entreprises ou d'organismes"
+        ]
     }
-    return jsonify(types), 200
+    return jsonify(revenue_types), 200
 
 
 @app.route("/api/budget/verify-pin", methods=["POST"])
