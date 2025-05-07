@@ -112,6 +112,52 @@ function App() {
     }
   }
 
+  // New function to export data as CSV
+  async function exportFacturesCsv() {
+    try {
+      // Construct the URL for the export endpoint, including the year
+      const exportUrl = `${API_URL}/api/factures/export-csv?annee=${annee}`;
+      const response = await fetch(exportUrl);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the filename from the Content-Disposition header or use a default
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `factures_${annee}.csv`; // Default filename
+      if (disposition) {
+        const filenameMatch = disposition.match(/filename="?(.+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create a blob from the response body
+      const blob = await response.blob();
+      // Create a link element
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename; // Set the download filename
+      document.body.appendChild(a);
+      a.click(); // Programmatically click the link to trigger the download
+      // Clean up
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      console.log('Factures exported successfully.');
+
+    } catch (error) {
+      console.error('Error exporting factures:', error);
+      alert('Erreur lors de l\'exportation des factures.'); // Provide user feedback
+    } finally {
+      // Optionally close the sidebar after export
+      setIsSidebarOpen(false);
+    }
+  }
+
+
   return (
     <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
       {/* HEADER */}
@@ -168,11 +214,19 @@ function App() {
         {/* Sidebar content */}
         <div className="p-4 flex-grow"> {/* flex-grow makes this section take up available space */}
           <h2 className="text-lg font-semibold mb-4">Menu</h2>
-          {/* Add your sidebar menu items here */}
           <ul>
+            {/* Existing menu items */}
             <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 1</a></li>
             <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 2</a></li>
-            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 3</a></li>
+            {/* New Export to CSV menu item */}
+            <li>
+              <button
+                onClick={exportFacturesCsv}
+                className="block w-full text-left py-2 text-gray-700 hover:bg-gray-100 focus:outline-none"
+              >
+                Exporter en CSV
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -206,7 +260,7 @@ function App() {
               </div>
             </div>
           )}
-          <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
+        <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
         </div>
 
         {/* TABLEAU DES FACTURES */}
