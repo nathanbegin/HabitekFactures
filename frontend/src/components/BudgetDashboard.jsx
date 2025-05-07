@@ -72,17 +72,16 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
         // Fetch budget data for the current financial year
         fetchBudget(anneeFinanciere).then(data => {
             if (data) {
-                // Ne garder que les entrées dont financial_year === anneeFinanciere
-                const filtered = data.filter(e => String(e.financial_year) === anneeFinanciere);
-                const processedData = filtered.map(entry => ({
-                    ...entry,
-                    amount: parseFloat(entry.amount)
-                }));
-                setBudgetEntries(processedData);
+              // data ne contient que l’année sélectionnée
+              const processed = data.map(e => ({
+                ...e,
+                amount: parseFloat(e.amount)
+              }));
+              setBudgetEntries(processed);
             } else {
-                setBudgetEntries([]);
+              setBudgetEntries([]);
             }
-        });
+          });
 
         // Fetch revenue types
         const fetchRevenueTypes = async () => {
