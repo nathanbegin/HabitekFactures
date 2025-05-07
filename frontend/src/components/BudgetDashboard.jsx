@@ -77,6 +77,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
     const [showPinModal, setShowPinModal] = useState(false);
     const [pinAction, setPinAction] = useState(null);
     const [pinEntryToModify, setPinEntryToModify] = useState(null);
+    const [localFactures, setLocalFactures] = useState([]);
 
     const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
@@ -94,6 +95,17 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
               setBudgetEntries([]);
             }
           });
+
+        fetch(`${API_URL}/api/factures?annee=${anneeFinanciere}`)
+            .then(r => {
+                if (!r.ok) throw new Error(r.statusText);
+                return r.json();
+            })
+            .then(data => setLocalFactures(data.map(f => ({
+                ...f,
+                montant: parseFloat(f.montant)
+            }))))
+            .catch(() => setLocalFactures([]));
 
         // Fetch revenue types
         const fetchRevenueTypes = async () => {
@@ -299,15 +311,21 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
     };
 
     // Data Processing for Expenses Chart
-    const relevantFactures = factures.filter(f => String(f.annee) === anneeFinanciere);
-    console.log("Filtered factures for year", anneeFinanciere, relevantFactures); // Debug log
+    //const relevantFactures = factures.filter(f => String(f.annee) === anneeFinanciere);
+    const relevantFactures = localFactures;
     const expenseTotals = relevantFactures.reduce((totals, facture) => {
-        const amount = typeof facture.montant === 'string' ? parseFloat(facture.montant) : facture.montant;
-        if (!isNaN(amount) && facture.type) {
-            totals[facture.type] = (totals[facture.type] || 0) + amount;
-        }
+        if (!facture.type) return totals;
+        totals[facture.type] = (totals[facture.type] || 0) + facture.montant;
         return totals;
     }, {});
+    // console.log("Filtered factures for year", anneeFinanciere, relevantFactures); // Debug log
+    // const expenseTotals = relevantFactures.reduce((totals, facture) => {
+    //     const amount = typeof facture.montant === 'string' ? parseFloat(facture.montant) : facture.montant;
+    //     if (!isNaN(amount) && facture.type) {
+    //         totals[facture.type] = (totals[facture.type] || 0) + amount;
+    //     }
+    //     return totals;
+    // }, {});
 
     const expenseChartData = {
         labels: Object.keys(expenseTotals),
