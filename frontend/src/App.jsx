@@ -115,28 +115,37 @@ function App() {
   return (
     <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
       {/* HEADER */}
-      {/* Adjusted header for better mobile layout and hamburger button position */}
-      <div className="flex items-center justify-between mb-6 p-4"> {/* Combined flex and justify-between for overall header */}
-        <div className="flex items-center"> {/* Container for hamburger, logo and title */}
-           {/* Menu button (hamburger icon) - Moved to the left */}
-          <button
-            className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4" // Added right margin
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-          <img src={logo} alt="Logo Habitek" className="w-32 mr-4" /> {/* Logo */}
-          <h1 className="text-2xl font-bold text-blue-600"> {/* Title */}
+      <div className="flex items-center justify-between mb-6 p-4">
+        {/* Left side of header: Hamburger, Logo, Title */}
+        {/* Using flex-col on mobile and flex-row on sm+ for stacking */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center">
+           {/* Container for hamburger and logo */}
+           {/* Using flex-row to keep them in a row even when the parent is a column */}
+           <div className="flex items-center mb-2 sm:mb-0"> {/* Add margin bottom on mobile */}
+              {/* Menu button (hamburger icon) */}
+              <button
+                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4" // Added right margin
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+              <img src={logo} alt="Logo Habitek" className="w-32" /> {/* Logo */}
+           </div>
+           {/* Title - Centered on mobile, left-aligned on sm+ */}
+           {/* On mobile, it's a block element in the column, text-center centers the text */}
+           {/* On sm+, it's in a row, text-left aligns it */}
+          <h1 className="text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4"> {/* Added left margin on sm+ */}
             Habitek — Gestion des factures
           </h1>
         </div>
-        <div className="flex items-center"> {/* Container for client count */}
-          <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
-            Clients en ligne : {clientCount}
-          </div>
+
+        {/* Right side of header: Client count (hidden on mobile) */}
+        {/* Hide on mobile (<sm) and show as flex on sm+ */}
+        <div className="hidden sm:flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm">
+          Clients en ligne : {clientCount}
         </div>
       </div>
 
@@ -150,19 +159,29 @@ function App() {
       )}
 
       {/* Sidebar */}
+      {/* Added flex and flex-col to sidebar for layout */}
       <div
-        className={`fixed top-0 left-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 ${ // Fixed position, top-left, set width and height, shadow, transition, higher z-index
+        className={`fixed top-0 left-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 flex flex-col ${ // Added flex flex-col
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full' // Translate based on state (now from the left)
         }`}
       >
-        <div className="p-4">
+        {/* Sidebar content */}
+        <div className="p-4 flex-grow"> {/* flex-grow makes this section take up available space */}
           <h2 className="text-lg font-semibold mb-4">Menu</h2>
-          {/* Add your sidebar content here */}
+          {/* Add your sidebar menu items here */}
           <ul>
             <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 1</a></li>
             <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 2</a></li>
             <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 3</a></li>
           </ul>
+        </div>
+
+        {/* Client count in sidebar footer (shown only on mobile) */}
+        {/* Show on mobile (<sm) and hide on sm+ */}
+        <div className="p-4 border-t border-gray-200 sm:hidden"> {/* Added padding, border top, hidden on sm+ */}
+           <div className="px-3 py-1 bg-gray-100 rounded-full text-sm text-center"> {/* Centered text */}
+            Clients en ligne : {clientCount}
+          </div>
         </div>
       </div>
 
