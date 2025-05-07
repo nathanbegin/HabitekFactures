@@ -264,12 +264,15 @@ def delete_facture(id):
         if not row:
             return jsonify({"error": "Facture non trouvée"}), 404
 
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row[0]))
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception as e:
-                print(f"Erreur lors de la suppression du fichier {filepath} : {e}")
+        # Supprimer le fichier uniquement si fichier_nom est non NULL et non vide
+        if row[0]:
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row[0]))
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                    print(f"Fichier supprimé : {filepath}")  # Débogage
+                except Exception as e:
+                    print(f"Erreur lors de la suppression du fichier {filepath} : {e}")  # Débogage
 
         cursor.execute("DELETE FROM factures WHERE id = %s AND annee = %s", (id, annee))
         if cursor.rowcount == 0:
@@ -282,6 +285,10 @@ def delete_facture(id):
         conn.rollback()
         print(f"Erreur PostgreSQL lors de la suppression de la facture : {e}")
         return jsonify({"error": f"Erreur lors de la suppression : {e}"}), 500
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur inattendue lors de la suppression de la facture : {e}")
+        return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
