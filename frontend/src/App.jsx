@@ -547,6 +547,8 @@ function App() {
                 updateBudgetEntry={updateBudgetEntry}
                 deleteBudgetEntry={deleteBudgetEntry}
                 verifyPin={verifyPin}
+                factures={factures}
+                fetchFactures={fetchFactures}
            />
         )}
 
