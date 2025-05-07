@@ -86,8 +86,21 @@ def init_db():
                 date_ajout TIMESTAMP NOT NULL
             );
         """)
+        # Création de la table budgets
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budgets (
+                id SERIAL PRIMARY KEY,
+                financial_year VARCHAR(4) NOT NULL,
+                fund_type VARCHAR(50) NOT NULL,
+                revenue_type VARCHAR(255) NOT NULL,
+                amount NUMERIC(10,2) NOT NULL,
+                date_added TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+            );
+        """)
+        
         conn.commit()
         print("Tableau de factures vérifié/créé.")
+        print("Tableau de budgets vérifié/créé.")
     except psycopg2.Error as e:
         print(f"Erreur d'initialisation de la base de données : {e}")
         conn.rollback()
@@ -396,6 +409,160 @@ def export_factures_csv():
     finally:
         cursor.close()
         conn.close()
+
+
+
+
+
+# -------------------------------
+#       Routes CRUD pour budgets
+# -------------------------------
+
+@app.route("/api/budgets", methods=["GET"])
+def get_budgets():
+    year = request.args.get("financial_year", str(datetime.now().year))
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Connexion DB impossible"}), 500
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute("""
+            SELECT * FROM budgets
+            WHERE financial_year = %s
+            ORDER BY id DESC
+        """, (year,))
+        rows = cur.fetchall()
+        result = [
+            {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
+            for row in rows
+        ]
+        return jsonify(result), 200
+    except psycopg2.Error as e:
+        print("Erreur GET budgets :", e)
+        return jsonify({"error": "Impossibilité de récupérer les budgets"}), 500
+    finally:
+        cur.close(); conn.close()
+
+
+@app.route("/api/budgets", methods=["POST"])
+def create_budget():
+    data = request.get_json() or {}
+    for f in ("financial_year", "fund_type", "revenue_type", "amount"):
+        if not data.get(f):
+            return jsonify({"error": f"Le champ '{f}' est requis"}), 400
+
+    if data["fund_type"] not in ("fonds de type 1", "fonds de type 3"):
+        return jsonify({
+            "error": "fund_type invalide : doit être 'fonds de type 1' ou 'fonds de type 3'"
+        }), 400
+
+    try:
+        amt = float(data["amount"])
+    except ValueError:
+        return jsonify({"error": "Montant invalide"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Connexion DB impossible"}), 500
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute("""
+            INSERT INTO budgets
+              (financial_year, fund_type, revenue_type, amount)
+            VALUES (%s,%s,%s,%s)
+            RETURNING *
+        """, (
+            data["financial_year"],
+            data["fund_type"],
+            data["revenue_type"],
+            amt
+        ))
+        new = cur.fetchone()
+        conn.commit()
+        budget = {k: convert_to_json_serializable(v) for k, v in dict(new).items()}
+        socketio.emit("new_budget", budget)
+        return jsonify(budget), 201
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        print("Erreur POST budgets :", e)
+        return jsonify({"error": "Impossible de créer le budget"}), 500
+    finally:
+        cur.close(); conn.close()
+
+
+@app.route("/api/budgets/<int:id>", methods=["PUT"])
+def update_budget(id):
+    data = request.get_json() or {}
+    allowed = ["financial_year", "fund_type", "revenue_type", "amount"]
+    fields, vals = [], []
+
+    for f in allowed:
+        if f in data:
+            if f == "fund_type" and data[f] not in ("fonds de type 1", "fonds de type 3"):
+                return jsonify({
+                    "error": "fund_type invalide : doit être 'fonds de type 1' ou 'fonds de type 3'"
+                }), 400
+            if f == "amount":
+                try: vals.append(float(data[f]))
+                except ValueError: return jsonify({"error": "Montant invalide"}), 400
+            else:
+                vals.append(data[f])
+            fields.append(f"{f} = %s")
+
+    if not fields:
+        return jsonify({"error": "Aucun champ à mettre à jour"}), 400
+
+    vals.append(id)
+    sql = f"""
+        UPDATE budgets
+        SET {', '.join(fields)}
+        WHERE id = %s
+        RETURNING *
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Connexion DB impossible"}), 500
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute(sql, vals)
+        updated = cur.fetchone()
+        if not updated:
+            return jsonify({"error": "Budget non trouvé"}), 404
+        conn.commit()
+        budget = {k: convert_to_json_serializable(v) for k, v in dict(updated).items()}
+        socketio.emit("update_budget", budget)
+        return jsonify(budget), 200
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        print("Erreur PUT budgets :", e)
+        return jsonify({"error": "Impossible de mettre à jour le budget"}), 500
+    finally:
+        cur.close(); conn.close()
+
+
+@app.route("/api/budgets/<int:id>", methods=["DELETE"])
+def delete_budget(id):
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Connexion DB impossible"}), 500
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM budgets WHERE id = %s RETURNING id", (id,))
+        if not cur.fetchone():
+            return jsonify({"error": "Budget non trouvé"}), 404
+        conn.commit()
+        socketio.emit("delete_budget", {"id": id})
+        return jsonify({"message": "Budget supprimé"}), 200
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        print("Erreur DELETE budgets :", e)
+        return jsonify({"error": "Impossible de supprimer le budget"}), 500
+    finally:
+        cur.close(); conn.close()
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
