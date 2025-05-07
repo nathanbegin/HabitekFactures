@@ -98,10 +98,12 @@ def init_db():
 # Initialiser la base de données au démarrage
 init_db()
 
-# Fonction utilitaire pour convertir les Decimal en float pour JSON
-def convert_decimals(obj):
+# Fonction utilitaire pour convertir les types non sérialisables JSON
+def convert_to_json_serializable(obj):
     if isinstance(obj, Decimal):
         return float(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
     return obj
 
 @app.route("/")
@@ -187,7 +189,7 @@ def upload_facture():
         dict_cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
         new_f = dict_cursor.fetchone()
-        facture = {key: convert_decimals(value) for key, value in dict(new_f).items()}  # Convertir les Decimal
+        facture = {key: convert_to_json_serializable(value) for key, value in dict(new_f).items()}  # Convertir Decimal et datetime
         dict_cursor.close()
 
         socketio.emit('new_facture', facture)
@@ -218,8 +220,8 @@ def get_factures():
     try:
         cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
         rows = cursor.fetchall()
-        # Convertir les Decimal en float pour toutes les factures
-        result = [{key: convert_decimals(value) for key, value in dict(row).items()} for row in rows]
+        # Convertir Decimal et datetime pour toutes les factures
+        result = [{key: convert_to_json_serializable(value) for key, value in dict(row).items()} for row in rows]
         return jsonify(result)
     except psycopg2.Error as e:
         print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
@@ -317,13 +319,17 @@ def update_facture(id):
         if not updated:
             return jsonify({"error": "Facture non trouvée"}), 404
         conn.commit()
-        facture = {key: convert_decimals(value) for key, value in dict(updated).items()}  # Convertir les Decimal
+        facture = {key: convert_to_json_serializable(value) for key, value in dict(updated).items()}  # Convertir Decimal et datetime
         socketio.emit('update_facture', facture)
         return jsonify(facture), 200
     except psycopg2.Error as e:
         conn.rollback()
         print(f"Erreur PostgreSQL lors de la mise à jour de la facture : {e}")
         return jsonify({"error": f"Erreur lors de la mise à jour : {e}"}), 500
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur inattendue lors de la mise à jour de la facture : {e}")
+        return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
