@@ -112,7 +112,7 @@ function App() {
     }
   }
 
-  // New function to export data as CSV
+   // New function to export data as CSV
   async function exportFacturesCsv() {
     try {
       // Construct the URL for the export endpoint, including the year
@@ -160,8 +160,9 @@ function App() {
 
   return (
     <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-6 p-4">
+      {/* HEADER - Made Fixed */}
+      {/* Added fixed, top-0, left-0, right-0, bg-white, shadow, z-10 */}
+      <div className="fixed top-0 left-0 right-0 bg-white shadow z-10 flex items-center justify-between p-4">
         {/* Left side of header: Hamburger, Logo, Title */}
         {/* Using flex-col on mobile and flex-row on sm+ for stacking */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center">
@@ -239,8 +240,9 @@ function App() {
         </div>
       </div>
 
-      {/* MAIN CONTENT - Adjusted padding based on sidebar visibility (optional but good for UX) */}
-       <div className={`container mx-auto p-4 transition-all duration-300 ${isSidebarOpen ? 'ml-0 sm:ml-64' : ''}`}>
+      {/* MAIN CONTENT - Adjusted padding-top to clear the fixed header */}
+       {/* Added pt-20 to push content down */}
+       <div className="container mx-auto px-4 pb-4 pt-20 transition-all duration-300"> {/* Adjusted padding */}
         {/* FORMULAIRE D'AJOUT */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
