@@ -60,7 +60,7 @@ function App() {
   async function fetchFactures(year) {
     try {
       console.log(`Workspaceing factures for financial year ${year}`);
-      const res  = await fetch(`${API_URL}/api/factures?annee=${year}`);
+      const res  = await fetch(`${API_URL}/api/factures?annee=${year}`); // Use 'annee' as query param as implemented in backend
       if (!res.ok) {
           const errorText = await res.text();
           throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
@@ -154,7 +154,7 @@ function App() {
     if (!window.confirm("Supprimer cette facture ?")) return false; // Return false if not confirmed
     try {
       // Pass the financial year to help backend locate the data if needed
-      const res = await fetch(`${API_URL}/api/factures/${id}?annee=${anneeFinanciere}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/factures/${id}?annee=${anneeFinanciere}`, { method: 'DELETE' }); // Pass 'annee' as query param
        if (!res.ok) {
            const errorText = await res.text();
            throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
@@ -178,7 +178,7 @@ function App() {
       const res = await fetch(`${API_URL}/api/factures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, annee: anneeFinanciere }) // Pass the financial year
+        body: JSON.stringify({ ...data, annee: anneeFinanciere }) // Pass the financial year identifier
       });
        if (!res.ok) {
            const errorText = await res.text();
@@ -253,6 +253,7 @@ function App() {
   const fetchBudget = async (year) => {
       console.log(`Workspaceing budget for financial year ${year}`);
        try {
+           // Use 'annee' as query param for financial year as implemented in backend
            const res = await fetch(`${API_URL}/api/budget?annee=${year}`); // Use 'annee' as query param as implemented in backend
            if (!res.ok) {
                const errorText = await res.text();
@@ -360,13 +361,17 @@ function App() {
       {/* HEADER - Made Fixed */}
       <div className="fixed top-0 left-0 right-0 bg-white shadow z-10 flex items-center justify-between p-4">
         {/* Left side of header: Hamburger, Logo, Title */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center">
+        {/* Make this div clickable */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center cursor-pointer" onClick={() => handleMenuItemClick('home')}>
            {/* Container for hamburger and logo */}
            <div className="flex items-center mb-2 sm:mb-0">
-              {/* Menu button (hamburger icon) */}
+              {/* Menu button (hamburger icon) - Keep it clickable separately */}
               <button
-                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4 cursor-pointer" // Ensure cursor-pointer is here too
+                onClick={(e) => {
+                    e.stopPropagation(); // Prevent the click from bubbling up to the parent div
+                    setIsSidebarOpen(!isSidebarOpen);
+                }}
                 aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -377,7 +382,7 @@ function App() {
            </div>
            {/* Title - Centered on mobile, left-aligned on sm+ */}
           <h1 className="text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4">
-            Habitek — Gestion des factures
+            Habitek - Plateforme trésorerie {/* Changed Title Here */}
           </h1>
         </div>
 
@@ -481,7 +486,7 @@ function App() {
         {/* Conditional Rendering based on currentView */}
         {currentView === 'home' && (
           <div className="text-center mt-10">
-            <h2 className="text-2xl font-semibold text-gray-700">Bienvenue sur l'application de gestion des factures</h2>
+            <h2 className="text-2xl font-semibold text-gray-700">Bienvenue sur l'application de gestion des factures</h2> {/* Keep this specific welcome message */}
             <p className="text-gray-600 mt-4">Sélectionnez une option dans le menu pour commencer.</p>
           </div>
         )}
@@ -524,7 +529,6 @@ function App() {
           </>
         )}
 
-        {/* Budget Management View */}
         {currentView === 'manage-budget' && (
            // Render the BudgetDashboard component
            <BudgetDashboard
