@@ -1,20 +1,34 @@
 import { useState, useEffect } from 'react';
 import FormFacture from './components/FormFacture';
 import TableFactures from './components/TableFactures';
+import BudgetDashboard from './components/BudgetDashboard'; // Import the new component
 import { io } from 'socket.io-client';
 import logo from './Logo Habitek_WEB_Transparent-06.png';
 
 const API_URL    = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 const SOCKET_URL = `${API_URL.replace('https', 'wss')}`;
 
+// Helper function to determine the financial year (May 1st to April 30th)
+const getFinancialYear = (date = new Date()) => {
+  const year = date.getFullYear();
+  // Financial year starts May 1st
+  if (date.getMonth() >= 4) { // Month is 0-indexed, so 4 is May
+    return String(year);
+  } else {
+    return String(year - 1);
+  }
+};
+
+
 function App() {
   const [factures,       setFactures]       = useState([]);
-  const [annee,          setAnnee]          = useState(new Date().getFullYear());
+  // Use financial year for data fetching context
+  const [anneeFinanciere, setAnneeFinanciere] = useState(getFinancialYear());
   const [clientCount,    setClientCount]    = useState(0);
   // State for sidebar visibility
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // New state to manage the current view
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'manage-invoices', etc.
+  // State to manage the current view
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'manage-invoices', 'manage-budget', etc.
 
 
   // États pour upload
@@ -22,40 +36,64 @@ function App() {
   const [timeLeft,       setTimeLeft]       = useState('');
 
   useEffect(() => {
-    // Fetch factures only when the 'manage-invoices' view is active
+    // Fetch factures only when the 'manage-invoices' view is active and financial year changes
     if (currentView === 'manage-invoices') {
-      fetchFactures();
+      fetchFactures(anneeFinanciere);
     }
+     // Note: If budget management requires its own data fetching or real-time updates,
+    // you'll need to add similar conditional logic here based on `currentView === 'manage-budget'`.
+    // Socket connections and events should ideally be handled at a higher level or in a dedicated service
+    // and update view-specific states conditionally if needed.
     const socket = io(SOCKET_URL, { transports: ['websocket'] });
     socket.on('client_count',   setClientCount);
-    // Update factures only if we are on the 'manage-invoices' view
-    socket.on('new_facture',    nf => { if(currentView === 'manage-invoices') setFactures(prev => [nf, ...prev]); });
-    socket.on('delete_facture', d  => { if(currentView === 'manage-invoices') setFactures(prev => prev.filter(f=>f.id!==d.id)); });
-    socket.on('update_facture', uf => { if(currentView === 'manage-invoices') setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)); });
+    // Update factures only if we are on the 'manage-invoices' view and the year matches
+    // These handlers need to be careful about which 'anneeFinanciere' they apply to
+    socket.on('new_facture',    nf => { if(currentView === 'manage-invoices' && String(nf.annee) === anneeFinanciere) setFactures(prev => [nf, ...prev]); });
+    socket.on('delete_facture', d  => { if(currentView === 'manage-invoices') setFactures(prev => prev.filter(f=>f.id!==d.id)); }); // Deletion is often by ID, year might not be strictly necessary here depending on backend
+    socket.on('update_facture', uf => { if(currentView === 'manage-invoices' && String(uf.annee) === anneeFinanciere) setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)); });
 
     return () => socket.disconnect();
-  }, [annee, currentView]); // Add currentView to the dependency array
+  }, [anneeFinanciere, currentView]); // Add currentView and anneeFinanciere to the dependency array
 
 
-  async function fetchFactures() {
+   // --- Factures Functions ---
+  async function fetchFactures(year) {
     try {
-      console.log(`Workspaceing factures for year ${annee}`);
-      const res  = await fetch(`${API_URL}/api/factures?annee=${annee}`);
+      console.log(`Workspaceing factures for financial year ${year}`);
+      const res  = await fetch(`${API_URL}/api/factures?annee=${year}`);
+      if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+      }
       const data = await res.json();
       setFactures(data);
+       return data; // Return data for potential use
     } catch (e) {
       console.error('Erreur fetch factures :', e);
+       alert(`Erreur lors du chargement des factures: ${e.message}`); // User feedback
+       return null; // Return null on error
     }
   }
 
   function addFacture(factureData) {
     const file = factureData.fichier;
     const formData = new FormData();
-    Object.keys(factureData).forEach(k => formData.append(k, factureData[k]));
-    formData.append('fichier', file);
+    // Use the selected financial year when adding a facture
+    formData.append('annee', anneeFinanciere);
+    formData.append('type', factureData.type);
+    formData.append('ubr', factureData.ubr);
+    formData.append('fournisseur', factureData.fournisseur);
+    formData.append('description', factureData.description);
+    formData.append('montant', factureData.montant);
+    formData.append('statut', factureData.statut);
+
+    if (file) {
+        formData.append('fichier', file);
+    }
+
 
     const startTime  = Date.now();
-    const totalBytes = file.size;
+    const totalBytes = file ? file.size : 0;
 
     setUploadProgress(0);
     setTimeLeft('');
@@ -90,65 +128,88 @@ function App() {
       setTimeLeft('');
       if (!(xhr.status >= 200 && xhr.status < 300)) {
         console.error('Upload failed:', xhr.status);
-      }
-       // Re-fetch factures after successful upload if on the manage view
-      if (currentView === 'manage-invoices') {
-         fetchFactures();
+         alert('Erreur lors de l\'ajout de la facture.'); // User feedback
+      } else {
+          // Re-fetch factures after successful upload if on the manage view and the year matches
+         if (currentView === 'manage-invoices') {
+             // Socket event might update this, but re-fetching ensures consistency
+              fetchFactures(anneeFinanciere);
+         }
+          console.log('Facture added successfully.');
       }
     };
     xhr.onerror = () => {
       setUploadProgress(null);
       setTimeLeft('');
       console.error('Network error during upload');
+      alert('Erreur réseau lors de l\'ajout de la facture.'); // User feedback
     };
     xhr.send(formData);
   }
 
   async function deleteFacture(id) {
     // Only confirm and delete if on the manage-invoices view
-    if (currentView !== 'manage-invoices') return;
+    if (currentView !== 'manage-invoices') return false; // Return false if not on correct view
 
-    if (!window.confirm("Supprimer cette facture ?")) return;
+    if (!window.confirm("Supprimer cette facture ?")) return false; // Return false if not confirmed
     try {
-      // The backend delete route also triggers a socket event,
-      // which is handled in the useEffect to update the state
-      await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
+      // Pass the financial year to help backend locate the data if needed
+      const res = await fetch(`${API_URL}/api/factures/${id}?annee=${anneeFinanciere}`, { method: 'DELETE' });
+       if (!res.ok) {
+           const errorText = await res.text();
+           throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+       }
+       console.log(`Facture ${id} deleted.`);
+       // Socket event will trigger state update in useEffect
+       return true; // Indicate success
     } catch (e) {
       console.error('Erreur suppression :', e);
+       alert(`Erreur lors de la suppression de la facture: ${e.message}`); // User feedback
+       return false; // Indicate failure
     }
   }
 
   async function updateFacture(id, data) {
      // Only update if on the manage-invoices view
-     if (currentView !== 'manage-invoices') return;
+     if (currentView !== 'manage-invoices') return false; // Return false if not on correct view
 
     try {
-       // The backend update route also triggers a socket event,
-      // which is handled in the useEffect to update the state
-      await fetch(`${API_URL}/api/factures/${id}`, {
+       // Pass the financial year in the body or query params if backend needs it for scope
+      const res = await fetch(`${API_URL}/api/factures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, annee })
+        body: JSON.stringify({ ...data, annee: anneeFinanciere }) // Pass the financial year
       });
+       if (!res.ok) {
+           const errorText = await res.text();
+           throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+       }
+       console.log(`Facture ${id} updated.`);
+       // Socket event will trigger state update in useEffect
+       return true; // Indicate success
     } catch (e) {
       console.error('Erreur mise à jour :', e);
+       alert(`Erreur lors de la mise à jour de la facture: ${e.message}`); // User feedback
+       return false; // Indicate failure
     }
   }
 
    // Function to export data as CSV (remains mostly the same)
   async function exportFacturesCsv() {
     try {
-      // Construct the URL for the export endpoint, including the year
-      const exportUrl = `${API_URL}/api/factures/export-csv?annee=${annee}`;
+      // Use the selected financial year for export
+      const exportUrl = `${API_URL}/api/factures/export-csv?annee=${anneeFinanciere}`;
+      console.log(`Exporting factures for financial year ${anneeFinanciere}...`);
       const response = await fetch(exportUrl);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       // Get the filename from the Content-Disposition header or use a default
       const disposition = response.headers.get('Content-Disposition');
-      let filename = `factures_${annee}.csv`; // Default filename
+      let filename = `factures_${anneeFinanciere}.csv`; // Default filename
       if (disposition) {
         const filenameMatch = disposition.match(/filename="?(.+)"?/);
         if (filenameMatch && filenameMatch[1]) {
@@ -170,10 +231,12 @@ function App() {
       window.URL.revokeObjectURL(url);
 
       console.log('Factures exported successfully.');
+       return true; // Indicate success
 
     } catch (error) {
       console.error('Error exporting factures:', error);
-      alert('Erreur lors de l\'exportation des factures.'); // Provide user feedback
+      alert(`Erreur lors de l'exportation des factures: ${error.message}`); // Provide user feedback
+       return false; // Indicate failure
     } finally {
       // Close the sidebar after export
       setIsSidebarOpen(false);
@@ -186,21 +249,123 @@ function App() {
     setIsSidebarOpen(false); // Close sidebar after clicking a menu item
   };
 
+  // --- Budget Management Functions (Implement fetching, adding, updating, deleting) ---
+  const fetchBudget = async (year) => {
+      console.log(`Workspaceing budget for financial year ${year}`);
+       try {
+           const res = await fetch(`${API_URL}/api/budget?annee=${year}`); // Use 'annee' as query param as implemented in backend
+           if (!res.ok) {
+               const errorText = await res.text();
+               throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+           }
+           const data = await res.json();
+           console.log("Fetched budget data:", data);
+           return data; // Return the fetched data
+       } catch (e) {
+           console.error("Error fetching budget:", e);
+            alert(`Erreur lors du chargement du budget: ${e.message}`);
+            return null; // Return null on error
+       }
+  };
+
+   const addBudgetEntry = async (entryData) => {
+       console.log("Adding budget entry:", entryData);
+       try {
+          const res = await fetch(`${API_URL}/api/budget`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({...entryData, financial_year: anneeFinanciere}) // Pass financial_year as backend expects
+          });
+          if (!res.ok) {
+               const errorText = await res.text();
+               throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+          }
+          const newEntry = await res.json();
+          console.log("Added budget entry:", newEntry);
+          // BudgetDashboard component will re-fetch data after successful action
+          return true; // Indicate success
+       } catch (e) {
+           console.error("Error adding budget entry:", e);
+           alert(`Erreur lors de l\'ajout de l\'entrée budgétaire: ${e.message}`);
+           return false; // Indicate failure
+       }
+   };
+
+    const updateBudgetEntry = async (entryId, updatedData) => {
+         console.log("Updating budget entry:", entryId, updatedData);
+        try {
+            const res = await fetch(`${API_URL}/api/budget/${entryId}`, {
+                 method: 'PUT',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({...updatedData, financial_year: anneeFinanciere}) // Pass financial_year as backend expects
+            });
+            if (!res.ok) {
+                 const errorText = await res.text();
+                 throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+            }
+            const updatedEntry = await res.json();
+            console.log("Updated budget entry:", updatedEntry);
+             // BudgetDashboard component will re-fetch data after successful action
+             return true; // Indicate success
+        } catch (e) {
+             console.error("Error updating budget entry:", e);
+             alert(`Erreur lors de la mise à jour de l\'entrée budgétaire: ${e.message}`);
+             return false; // Indicate failure
+        }
+    };
+
+     const deleteBudgetEntry = async (entryId) => {
+          console.log("Deleting budget entry:", entryId);
+         try {
+              const res = await fetch(`${API_URL}/api/budget/${entryId}`, { // Backend deletes by ID, year not strictly needed in URL but could be passed if ID scope is per year
+                   method: 'DELETE',
+              });
+              if (!res.ok) {
+                   const errorText = await res.text();
+                   throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+              }
+              console.log("Deleted budget entry:", entryId);
+              // BudgetDashboard component will re-fetch data after successful action
+              return true; // Indicate success
+         } catch (e) {
+               console.error("Error deleting budget entry:", e);
+               alert(`Erreur lors de la suppression de l\'entrée budgétaire: ${e.message}`);
+               return false; // Indicate failure
+         }
+     };
+
+     const verifyPin = async (pin) => {
+         console.log("Verifying PIN...");
+        try {
+             const res = await fetch(`${API_URL}/api/budget/verify-pin`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ pin })
+             });
+             // Do not throw on 401, handle success: false in the response body
+             const data = await res.json();
+             console.log("PIN verification result:", data);
+             return data.success; // Backend should return { success: boolean }
+        } catch (e) {
+             console.error("Error verifying PIN:", e);
+             // Handle network errors or unexpected responses
+              alert(`Erreur lors de la vérification du NIP: ${e.message}`);
+             return false;
+        }
+     };
+
 
   return (
     <div className="relative min-h-screen"> {/* Added min-h-screen and relative positioning */}
       {/* HEADER - Made Fixed */}
-      {/* Added fixed, top-0, left-0, right-0, bg-white, shadow, z-10 */}
       <div className="fixed top-0 left-0 right-0 bg-white shadow z-10 flex items-center justify-between p-4">
         {/* Left side of header: Hamburger, Logo, Title */}
-        {/* Using flex-col on mobile and flex-row on sm+ for stacking */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center">
            {/* Container for hamburger and logo */}
-           {/* Using flex-row to keep them in a row even when the parent is a column */}
-           <div className="flex items-center mb-2 sm:mb-0"> {/* Add margin bottom on mobile */}
+           <div className="flex items-center mb-2 sm:mb-0">
               {/* Menu button (hamburger icon) */}
               <button
-                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4" // Added right margin
+                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
               >
@@ -208,16 +373,15 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
               </button>
-              <img src={logo} alt="Logo Habitek" className="w-32" /> {/* Logo */}
+              <img src={logo} alt="Logo Habitek" className="w-32" />
            </div>
            {/* Title - Centered on mobile, left-aligned on sm+ */}
-          <h1 className="text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4"> {/* Added left margin on sm+ */}
+          <h1 className="text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4">
             Habitek — Gestion des factures
           </h1>
         </div>
 
         {/* Right side of header: Client count (hidden on mobile) */}
-        {/* Hide on mobile (<sm) and show as flex on sm+ */}
         <div className="hidden sm:flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm">
           Clients en ligne : {clientCount}
         </div>
@@ -226,22 +390,42 @@ function App() {
       {/* Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40" // Fixed position, covers screen, semi-transparent black, lower z-index
-          onClick={() => setIsSidebarOpen(false)} // Close sidebar on click outside
-          aria-hidden="true" // Hide from screen readers when sidebar is closed
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
         ></div>
       )}
 
       {/* Sidebar */}
-      {/* Added flex and flex-col to sidebar for layout */}
       <div
-        className={`fixed top-0 left-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 flex flex-col ${ // Added flex flex-col
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full' // Translate based on state (now from the left)
+        className={`fixed top-0 left-0 w-64 bg-white h-full shadow-lg transform transition-transform duration-300 z-50 flex flex-col ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Sidebar content */}
-        <div className="p-4 flex-grow"> {/* flex-grow makes this section take up available space */}
+        <div className="p-4 flex-grow">
           <h2 className="text-lg font-semibold mb-4">Menu</h2>
+          {/* Year Selection for Budget/Factures - Applicable to whichever view uses the year */}
+           <div className="mb-4">
+               <label htmlFor="anneeSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                  Année Financière:
+               </label>
+               <select
+                   id="anneeSelect"
+                   value={anneeFinanciere}
+                   onChange={(e) => setAnneeFinanciere(e.target.value)}
+                   className="w-full p-2 border rounded text-gray-700"
+               >
+                   {/* Generate options for a range of financial years */}
+                   {/* Assuming financial year is identified by its start year */}
+                   {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => {
+                       const fy = String(year); // Use the calendar year as the financial year identifier
+                       return <option key={fy} value={fy}>{fy} - {parseInt(fy) + 1}</option>;
+                   })}
+                    {/* You might want to add more years or handle future years */}
+               </select>
+           </div>
+
           <ul>
             {/* Accueil menu item */}
             <li>
@@ -261,6 +445,15 @@ function App() {
                 Gérer les factures
               </button>
             </li>
+             {/* Manage Budget menu item */}
+            <li>
+              <button
+                 onClick={() => handleMenuItemClick('manage-budget')}
+                 className={`block w-full text-left py-2 px-2 rounded-md ${currentView === 'manage-budget' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                Gérer le budget
+              </button>
+            </li>
             {/* Export to CSV menu item */}
             <li>
               <button
@@ -270,14 +463,12 @@ function App() {
                 Exporter en CSV
               </button>
             </li>
-             {/* Removed Option 3 */}
           </ul>
         </div>
 
         {/* Client count in sidebar footer (shown only on mobile) */}
-        {/* Show on mobile (<sm) and hide on sm+ */}
-        <div className="p-4 border-t border-gray-200 sm:hidden"> {/* Added padding, border top, hidden on sm+ */}
-           <div className="px-3 py-1 bg-gray-100 rounded-full text-sm text-center"> {/* Centered text */}
+        <div className="p-4 border-t border-gray-200 sm:hidden">
+           <div className="px-3 py-1 bg-gray-100 rounded-full text-sm text-center">
             Clients en ligne : {clientCount}
           </div>
         </div>
@@ -286,7 +477,7 @@ function App() {
       {/* MAIN CONTENT - Adjusted padding-top to clear the fixed header */}
        {/* Added pt-20 to push content down */}
        {/* Added mb-6 to the container for consistency with previous layout spacing */}
-       <div className="container mx-auto px-4 pb-4 pt-20 mb-6 transition-all duration-300"> {/* Adjusted padding */}
+       <div className="container mx-auto px-4 pb-4 pt-20 mb-6 transition-all duration-300">
         {/* Conditional Rendering based on currentView */}
         {currentView === 'home' && (
           <div className="text-center mt-10">
@@ -316,12 +507,14 @@ function App() {
                   </div>
                 </div>
               )}
-              <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
+              {/* Pass anneeFinanciere to FormFacture */}
+              <FormFacture onSubmit={addFacture} annee={anneeFinanciere} setAnnee={setAnneeFinanciere} />
             </div>
 
             {/* TABLEAU DES FACTURES */}
-            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto"> {/* Added overflow-x-auto for table scrolling on small screens */}
+            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
               <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
+              {/* Pass anneeFinanciere to TableFactures if needed for file download (already done) */}
               <TableFactures
                 factures={factures}
                 onDelete={deleteFacture}
@@ -331,7 +524,19 @@ function App() {
           </>
         )}
 
-        {/* Add other views here if needed */}
+        {/* Budget Management View */}
+        {currentView === 'manage-budget' && (
+           // Render the BudgetDashboard component
+           <BudgetDashboard
+               anneeFinanciere={anneeFinanciere}
+               fetchBudget={fetchBudget}
+               addBudgetEntry={addBudgetEntry}
+               updateBudgetEntry={updateBudgetEntry}
+               deleteBudgetEntry={deleteBudgetEntry}
+               verifyPin={verifyPin}
+           />
+        )}
+
 
       </div>
     </div>
