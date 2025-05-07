@@ -383,28 +383,39 @@ function App() {
         {/* Make this div clickable */}
         {/* Adjusted flex-grow on mobile for better title wrapping */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center flex-grow sm:flex-grow-0 cursor-pointer" onClick={() => handleMenuItemClick('home')}> {/* Added sm:flex-grow-0 */}
-           {/* Container for hamburger and logo */}
-           <div className="flex items-center mb-2 sm:mb-0 mr-4 sm:mr-4"> {/* Adjusted right margin */}
-              {/* Menu button (hamburger icon) - Keep it clickable separately */}
-              <button
-                className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4 cursor-pointer" // Ensure cursor-pointer is here too
-                onClick={(e) => {
-                    e.stopPropagation(); // Prevent the click from bubbling up to the parent div
-                    setIsSidebarOpen(!isSidebarOpen);
-                }}
-                aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-              </button>
-              <img src={logo} alt="Logo Habitek" className="w-32" /> {/* Logo */}
-           </div>
-           {/* Title - Centered on mobile, left-aligned on sm+. Reduced font size on mobile. */}
-           {/* Added break-words to ensure text wraps */}
-           {/* Adjusted font size for better mobile fit */}
+          {/* Container for hamburger and logo */}
+          <div className="flex items-center mb-2 sm:mb-0 mr-6 sm:mr-8">
+            <button
+              className={`
+      p-2
+      mr-4 sm:mr-6            /* espace entre le bouton et le logo */
+      text-gray-500
+      hover:text-gray-700     /* couleur du trait au survol */
+      hover:bg-gray-100       /* fond clair au survol */
+      focus:outline-none      /* on retire le outline natif */
+      focus:ring-2            /* anneau au focus clavier */
+      focus:ring-blue-500
+      rounded                 /* coins arrondis pour l’effet hover */
+      transition-colors       /* transition douce */
+      cursor-pointer          /* pointeur au survol */
+    `}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent the click from bubbling up to the parent div
+                setIsSidebarOpen(!isSidebarOpen);
+              }}
+              aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+            <img src={logo} alt="Logo Habitek" className="w-32" /> {/* Logo */}
+          </div>
+          {/* Title - Centered on mobile, left-aligned on sm+. Reduced font size on mobile. */}
+          {/* Added break-words to ensure text wraps */}
+          {/* Adjusted font size for better mobile fit */}
           <h1 className="text-xl sm:text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4 break-words"> {/* Adjusted text size, added break-words */}
-             Habitek - Plateforme trésorerie gestion des factures {/* Full title from screenshot */}
+            Habitek - Plateforme trésorerie gestion des factures {/* Full title from screenshot */}
           </h1>
         </div>
 
