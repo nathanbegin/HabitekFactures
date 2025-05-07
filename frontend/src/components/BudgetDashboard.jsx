@@ -355,38 +355,35 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                 Exercice Financier : {anneeFinanciere} - {parseInt(anneeFinanciere) + 1}
             </p>
 
-            {/* Budget Summary and Chart */}
+            {/* Budget Chart & Summary */}
             <div className="bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-6">
                 <div className="w-full md:w-1/2 h-64 flex justify-center items-center">
-                    {budgetEntries.length > 0 && Object.keys(budgetTotals).length > 0 ? (
-                        <Pie data={budgetChartData} options={chartOptions} />
-                    ) : (
-                        <p className="text-gray-500">Aucune donnée budgétaire pour cet exercice pour afficher le diagramme.</p>
-                    )}
+                    {Object.keys(budgetTotals).length
+                        ? <Pie data={budgetChartData} options={chartOptions} />
+                        : <p className="text-gray-500">
+                            Aucune donnée budgétaire pour cet exercice pour afficher le diagramme.
+                        </p>}
                 </div>
+
+                {/* ← ici, la summary à côté du chart */}
                 <div className="w-full md:w-1/2">
                     <h3 className="text-lg font-semibold mb-4">Répartition par Fond</h3>
                     <ul className="space-y-2">
-                        {Object.keys(budgetTotals).map(fund => (
-                            <li key={fund} className="flex justify-between text-gray-700">
-                                <span>{fund}:</span>
-                                <span>{budgetTotals[fund].toFixed(2)}$</span>
-                            </li>
-                        ))}
-                    </ul>
-
-                    {/* <ul className="space-y-2">
-                        {Object.keys(budgetTotals).length > 0 ? (
-                            Object.keys(budgetTotals).map(fund => (
-                                <li key={fund} className="flex justify-between text-gray-700">
-                                    <span>{fund}:</span>
-                                    <span>{budgetTotals[fund].toFixed(2)}$</span>
+                        {Object.keys(budgetTotals).length
+                            ? Object.keys(budgetTotals).map(fund => (
+                                <li key={fund} className="flex justify-between">
+                                    <span className="text-gray-700">{fund} :</span>
+                                    <span className={`
+                font-bold
+                ${budgetTotals[fund] < 0 ? 'text-red-600' : 'text-gray-800'}
+              `}>
+                                        {formatCurrency(budgetTotals[fund])}
+                                    </span>
                                 </li>
                             ))
-                        ) : (
-                            <li className="text-gray-500">Aucune donnée disponible.</li>
-                        )}
-                    </ul> */}
+                            : <li className="text-gray-500">Aucune donnée disponible.</li>
+                        }
+                    </ul>
                 </div>
             </div>
 
