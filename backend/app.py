@@ -424,38 +424,46 @@ def get_budgets():
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
+
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute("""
-            SELECT * FROM budgets
-            WHERE financial_year = %s
-            ORDER BY id DESC
+            SELECT * 
+              FROM budgets
+             WHERE financial_year = %s
+             ORDER BY id DESC
         """, (year,))
         rows = cur.fetchall()
-        result = [
+        data = [
             {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
             for row in rows
         ]
-        return jsonify(result), 200
+        return jsonify(data), 200
+
     except psycopg2.Error as e:
-        print("Erreur GET budgets :", e)
-        return jsonify({"error": "Impossibilité de récupérer les budgets"}), 500
+        print("Erreur GET /api/budgets :", e)
+        return jsonify({"error": "Impossible de récupérer les budgets"}), 500
+
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/budgets", methods=["POST"])
 def create_budget():
     data = request.get_json() or {}
+    # champs obligatoires
     for f in ("financial_year", "fund_type", "revenue_type", "amount"):
         if not data.get(f):
             return jsonify({"error": f"Le champ '{f}' est requis"}), 400
 
+    # validation fund_type
     if data["fund_type"] not in ("fonds de type 1", "fonds de type 3"):
         return jsonify({
-            "error": "fund_type invalide : doit être 'fonds de type 1' ou 'fonds de type 3'"
+            "error": "fund_type invalide (‘fonds de type 1’ ou ‘fonds de type 3’ attendu)"
         }), 400
 
+    # conversion amount
     try:
         amt = float(data["amount"])
     except ValueError:
@@ -464,12 +472,13 @@ def create_budget():
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
+
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute("""
             INSERT INTO budgets
-              (financial_year, fund_type, revenue_type, amount)
-            VALUES (%s,%s,%s,%s)
+               (financial_year, fund_type, revenue_type, amount)
+            VALUES (%s, %s, %s, %s)
             RETURNING *
         """, (
             data["financial_year"],
@@ -477,18 +486,21 @@ def create_budget():
             data["revenue_type"],
             amt
         ))
-        new = cur.fetchone()
+        new_row = cur.fetchone()
         conn.commit()
-        budget = {k: convert_to_json_serializable(v) for k, v in dict(new).items()}
+
+        budget = {k: convert_to_json_serializable(v) for k, v in dict(new_row).items()}
         socketio.emit("new_budget", budget)
         return jsonify(budget), 201
 
     except psycopg2.Error as e:
         conn.rollback()
-        print("Erreur POST budgets :", e)
+        print("Erreur POST /api/budgets :", e)
         return jsonify({"error": "Impossible de créer le budget"}), 500
+
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/budgets/<int:id>", methods=["PUT"])
@@ -501,11 +513,13 @@ def update_budget(id):
         if f in data:
             if f == "fund_type" and data[f] not in ("fonds de type 1", "fonds de type 3"):
                 return jsonify({
-                    "error": "fund_type invalide : doit être 'fonds de type 1' ou 'fonds de type 3'"
+                    "error": "fund_type invalide (‘fonds de type 1’ ou ‘fonds de type 3’ attendu)"
                 }), 400
             if f == "amount":
-                try: vals.append(float(data[f]))
-                except ValueError: return jsonify({"error": "Montant invalide"}), 400
+                try:
+                    vals.append(float(data[f]))
+                except ValueError:
+                    return jsonify({"error": "Montant invalide"}), 400
             else:
                 vals.append(data[f])
             fields.append(f"{f} = %s")
@@ -516,13 +530,15 @@ def update_budget(id):
     vals.append(id)
     sql = f"""
         UPDATE budgets
-        SET {', '.join(fields)}
-        WHERE id = %s
-        RETURNING *
+           SET {', '.join(fields)}
+         WHERE id = %s
+      RETURNING *
     """
+
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
+
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute(sql, vals)
@@ -530,16 +546,19 @@ def update_budget(id):
         if not updated:
             return jsonify({"error": "Budget non trouvé"}), 404
         conn.commit()
+
         budget = {k: convert_to_json_serializable(v) for k, v in dict(updated).items()}
         socketio.emit("update_budget", budget)
         return jsonify(budget), 200
 
     except psycopg2.Error as e:
         conn.rollback()
-        print("Erreur PUT budgets :", e)
+        print("Erreur PUT /api/budgets/:id :", e)
         return jsonify({"error": "Impossible de mettre à jour le budget"}), 500
+
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/budgets/<int:id>", methods=["DELETE"])
@@ -547,21 +566,42 @@ def delete_budget(id):
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Connexion DB impossible"}), 500
+
     cur = conn.cursor()
     try:
         cur.execute("DELETE FROM budgets WHERE id = %s RETURNING id", (id,))
-        if not cur.fetchone():
+        if cur.fetchone() is None:
             return jsonify({"error": "Budget non trouvé"}), 404
         conn.commit()
+
         socketio.emit("delete_budget", {"id": id})
         return jsonify({"message": "Budget supprimé"}), 200
 
     except psycopg2.Error as e:
         conn.rollback()
-        print("Erreur DELETE budgets :", e)
+        print("Erreur DELETE /api/budgets/:id :", e)
         return jsonify({"error": "Impossible de supprimer le budget"}), 500
+
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
+
+@app.route("/api/budgets/revenue-types", methods=["GET"])
+def get_revenue_types():
+    # si statique, sinon tirer dynamiquement de la base
+    types = {
+      "fonds de type 1": ["Type A", "Type B"],
+      "fonds de type 3": ["Type C", "Type D"]
+    }
+    return jsonify(types), 200
+
+
+@app.route("/api/budgets/verify-pin", methods=["POST"])
+def verify_pin():
+    data = request.get_json() or {}
+    PIN_CORRECT = "1234"  # à sécuriser en config/env
+    ok = data.get("pin") == PIN_CORRECT
+    return jsonify({"success": ok}), (200 if ok else 401)
 
 
 if __name__ == '__main__':
