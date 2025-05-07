@@ -390,25 +390,30 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
             {/* Expenses Summary and Chart */}
             <div className="bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-6">
                 <div className="w-full md:w-1/2 h-64 flex justify-center items-center">
-                    {relevantFactures.length > 0 && Object.keys(expenseTotals).length > 0 ? (
-                        <Pie data={expenseChartData} options={chartOptions} />
-                    ) : (
-                        <p className="text-gray-500">Aucune dépense pour cet exercice pour afficher le diagramme.</p>
-                    )}
+                    {Object.keys(expenseTotals).length
+                        ? <Pie data={expenseChartData} options={chartOptions} />
+                        : <p className="text-gray-500">
+                            Aucune dépense pour cet exercice pour afficher le diagramme.
+                        </p>}
                 </div>
+
                 <div className="w-full md:w-1/2">
                     <h3 className="text-lg font-semibold mb-4">Répartition des Dépenses par Type</h3>
                     <ul className="space-y-2">
-                        {Object.keys(expenseTotals).length > 0 ? (
-                            Object.keys(expenseTotals).map(type => (
-                                <li key={type} className="flex justify-between text-gray-700">
-                                    <span>{type}:</span>
-                                    <span>{expenseTotals[type].toFixed(2)}$</span>
+                        {Object.keys(expenseTotals).length
+                            ? Object.keys(expenseTotals).map(type => (
+                                <li key={type} className="flex justify-between">
+                                    <span className="text-gray-700">{type} :</span>
+                                    <span className={`
+                font-bold
+                ${expenseTotals[type] < 0 ? 'text-red-600' : 'text-gray-800'}
+              `}>
+                                        {formatCurrency(expenseTotals[type])}
+                                    </span>
                                 </li>
                             ))
-                        ) : (
-                            <li className="text-gray-500">Aucune dépense disponible.</li>
-                        )}
+                            : <li className="text-gray-500">Aucune dépense disponible.</li>
+                        }
                     </ul>
                 </div>
             </div>
