@@ -13,6 +13,8 @@ function App() {
   const [clientCount,    setClientCount]    = useState(0);
   // State for sidebar visibility
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // New state to manage the current view
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'manage-invoices', etc.
 
 
   // États pour upload
@@ -20,17 +22,24 @@ function App() {
   const [timeLeft,       setTimeLeft]       = useState('');
 
   useEffect(() => {
-    fetchFactures();
+    // Fetch factures only when the 'manage-invoices' view is active
+    if (currentView === 'manage-invoices') {
+      fetchFactures();
+    }
     const socket = io(SOCKET_URL, { transports: ['websocket'] });
     socket.on('client_count',   setClientCount);
-    socket.on('new_facture',    nf => setFactures(prev => [nf, ...prev]));
-    socket.on('delete_facture', d  => setFactures(prev => prev.filter(f=>f.id!==d.id)));
-    socket.on('update_facture', uf => setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)));
+    // Update factures only if we are on the 'manage-invoices' view
+    socket.on('new_facture',    nf => { if(currentView === 'manage-invoices') setFactures(prev => [nf, ...prev]); });
+    socket.on('delete_facture', d  => { if(currentView === 'manage-invoices') setFactures(prev => prev.filter(f=>f.id!==d.id)); });
+    socket.on('update_facture', uf => { if(currentView === 'manage-invoices') setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)); });
+
     return () => socket.disconnect();
-  }, [annee]);
+  }, [annee, currentView]); // Add currentView to the dependency array
+
 
   async function fetchFactures() {
     try {
+      console.log(`Workspaceing factures for year ${annee}`);
       const res  = await fetch(`${API_URL}/api/factures?annee=${annee}`);
       const data = await res.json();
       setFactures(data);
@@ -82,6 +91,10 @@ function App() {
       if (!(xhr.status >= 200 && xhr.status < 300)) {
         console.error('Upload failed:', xhr.status);
       }
+       // Re-fetch factures after successful upload if on the manage view
+      if (currentView === 'manage-invoices') {
+         fetchFactures();
+      }
     };
     xhr.onerror = () => {
       setUploadProgress(null);
@@ -92,8 +105,13 @@ function App() {
   }
 
   async function deleteFacture(id) {
+    // Only confirm and delete if on the manage-invoices view
+    if (currentView !== 'manage-invoices') return;
+
     if (!window.confirm("Supprimer cette facture ?")) return;
     try {
+      // The backend delete route also triggers a socket event,
+      // which is handled in the useEffect to update the state
       await fetch(`${API_URL}/api/factures/${id}?annee=${annee}`, { method: 'DELETE' });
     } catch (e) {
       console.error('Erreur suppression :', e);
@@ -101,7 +119,12 @@ function App() {
   }
 
   async function updateFacture(id, data) {
+     // Only update if on the manage-invoices view
+     if (currentView !== 'manage-invoices') return;
+
     try {
+       // The backend update route also triggers a socket event,
+      // which is handled in the useEffect to update the state
       await fetch(`${API_URL}/api/factures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -112,7 +135,7 @@ function App() {
     }
   }
 
-   // New function to export data as CSV
+   // Function to export data as CSV (remains mostly the same)
   async function exportFacturesCsv() {
     try {
       // Construct the URL for the export endpoint, including the year
@@ -152,10 +175,16 @@ function App() {
       console.error('Error exporting factures:', error);
       alert('Erreur lors de l\'exportation des factures.'); // Provide user feedback
     } finally {
-      // Optionally close the sidebar after export
+      // Close the sidebar after export
       setIsSidebarOpen(false);
     }
   }
+
+  // Handler for sidebar menu item clicks
+  const handleMenuItemClick = (view) => {
+    setCurrentView(view);
+    setIsSidebarOpen(false); // Close sidebar after clicking a menu item
+  };
 
 
   return (
@@ -182,8 +211,6 @@ function App() {
               <img src={logo} alt="Logo Habitek" className="w-32" /> {/* Logo */}
            </div>
            {/* Title - Centered on mobile, left-aligned on sm+ */}
-           {/* On mobile, it's a block element in the column, text-center centers the text */}
-           {/* On sm+, it's in a row, text-left aligns it */}
           <h1 className="text-2xl font-bold text-blue-600 text-center sm:text-left sm:ml-4"> {/* Added left margin on sm+ */}
             Habitek — Gestion des factures
           </h1>
@@ -216,18 +243,34 @@ function App() {
         <div className="p-4 flex-grow"> {/* flex-grow makes this section take up available space */}
           <h2 className="text-lg font-semibold mb-4">Menu</h2>
           <ul>
-            {/* Existing menu items */}
-            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 1</a></li>
-            <li><a href="#" className="block py-2 text-gray-700 hover:bg-gray-100">Option 2</a></li>
-            {/* New Export to CSV menu item */}
+            {/* Accueil menu item */}
             <li>
               <button
-                onClick={exportFacturesCsv}
-                className="block w-full text-left py-2 text-gray-700 hover:bg-gray-100 focus:outline-none"
+                 onClick={() => handleMenuItemClick('home')}
+                 className={`block w-full text-left py-2 px-2 rounded-md ${currentView === 'home' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                Accueil
+              </button>
+            </li>
+            {/* Manage Invoices menu item */}
+            <li>
+              <button
+                 onClick={() => handleMenuItemClick('manage-invoices')}
+                 className={`block w-full text-left py-2 px-2 rounded-md ${currentView === 'manage-invoices' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                Gérer les factures
+              </button>
+            </li>
+            {/* Export to CSV menu item */}
+            <li>
+              <button
+                onClick={exportFacturesCsv} // This function already closes the sidebar
+                className="block w-full text-left py-2 px-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
               >
                 Exporter en CSV
               </button>
             </li>
+             {/* Removed Option 3 */}
           </ul>
         </div>
 
@@ -242,38 +285,54 @@ function App() {
 
       {/* MAIN CONTENT - Adjusted padding-top to clear the fixed header */}
        {/* Added pt-20 to push content down */}
-       <div className="container mx-auto px-4 pb-4 pt-20 transition-all duration-300"> {/* Adjusted padding */}
-        {/* FORMULAIRE D'AJOUT */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
-          {/* Barre de progression juste au-dessus */}
-          {uploadProgress !== null && (
-            <div className="mb-4">
-              <div className="w-full bg-gray-200 rounded">
-                <div
-                  className="text-center text-white py-1 rounded bg-blue-500"
-                  style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
-                >
-                  {uploadProgress}%
-                </div>
-              </div>
-              <div className="text-right text-sm text-gray-600 mt-1">
-                Temps restant estimé : {timeLeft}
-              </div>
-            </div>
-          )}
-        <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
-        </div>
+       {/* Added mb-6 to the container for consistency with previous layout spacing */}
+       <div className="container mx-auto px-4 pb-4 pt-20 mb-6 transition-all duration-300"> {/* Adjusted padding */}
+        {/* Conditional Rendering based on currentView */}
+        {currentView === 'home' && (
+          <div className="text-center mt-10">
+            <h2 className="text-2xl font-semibold text-gray-700">Bienvenue sur l'application de gestion des factures</h2>
+            <p className="text-gray-600 mt-4">Sélectionnez une option dans le menu pour commencer.</p>
+          </div>
+        )}
 
-        {/* TABLEAU DES FACTURES */}
-        <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto"> {/* Added overflow-x-auto for table scrolling on small screens */}
-          <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
-          <TableFactures
-            factures={factures}
-            onDelete={deleteFacture}
-            onUpdate={updateFacture}
-          />
-        </div>
+        {currentView === 'manage-invoices' && (
+          <> {/* Use a fragment to render multiple elements */}
+            {/* FORMULAIRE D'AJOUT */}
+            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+              <h2 className="text-lg font-semibold mb-4">Ajouter une facture</h2>
+              {/* Barre de progression juste au-dessus */}
+              {uploadProgress !== null && (
+                <div className="mb-4">
+                  <div className="w-full bg-gray-200 rounded">
+                    <div
+                      className="text-center text-white py-1 rounded bg-blue-500"
+                      style={{ width: `${uploadProgress}%`, transition: 'width 0.2s' }}
+                    >
+                      {uploadProgress}%
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-gray-600 mt-1">
+                        Temps restant estimé : {timeLeft}
+                  </div>
+                </div>
+              )}
+              <FormFacture onSubmit={addFacture} annee={annee} setAnnee={setAnnee} />
+            </div>
+
+            {/* TABLEAU DES FACTURES */}
+            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto"> {/* Added overflow-x-auto for table scrolling on small screens */}
+              <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
+              <TableFactures
+                factures={factures}
+                onDelete={deleteFacture}
+                onUpdate={updateFacture}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Add other views here if needed */}
+
       </div>
     </div>
   );
