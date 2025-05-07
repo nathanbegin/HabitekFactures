@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
+//Formattage des valeurs monétaires 
+
+export function formatCurrency(value) {
+    const v = Number(value) || 0;
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    // on force deux décimales, on sépare les milliers par un espace
+    const [intPart, decPart] = abs.toFixed(2).split(".");
+    const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return `${sign}${withThousands}.${decPart}$`;
+  }
+
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -355,6 +367,15 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                 <div className="w-full md:w-1/2">
                     <h3 className="text-lg font-semibold mb-4">Répartition par Fond</h3>
                     <ul className="space-y-2">
+                        {Object.keys(budgetTotals).map(fund => (
+                            <li key={fund} className="flex justify-between text-gray-700">
+                                <span>{fund}:</span>
+                                <span>{budgetTotals[fund].toFixed(2)}$</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* <ul className="space-y-2">
                         {Object.keys(budgetTotals).length > 0 ? (
                             Object.keys(budgetTotals).map(fund => (
                                 <li key={fund} className="flex justify-between text-gray-700">
@@ -365,7 +386,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                         ) : (
                             <li className="text-gray-500">Aucune donnée disponible.</li>
                         )}
-                    </ul>
+                    </ul> */}
                 </div>
             </div>
 
@@ -533,7 +554,7 @@ function BudgetDashboard({ anneeFinanciere, fetchBudget, addBudgetEntry, updateB
                                             <p className="text-sm text-gray-600">{new Date(entry.date_added).toLocaleDateString()}</p>
                                         </div>
                                         <div className="flex items-center">
-                                            <span className="text-green-600 font-bold mr-4">{parseFloat(entry.amount)?.toFixed(2)}$</span>
+                                            <span className={`${entry.amount < 0 ? "text-red-600" : "text-gray-800"} font-bold mr-4`}> {formatCurrency(entry.amount)} </span>
                                             <button
                                                 onClick={() => handleEditClick(entry)}
                                                 className="text-blue-500 hover:text-blue-700 text-sm mr-2"
