@@ -418,7 +418,7 @@ def export_factures_csv():
 #       Routes CRUD pour budgets
 # -------------------------------
 
-@app.route("/api/budgets", methods=["GET"])
+@app.route("/api/budget", methods=["GET"])
 def get_budgets():
     year = request.args.get("financial_year", str(datetime.now().year))
     conn = get_db_connection()
@@ -441,7 +441,7 @@ def get_budgets():
         return jsonify(data), 200
 
     except psycopg2.Error as e:
-        print("Erreur GET /api/budgets :", e)
+        print("Erreur GET /api/budget :", e)
         return jsonify({"error": "Impossible de récupérer les budgets"}), 500
 
     finally:
@@ -449,7 +449,7 @@ def get_budgets():
         conn.close()
 
 
-@app.route("/api/budgets", methods=["POST"])
+@app.route("/api/budget", methods=["POST"])
 def create_budget():
     data = request.get_json() or {}
     # champs obligatoires
@@ -495,7 +495,7 @@ def create_budget():
 
     except psycopg2.Error as e:
         conn.rollback()
-        print("Erreur POST /api/budgets :", e)
+        print("Erreur POST /api/budget :", e)
         return jsonify({"error": "Impossible de créer le budget"}), 500
 
     finally:
@@ -503,7 +503,7 @@ def create_budget():
         conn.close()
 
 
-@app.route("/api/budgets/<int:id>", methods=["PUT"])
+@app.route("/api/budget/<int:id>", methods=["PUT"])
 def update_budget(id):
     data = request.get_json() or {}
     allowed = ["financial_year", "fund_type", "revenue_type", "amount"]
@@ -561,7 +561,7 @@ def update_budget(id):
         conn.close()
 
 
-@app.route("/api/budgets/<int:id>", methods=["DELETE"])
+@app.route("/api/budget/<int:id>", methods=["DELETE"])
 def delete_budget(id):
     conn = get_db_connection()
     if conn is None:
@@ -586,7 +586,7 @@ def delete_budget(id):
         cur.close()
         conn.close()
 
-@app.route("/api/budgets/revenue-types", methods=["GET"])
+@app.route("/api/budget/revenue-types", methods=["GET"])
 def get_revenue_types():
     # si statique, sinon tirer dynamiquement de la base
     types = {
@@ -596,7 +596,7 @@ def get_revenue_types():
     return jsonify(types), 200
 
 
-@app.route("/api/budgets/verify-pin", methods=["POST"])
+@app.route("/api/budget/verify-pin", methods=["POST"])
 def verify_pin():
     data = request.get_json() or {}
     PIN_CORRECT = "1234"  # à sécuriser en config/env
