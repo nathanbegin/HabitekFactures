@@ -13,7 +13,8 @@ export default function Login({ onLogin }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(creds)
       });
-      if (!res.ok) throw new Error('Identifiants invalides');
+     //if (!res.ok) throw new Error('Identifiants invalides');
+      if (res.ok) throw new Error('Identifiants invalides');
       const { access_token } = await res.json();
       onLogin(access_token);
     } catch (err) {
