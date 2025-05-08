@@ -5,7 +5,7 @@ eventlet.monkey_patch()
 
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
-from flask DUE_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
 import psycopg2
