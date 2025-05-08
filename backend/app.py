@@ -3,8 +3,6 @@ import eventlet
 eventlet.monkey_patch()
 
 from flask import Flask, request, jsonify, send_from_directory, Response
-from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
@@ -20,9 +18,6 @@ from decimal import Decimal
 app = Flask(__name__)
 # Limite à 2 GB
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
-app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "change-this-secret")
-jwt = JWTManager(app)
-bcrypt = Bcrypt(app)
 
 # CORS pour toutes les routes /api/*
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
@@ -122,16 +117,6 @@ def init_db():
             );
         """)
         
-        # Création de la table users
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
-                password_hash VARCHAR(128) NOT NULL,
-                date_created TIMESTAMP NOT NULL DEFAULT NOW()
-            );
-        """)
-
         conn.commit()
         print("Tableau de factures vérifié/créé.")
         print("Tableau de budgets vérifié/créé.")
@@ -444,47 +429,7 @@ def export_factures_csv():
         cursor.close()
         conn.close()
 
-# Enregistrement
-@app.route("/api/auth/register", methods=["POST"])
-def register():
-    data = request.get_json() or {}
-    if not data.get("username") or not data.get("password"):
-        return jsonify({"msg":"Username et password requis"}), 400
 
-    pw_hash = bcrypt.generate_password_hash(data["password"]).decode()
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute(
-          "INSERT INTO users (username, password_hash) VALUES (%s,%s)",
-          (data["username"], pw_hash)
-        )
-        conn.commit()
-        return jsonify({"msg":"Compte créé"}), 201
-    except psycopg2.IntegrityError:
-        conn.rollback()
-        return jsonify({"msg":"Nom d’utilisateur déjà pris"}), 409
-    finally:
-        cur.close(); conn.close()
-
-# Connexion
-@app.route("/api/auth/login", methods=["POST"])
-def login():
-    data = request.get_json() or {}
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cur.execute("SELECT * FROM users WHERE username=%s", (data.get("username"),))
-    user = cur.fetchone()
-    cur.close(); conn.close()
-
-    if user and bcrypt.check_password_hash(user["password_hash"], data.get("password","")):
-        access_token = create_access_token(identity=user["id"])
-        return jsonify(access_token=access_token), 200
-    return jsonify({"msg":"Identifiants invalides"}), 401
-
-# Exemple de route protégée
-@app.route("/api/budgets", methods=["GET"])
-@jwt_required()
 
 
 
