@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import Login from './pages/login';
 import FormFacture from './components/FormFacture';
 import TableFactures from './components/TableFactures';
 import BudgetDashboard from './components/BudgetDashboard'; // Import the new component
@@ -21,46 +22,67 @@ const getFinancialYear = (date = new Date()) => {
 
 
 function App() {
-  const [factures,       setFactures]       = useState([]);
-  // Use financial year for data fetching context
-  const [anneeFinanciere, setAnneeFinanciere] = useState(getFinancialYear());
-  const [clientCount,    setClientCount]    = useState(0);
-  // State for sidebar visibility
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // State to manage the current view
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'manage-invoices', 'manage-budget', etc.
+  // Auth token
+  const [token, setToken]                       = useState(localStorage.getItem('token'));
+  // Invoice state
+  const [factures, setFactures]                 = useState([]);
+  const [anneeFinanciere, setAnneeFinanciere]   = useState(getFinancialYear());
+  const [clientCount, setClientCount]           = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen]       = useState(false);
+  const [currentView, setCurrentView]           = useState('home');
 
+  // Upload progress
+  const [uploadProgress, setUploadProgress]     = useState(null);
+  const [timeLeft, setTimeLeft]                 = useState('');
 
-  // États pour upload
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const [timeLeft,       setTimeLeft]       = useState('');
-
+  // Persist token
   useEffect(() => {
-    // Fetch factures only when the 'manage-invoices' view is active and financial year changes
+    if (token) localStorage.setItem('token', token);
+    else       localStorage.removeItem('token');
+  }, [token]);
+
+  // If not authenticated, show login
+  if (!token) {
+    return <Login onLogin={setToken} />;
+  }
+
+  // Fetch factures when view or year changes
+  useEffect(() => {
     if (currentView === 'manage-invoices') {
       fetchFactures(anneeFinanciere);
     }
-     // Note: If budget management requires its own data fetching or real-time updates,
-     // you'll need to add similar conditional logic here based on `currentView === 'manage-budget'`.
-     // Socket connections and events should ideally be handled at a higher level or in a dedicated service
-     // and update view-specific states conditionally if needed.
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
-    socket.on('client_count',   setClientCount);
-    // Update factures only if we are on the 'manage-invoices' view and the year matches
-    // These handlers need to be careful about which 'anneeFinanciere' they apply to
-    socket.on('new_facture',    nf => { if(currentView === 'manage-invoices' && String(nf.annee) === anneeFinanciere) setFactures(prev => [nf, ...prev]); });
-    socket.on('delete_facture', d  => { if(currentView === 'manage-invoices') setFactures(prev => prev.filter(f=>f.id!==d.id)); }); // Deletion is often by ID, year might not be strictly necessary here depending on backend
-    socket.on('update_facture', uf => { if(currentView === 'manage-invoices' && String(uf.annee) === anneeFinanciere) setFactures(prev => prev.map(f=>f.id===uf.id?uf:f)); });
+  }, [currentView, anneeFinanciere]);
 
+  // Websocket + real-time updates
+  useEffect(() => {
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    socket.on('client_count', setClientCount);
+    socket.on('new_facture', nf => {
+      if (currentView === 'manage-invoices' && String(nf.annee) === anneeFinanciere) {
+        setFactures(prev => [nf, ...prev]);
+      }
+    });
+    socket.on('update_facture', uf => {
+      if (currentView === 'manage-invoices' && String(uf.annee) === anneeFinanciere) {
+        setFactures(prev => prev.map(f => f.id === uf.id ? uf : f));
+      }
+    });
+    socket.on('delete_facture', d => {
+      if (currentView === 'manage-invoices') {
+        setFactures(prev => prev.filter(f => f.id !== d.id));
+      }
+    });
     return () => socket.disconnect();
-  }, [anneeFinanciere, currentView]); // Add currentView and anneeFinanciere to the dependency array
+  }, [SOCKET_URL, currentView, anneeFinanciere]);
 
 
     // --- Factures Functions ---
   async function fetchFactures(year) {
     try {
       console.log(`Workspaceing factures for financial year ${year}`); // Corrected typo
-      const res  = await fetch(`${API_URL}/api/factures?annee=${year}`); // Use 'annee' as query param as implemented in backend
+      const res = await fetch(`${API_URL}/api/factures?annee=${year}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }); // Use 'annee' as query param as implemented in backend
       if (!res.ok) {
           const errorText = await res.text();
           throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
