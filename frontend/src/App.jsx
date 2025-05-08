@@ -515,7 +515,7 @@ function App() {
       </div>
 
       {/* MAIN CONTENT - Adjusted padding-top to clear the fixed header */}
-       {/* Added pt-40 to push content down */}
+       {/* Added pt-40 to push content down, allows text to be not cropped */}
        {/* Adjusted px-4 for consistent horizontal padding */}
        <div className="container mx-auto px-4 pb-4 pt-40 sm:pt-75 transition-all duration-300">
         {/* Conditional Rendering based on currentView */}
