@@ -712,7 +712,7 @@ def delete_budget(id):
     try:
         cur.execute("DELETE FROM budgets WHERE id = %s RETURNING id", (id,))
         if cur.fetchone() is None:
-            return jsonify({"error": "Budget non trouvé")), 404
+            return jsonify({"error": "Budget non trouvé"}), 404
         conn.commit()
 
         socketio.emit("delete_budget", {"id": id})
