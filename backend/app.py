@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 import os
 import psycopg2
 import psycopg2.extras
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import io
 from urllib.parse import urlparse
@@ -1103,7 +1103,7 @@ def login():
             return jsonify({"token": token, "user_id": user_id, "user_role": user_role}), 200 # JWT is now a string
 
         else:
-            # Message d'erreur générique pour des raisons de sécurité
+            # Message d'erreur générique pour des raisons de sécurité   
             return jsonify({"error": "Identifiants invalides"}), 401
 
     except Exception as e:
