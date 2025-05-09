@@ -490,11 +490,92 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     // dans la section précédente, lors de la modification de BudgetDashboard.jsx.
     // Vous devez copier/coller les définitions finales de ces fonctions ici depuis vos notes ou l'exemple précédent.
 
-     const fetchBudget = async (year) => { /* ... votre code fetchBudget utilisant authorizedFetch et userRole ... */ };
-     const addBudgetEntry = async (entryData) => { /* ... votre code addBudgetEntry utilisant authorizedFetch et userRole ... */ };
-     const updateBudgetEntry = async (entryId, updatedData) => { /* ... votre code updateBudgetEntry utilisant authorizedFetch et userRole ... */ };
-     const deleteBudgetEntry = async (entryId) => { /* ... votre code deleteBudgetEntry utilisant authorizedFetch et userRole ... */ };
-     const verifyPin = async (pin) => { /* ... votre code verifyPin utilisant authorizedFetch (si protégé) ... */ };
+    //  const fetchBudget = async (year) => { /* ... votre code fetchBudget utilisant authorizedFetch et userRole ... */ };
+    //  const addBudgetEntry = async (entryData) => { /* ... votre code addBudgetEntry utilisant authorizedFetch et userRole ... */ };
+    //  const updateBudgetEntry = async (entryId, updatedData) => { /* ... votre code updateBudgetEntry utilisant authorizedFetch et userRole ... */ };
+    //  const deleteBudgetEntry = async (entryId) => { /* ... votre code deleteBudgetEntry utilisant authorizedFetch et userRole ... */ };
+    //  const verifyPin = async (pin) => { /* ... votre code verifyPin utilisant authorizedFetch (si protégé) ... */ };
+    // 1) Récupérer les entrées budgétaires pour une année
+    const fetchBudget = async (year) => {
+        // UI-check (optionnel) : seuls gestionnaires et approbateurs peuvent lire
+        if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
+            console.warn('fetchBudget blocqué, rôle insuffisant:', userRole);
+            return [];
+        }
+        const res = await authorizedFetch(`${API_URL}/api/budget?annee=${year}`);
+        if (!res.ok) {
+            throw new Error(`fetchBudget HTTP ${res.status} – ${await res.text()}`);
+        }
+        return res.json();
+    };
+
+    // 2) Ajouter une entrée budgétaire
+    const addBudgetEntry = async (entryData) => {
+        if (userRole !== 'gestionnaire') {
+            console.warn('addBudgetEntry blocqué, rôle insuffisant:', userRole);
+            return false;
+        }
+        const res = await authorizedFetch(`${API_URL}/api/budget`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entryData),
+        });
+        if (!res.ok) {
+            console.error('addBudgetEntry erreur HTTP', res.status);
+            return false;
+        }
+        return true;
+    };
+
+    // 3) Modifier une entrée
+    const updateBudgetEntry = async (entryId, updatedData) => {
+        if (userRole !== 'gestionnaire') {
+            console.warn('updateBudgetEntry blocqué, rôle insuffisant:', userRole);
+            return false;
+        }
+        const res = await authorizedFetch(`${API_URL}/api/budget/${entryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData),
+        });
+        if (!res.ok) {
+            console.error('updateBudgetEntry erreur HTTP', res.status);
+            return false;
+        }
+        return true;
+    };
+
+    // 4) Supprimer une entrée
+    const deleteBudgetEntry = async (entryId) => {
+        if (userRole !== 'gestionnaire') {
+            console.warn('deleteBudgetEntry blocqué, rôle insuffisant:', userRole);
+            return false;
+        }
+        const res = await authorizedFetch(`${API_URL}/api/budget/${entryId}`, {
+            method: 'DELETE',
+        });
+        if (!res.ok) {
+            console.error('deleteBudgetEntry erreur HTTP', res.status);
+            return false;
+        }
+        return true;
+    };
+
+    // 5) Vérifier un PIN côté back
+    const verifyPin = async (pin) => {
+        // tout rôle peut vérifier, selon votre back ; sinon adaptez ici
+        const res = await authorizedFetch(`${API_URL}/api/verify-pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin }),
+        });
+        if (!res.ok) {
+            console.error('verifyPin erreur HTTP', res.status);
+            return false;
+        }
+        const { valid } = await res.json();   // back devrait renvoyer { valid: true/false }
+        return valid === true;
+    };
 
 
   /**
