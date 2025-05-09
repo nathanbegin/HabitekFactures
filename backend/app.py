@@ -3,7 +3,7 @@ import eventlet
 # pour les rendre compatibles avec l'exécution asynchrone d'eventlet.
 eventlet.monkey_patch()
 
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, g
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
