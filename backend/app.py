@@ -163,46 +163,80 @@ def normalize_fund_type(raw: str) -> str:
 #     client_count += 1
 #     emit('client_count', client_count, broadcast=True)
 
+# @socketio.on('connect')
+# def handle_connect():
+#     # Récupérer le token. Si vous utilisez l'option `auth` côté client io(... { auth: { token: userToken } }),
+#     # le token sera dans request.auth.
+#     # Si vous utilisez extraHeaders, vous devrez les lire manuellement ici (c'est plus complexe avec SocketIO).
+#     # L'option `auth` est généralement recommandée pour SocketIO v3+.
+#     token = request.auth.get('token') if request.auth else None
+
+#     if not token:
+#          print("Socket connection refused: No token provided.")
+#          return False # Refuser la connexion si aucun token n'est fourni
+
+#     try:
+#         # Valider le token
+#         # data = jwt.decode(token, SECRET_KEY.encode('utf-8'), algorithms=['HS256']) # Adapter si besoin
+#         data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+
+#         user_id = data.get('user_id')
+#         user_role = data.get('role')
+
+#         if not user_id or not user_role:
+#             print(f"Socket connection refused: Token payload incomplete ({data}).")
+#             return False # Refuser si le payload est incomplet
+
+#         # Stocker l'ID utilisateur et le rôle pour cette session SocketIO
+#         request.sid['user_id'] = user_id
+#         request.sid['user_role'] = user_role # Stocker aussi le rôle si utile pour les événements SocketIO
+#         print(f"Socket authenticated for user ID: {user_id}, role: {user_role}, sid: {request.sid}")
+
+#         # Continuer avec la logique de connexion normale
+#         global client_count
+#         client_count += 1
+#         print(f"Client connecté, count: {client_count}")
+#         emit('client_count', client_count, broadcast=True)
+
+#     except (jwt.ExpiredSignatureError, jwt.InvalidSignatureError, jwt.InvalidTokenError) as e:
+#         print(f"Socket connection refused: Token invalid or expired ({e}).")
+#         return False # Refuser la connexion en cas de token invalide/expiré
+#     except Exception as e:
+#         print(f"Socket connection refused: Unexpected error validating token ({e}).")
+#         return False
+
 @socketio.on('connect')
-def handle_connect():
-    # Récupérer le token. Si vous utilisez l'option `auth` côté client io(... { auth: { token: userToken } }),
-    # le token sera dans request.auth.
-    # Si vous utilisez extraHeaders, vous devrez les lire manuellement ici (c'est plus complexe avec SocketIO).
-    # L'option `auth` est généralement recommandée pour SocketIO v3+.
-    token = request.auth.get('token') if request.auth else None
+def handle_connect(auth):  # 👈 Ajoutez le paramètre `auth`
+    token = auth.get('token') if auth else None  # 👈 Récupérez le token depuis `auth`
 
     if not token:
-         print("Socket connection refused: No token provided.")
-         return False # Refuser la connexion si aucun token n'est fourni
+        print("Socket connection refused: No token provided.")
+        return False
 
     try:
         # Valider le token
-        # data = jwt.decode(token, SECRET_KEY.encode('utf-8'), algorithms=['HS256']) # Adapter si besoin
         data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-
         user_id = data.get('user_id')
         user_role = data.get('role')
 
         if not user_id or not user_role:
-            print(f"Socket connection refused: Token payload incomplete ({data}).")
-            return False # Refuser si le payload est incomplet
+            print("Socket connection refused: Invalid token payload.")
+            return False
 
-        # Stocker l'ID utilisateur et le rôle pour cette session SocketIO
-        request.sid['user_id'] = user_id
-        request.sid['user_role'] = user_role # Stocker aussi le rôle si utile pour les événements SocketIO
-        print(f"Socket authenticated for user ID: {user_id}, role: {user_role}, sid: {request.sid}")
+        # Stocker les infos dans la session Socket.IO
+        request.sid_user_id = user_id  # Utilisez un attribut personnalisé
+        request.sid_user_role = user_role
 
-        # Continuer avec la logique de connexion normale
         global client_count
         client_count += 1
-        print(f"Client connecté, count: {client_count}")
+        print(f"Client connecté (ID: {user_id}, Rôle: {user_role}), count: {client_count}")
         emit('client_count', client_count, broadcast=True)
 
-    except (jwt.ExpiredSignatureError, jwt.InvalidSignatureError, jwt.InvalidTokenError) as e:
-        print(f"Socket connection refused: Token invalid or expired ({e}).")
-        return False # Refuser la connexion en cas de token invalide/expiré
-    except Exception as e:
-        print(f"Socket connection refused: Unexpected error validating token ({e}).")
+    except jwt.ExpiredSignatureError:
+        print("Socket connection refused: Token expired.")
+        return False
+    except (jwt.InvalidTokenError, Exception) as e:
+        print(f"Socket connection refused: Token error - {str(e)}")
         return False
 
 # vérifier si la session est authentifiée et éventuellement vérifier le rôle :
