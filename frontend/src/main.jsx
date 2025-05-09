@@ -9,8 +9,8 @@ const root = ReactDOM.createRoot(container); // Créez une racine React 18+
 
 root.render(
   <React.StrictMode>
-    <BrowserRouter> {/* BrowserRouter utilisé ici pour envelopper App */}
-      <App />
-    </BrowserRouter>
+     {/* BrowserRouter utilisé ici pour envelopper App */}
+    <App />
+    
   </React.StrictMode>
 );
