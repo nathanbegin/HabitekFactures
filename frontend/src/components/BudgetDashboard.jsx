@@ -1055,6 +1055,7 @@ function BudgetDashboard({
          // Utilise la fonction fetchBudget passée en prop (qui utilise authorizedFetch)
          fetchBudget(anneeFinanciere).then((data) => {
            if (data) {
+            console.log(`BudgetDashboard: INSIDE fetchBudget for ${anneeFinanciere}`);
              // Convertir les montants en nombres si nécessaire
              const processed = data.map((e) => ({
                ...e,
@@ -1080,6 +1081,7 @@ function BudgetDashboard({
          // Utilisez authorizedFetch pour cet appel interne aussi
          authorizedFetch(`${API_URL}/api/factures?annee=${anneeFinanciere}`)
            .then(r => {
+            console.log(`BudgetDashboard: INSIDE fetchFacture for ${anneeFinanciere}`);
              // authorizedFetch gère déjà les 401/403
              if (!r.ok) throw new Error(`Erreur HTTP ! statut: ${r.status}`);
              return r.json();
