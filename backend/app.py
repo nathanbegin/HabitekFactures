@@ -1093,8 +1093,9 @@ def login():
             # Générer le token incluant l'ID utilisateur et le rôle
             payload = {
                 'user_id': user_id,
-                'role': user_role, # Ajouter le rôle au payload
-                'exp': datetime.now() + timedelta(hours=1) # Token expire dans 1 heure
+                'role': user_role,
+                # Conversion en timestamp Unix entier
+                'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
             }
             # Encode the token bytes to a string for the response
             token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
