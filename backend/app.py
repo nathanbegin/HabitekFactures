@@ -1098,6 +1098,15 @@ def login():
             }
             # Encode the token bytes to a string for the response
             token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+            expiration_timestamp = payload['exp']
+            expiration_date = datetime.fromtimestamp(expiration_timestamp)
+            
+            print("\n=== Token généré ===")
+            print(f"User ID    : {user_id}")
+            print(f"Rôle       : {user_role}")
+            print(f"Expiration : {expiration_date.strftime('%Y-%m-%d %H:%M:%S %Z')} (UTC)")
+            print("====================\n")
+
 
             # Retourner le token et les informations de l'utilisateur (ID, rôle)
             return jsonify({"token": token, "user_id": user_id, "user_role": user_role}), 200 # JWT is now a string
