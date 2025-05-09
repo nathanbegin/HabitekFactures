@@ -14,4 +14,3 @@ root.render(
     </BrowserRouter>
   </React.StrictMode>
 );
-console.log("Fin de main.jsx");
