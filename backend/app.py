@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 import os
 import psycopg2
 import psycopg2.extras
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import csv
 import io
 from urllib.parse import urlparse
