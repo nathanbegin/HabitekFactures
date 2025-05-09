@@ -871,6 +871,8 @@ import React, { useState, useEffect } from 'react';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
+
 // -----------------------------------
 // Initialisation de Chart.js
 // -----------------------------------
