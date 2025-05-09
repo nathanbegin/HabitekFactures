@@ -735,24 +735,27 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
             )}
 
 
-            {/* Route Gérer le budget (accessible si rôle permet) */}
-             {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                 <Route path="manage-budget" element={
-                     <BudgetDashboard
-                       anneeFinanciere={anneeFinanciere}
-                       fetchBudget={fetchBudget} // Ces fonctions utilisent authorizedFetch en interne
-                       addBudgetEntry={addBudgetEntry}
-                       updateBudgetEntry={updateBudgetEntry}
-                       deleteBudgetEntry={deleteBudgetEntry}
-                       verifyPin={verifyPin} // Utilise authorizedFetch si protégé
-                       userRole={userRole} // Passer le rôle à BudgetDashboard pour masquer des éléments
-                        // Note : BudgetDashboard semble fetch ses propres factures pour les dépenses,
-                        // assurez-vous qu'il utilise authorizedFetch pour cela.
-                        // Si fetchFactures ou factures étaient utilisés ici avant pour BudgetDashboard,
-                        // ils ont été retirés car BudgetDashboard est maintenant plus autonome pour ses données.
-                     />
-                 } />
-             )}
+                  {/* Route Gérer le budget (accessible si rôle permet) */}
+                  {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+                      <Route path="manage-budget" element={
+                          <BudgetDashboard
+                              anneeFinanciere={anneeFinanciere}
+                              fetchBudget={fetchBudget}
+                              authorizedFetch={authorizedFetch}     // <— ajouté
+                              API_URL={API_URL}                     // <— ajouté
+                              addBudgetEntry={addBudgetEntry}
+                              updateBudgetEntry={updateBudgetEntry}
+                              deleteBudgetEntry={deleteBudgetEntry}
+                              verifyPin={verifyPin}
+                              userRole={userRole}
+                          />
+                          // Note : BudgetDashboard semble fetch ses propres factures pour les dépenses,
+                          // assurez-vous qu'il utilise authorizedFetch pour cela.
+                          // Si fetchFactures ou factures étaient utilisés ici avant pour BudgetDashboard,
+                          // ils ont été retirés car BudgetDashboard est maintenant plus autonome pour ses données.
+
+                      } />
+                  )}
 
              {/* Route Gérer les utilisateurs (accessible si gestionnaire) */}
               {userRole === 'gestionnaire' && (
