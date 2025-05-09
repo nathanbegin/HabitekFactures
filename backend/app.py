@@ -15,6 +15,9 @@ import csv
 import io
 from urllib.parse import urlparse
 from decimal import Decimal
+import bcrypt # Pour le hachage des mots de passe
+import jwt # Pour les JSON Web Tokens
+from functools import wraps # Utile pour créer des décorateurs Flask
 
 # Initialisation de l'application Flask
 app = Flask(__name__)
@@ -28,6 +31,103 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disp
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 # Compteur global du nombre de clients connectés via SocketIO
 client_count = 0
+
+# Ajoutez ceci après la configuration de SocketIO
+# Clé secrète pour signer les tokens - **À METTRE IMPÉRATIVEMENT DANS UNE VARIABLE D'ENVIRONNEMENT EN PRODUCTION**
+# Utilisez `os.environ.get('SECRET_KEY', 'une_valeur_par_defaut_pour_dev')`
+# Cette clé DOIT ÊTRE UNIQUE ET SECRÈTE. Ne la poussez PAS dans un dépôt public telle quelle.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'votre_super_cle_secrete_a_changer_absolument_en_prod_12345')
+# !!! REMPLACEZ 'votre_super_cle_secrete_a_changer_absolument_en_prod_12345' par une clé aléatoire et complexe !!!
+# En production, définissez une variable d'environnement SECRET_KEY sur votre serveur/service d'hébergement.
+
+# Fonctions pour gérer le hachage et la vérification des mots de passe
+
+def hash_password(password: str) -> str:
+    """Hache un mot de passe en utilisant bcrypt."""
+    # Génère un salt et hache le mot de passe. 12 est le coût (plus élevé = plus sûr, mais plus lent)
+    salt = bcrypt.gensalt(12)
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def check_password(password: str, hashed_password: str) -> bool:
+    """Vérifie si un mot de passe correspond à un hachage bcrypt."""
+    # Gère le cas où le hachage stocké est None ou vide
+    if not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception as e:
+        print(f"Erreur lors de la vérification du mot de passe: {e}")
+        return False # Éviter les exceptions en cas de hachage mal formé
+
+# Modifiez le décorateur token_required existant
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        # Extraire le token de l'en-tête Authorization
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            parts = auth_header.split()
+            # Vérifier que le format est "Bearer token"
+            if parts[0].lower() == 'bearer' and len(parts) == 2:
+                token = parts[1]
+            else:
+                 return jsonify({"error": "Format d'en-tête Authorization invalide"}), 401
+
+
+        if not token:
+            return jsonify({"error": "Token manquant"}), 401
+
+        try:
+            # Décode le token. `verify=True` est par défaut.
+            # Assurez-vous que SECRET_KEY est une chaîne d'octets si jwt.decode le requiert dans votre version
+            # data = jwt.decode(token, SECRET_KEY.encode('utf-8'), algorithms=['HS256']) # Optionnel selon version PyJWT
+            data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+
+
+            g.user_id = data.get('user_id')
+            g.user_role = data.get('role') # Extraire le rôle du token
+
+            # Vérifier que les informations nécessaires sont présentes dans le token
+            if not g.user_id or not g.user_role:
+                 # Token valide mais payload incomplet (ex: ancien token sans rôle)
+                 print(f"Token valide mais payload incomplet: {data}")
+                 return jsonify({"error": "Token invalide ou obsolète"}), 401
+
+        except jwt.ExpiredSignatureError:
+            print("Erreur: Token expiré")
+            return jsonify({"error": "Token expiré"}), 401
+        except jwt.InvalidSignatureError:
+            print("Erreur: Signature de token invalide")
+            return jsonify({"error": "Token invalide"}), 401
+        except jwt.InvalidTokenError: # Capturer d'autres erreurs de token
+             print(f"Erreur: Token invalide - {e}")
+             return jsonify({"error": "Token invalide"}), 401
+        except Exception as e:
+            print(f"Erreur inattendue lors de la validation du token: {e}")
+            return jsonify({"error": "Erreur de validation du token"}), 500 # Erreur interne
+
+
+        return f(*args, **kwargs)
+    return decorated
+
+def role_required(allowed_roles):
+    """
+    Décorateur pour restreindre l'accès à une route aux utilisateurs avec certains rôles.
+    Args:
+        allowed_roles (list): Liste des rôles autorisés (ex: ['gestionnaire', 'approbateur']).
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # S'assurer que token_required a été exécuté avant et a stocké g.user_role
+            if not hasattr(g, 'user_role') or g.user_role not in allowed_roles:
+                print(f"Accès refusé: User ID {g.user_id}, Rôle '{getattr(g, 'user_role', 'N/A')}' non autorisé. Rôles requis: {allowed_roles}")
+                return jsonify({"error": "Accès refusé: rôle insuffisant"}), 403 # Forbidden
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # Dictionnaire de mappage pour normaliser les types de fonds entre le front et la base de données
 FUND_TYPE_MAP = {
@@ -52,16 +152,79 @@ def normalize_fund_type(raw: str) -> str:
         raise ValueError(f"Type de fonds invalide: {raw!r}")
     return normalized
 
+# @socketio.on('connect')
+# def handle_connect():
+#     """
+#     Gère la connexion d'un nouveau client via SocketIO.
+#     - Incrémente le compteur de clients.
+#     - Diffuse le nouveau nombre de clients connectés à tous les clients.
+#     """
+#     global client_count
+#     client_count += 1
+#     emit('client_count', client_count, broadcast=True)
+
 @socketio.on('connect')
 def handle_connect():
-    """
-    Gère la connexion d'un nouveau client via SocketIO.
-    - Incrémente le compteur de clients.
-    - Diffuse le nouveau nombre de clients connectés à tous les clients.
-    """
-    global client_count
-    client_count += 1
-    emit('client_count', client_count, broadcast=True)
+    # Récupérer le token. Si vous utilisez l'option `auth` côté client io(... { auth: { token: userToken } }),
+    # le token sera dans request.auth.
+    # Si vous utilisez extraHeaders, vous devrez les lire manuellement ici (c'est plus complexe avec SocketIO).
+    # L'option `auth` est généralement recommandée pour SocketIO v3+.
+    token = request.auth.get('token') if request.auth else None
+
+    if not token:
+         print("Socket connection refused: No token provided.")
+         return False # Refuser la connexion si aucun token n'est fourni
+
+    try:
+        # Valider le token
+        # data = jwt.decode(token, SECRET_KEY.encode('utf-8'), algorithms=['HS256']) # Adapter si besoin
+        data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+
+        user_id = data.get('user_id')
+        user_role = data.get('role')
+
+        if not user_id or not user_role:
+            print(f"Socket connection refused: Token payload incomplete ({data}).")
+            return False # Refuser si le payload est incomplet
+
+        # Stocker l'ID utilisateur et le rôle pour cette session SocketIO
+        request.sid['user_id'] = user_id
+        request.sid['user_role'] = user_role # Stocker aussi le rôle si utile pour les événements SocketIO
+        print(f"Socket authenticated for user ID: {user_id}, role: {user_role}, sid: {request.sid}")
+
+        # Continuer avec la logique de connexion normale
+        global client_count
+        client_count += 1
+        print(f"Client connecté, count: {client_count}")
+        emit('client_count', client_count, broadcast=True)
+
+    except (jwt.ExpiredSignatureError, jwt.InvalidSignatureError, jwt.InvalidTokenError) as e:
+        print(f"Socket connection refused: Token invalid or expired ({e}).")
+        return False # Refuser la connexion en cas de token invalide/expiré
+    except Exception as e:
+        print(f"Socket connection refused: Unexpected error validating token ({e}).")
+        return False
+
+# vérifier si la session est authentifiée et éventuellement vérifier le rôle :
+@socketio.on('some_protected_event')
+def handle_protected_event(data):
+    user_id = request.sid.get('user_id')
+    user_role = request.sid.get('user_role') # Récupérer le rôle
+
+    if not user_id or not user_role:
+        emit('error', {'message': 'Socket non authentifié'}, room=request.sid) # Envoyer l'erreur uniquement à ce client
+        return False
+
+    # Exemple: autoriser l'événement seulement pour les gestionnaires
+    # if user_role != 'gestionnaire':
+    #     emit('error', {'message': 'Accès Socket refusé: rôle insuffisant'}, room=request.sid)
+    #     return False
+
+    print(f"Protected event from user ID: {user_id} (Role: {user_role})")
+    # Logique de l'événement protégé ici
+    pass
+
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -102,11 +265,59 @@ def get_db_connection():
         print(f"Erreur de connexion à PostgreSQL : {e}")
         return None
 
+# def init_db():
+#     """
+#     Initialise la base de données en créant les tables 'factures' et 'budgets' si elles n'existent pas.
+#     - Table 'factures' : stocke les informations des factures (année, type, montant, fichier, etc.).
+#     - Table 'budgets' : stocke les budgets (année financière, type de fonds, revenus, montant).
+#     """
+#     conn = get_db_connection()
+#     if conn is None:
+#         print("Échec de la connexion à la base de données, impossible d'initialiser les tables.")
+#         return
+
+#     cursor = conn.cursor()
+#     try:
+#         # Création de la table 'factures'
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS factures (
+#                 id SERIAL PRIMARY KEY,
+#                 annee VARCHAR(4) NOT NULL,
+#                 type VARCHAR(50) NOT NULL,
+#                 ubr VARCHAR(50),
+#                 fournisseur VARCHAR(255),
+#                 description TEXT,
+#                 montant DECIMAL(10,2) NOT NULL,
+#                 statut VARCHAR(50) NOT NULL,
+#                 fichier_nom VARCHAR(255),
+#                 numero INTEGER,
+#                 date_ajout TIMESTAMP NOT NULL
+#             );
+#         """)
+#         # Création de la table 'budgets'
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS budgets (
+#                 id SERIAL PRIMARY KEY,
+#                 financial_year VARCHAR(4) NOT NULL,
+#                 fund_type VARCHAR(50) NOT NULL,
+#                 revenue_type VARCHAR(255) NOT NULL,
+#                 amount NUMERIC(10,2) NOT NULL,
+#                 date_added TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+#             );
+#         """)
+        
+#         conn.commit()
+#         print("Tableau de factures vérifié/créé.")
+#         print("Tableau de budgets vérifié/créé.")
+#     except psycopg2.Error as e:
+#         print(f"Erreur d'initialisation de la base de données : {e}")
+#         conn.rollback()
+#     finally:
+#         cursor.close()
+#         conn.close()
 def init_db():
     """
-    Initialise la base de données en créant les tables 'factures' et 'budgets' si elles n'existent pas.
-    - Table 'factures' : stocke les informations des factures (année, type, montant, fichier, etc.).
-    - Table 'budgets' : stocke les budgets (année financière, type de fonds, revenus, montant).
+    Initialise la base de données en créant les tables 'factures', 'budgets' et 'users' si elles n'existent pas.
     """
     conn = get_db_connection()
     if conn is None:
@@ -115,7 +326,7 @@ def init_db():
 
     cursor = conn.cursor()
     try:
-        # Création de la table 'factures'
+        # Création de la table 'factures' (doit déjà exister)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS factures (
                 id SERIAL PRIMARY KEY,
@@ -131,7 +342,7 @@ def init_db():
                 date_ajout TIMESTAMP NOT NULL
             );
         """)
-        # Création de la table 'budgets'
+        # Création de la table 'budgets' (doit déjà exister)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
                 id SERIAL PRIMARY KEY,
@@ -142,17 +353,30 @@ def init_db():
                 date_added TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
             );
         """)
-        
+
+        # *** AJOUT DE LA TABLE USERS ***
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL, -- Ajout de l'adresse courriel
+                role VARCHAR(50) NOT NULL DEFAULT 'soumetteur', -- Ajout du rôle, par défaut 'soumetteur'
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                CONSTRAINT valid_role CHECK (role IN ('soumetteur', 'gestionnaire', 'approbateur')) -- Contrainte pour limiter les valeurs de rôle
+            );
+        """)
+
         conn.commit()
         print("Tableau de factures vérifié/créé.")
         print("Tableau de budgets vérifié/créé.")
+        print("Tableau d'utilisateurs vérifié/créé.") # Confirmation pour la nouvelle table
     except psycopg2.Error as e:
         print(f"Erreur d'initialisation de la base de données : {e}")
         conn.rollback()
     finally:
         cursor.close()
         conn.close()
-
 # Initialisation de la base de données au démarrage de l'application
 init_db()
 
@@ -179,6 +403,8 @@ def home():
     return "Flask fonctionne ✅"
 
 @app.route("/api/factures", methods=["POST"])
+@token_required
+@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent soumettre une facture
 def upload_facture():
     """
     Crée une nouvelle facture et enregistre un fichier associé si fourni.
@@ -288,6 +514,8 @@ def upload_facture():
         conn.close()
 
 @app.route("/api/factures", methods=["GET"])
+@token_required
+@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
 def get_factures():
     """
     Récupère la liste des factures pour une année donnée.
@@ -315,6 +543,8 @@ def get_factures():
         conn.close()
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
+@token_required
+@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent télécharger leur fichier (et peut-être les autres s'ils les voient?)
 def get_file(id):
     """
     Récupère le fichier associé à une facture spécifique.
@@ -372,6 +602,8 @@ def get_file(id):
         conn.close()
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
+@token_required
+@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent supprimer
 def delete_facture(id):
     """
     Supprime une facture et son fichier associé (si existant).
@@ -424,6 +656,8 @@ def delete_facture(id):
         conn.close()
 
 @app.route("/api/factures/<int:id>", methods=["PUT"])
+@token_required
+@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent mettre à jour (y compris statut)
 def update_facture(id):
     """
     Met à jour les champs d'une facture existante.
@@ -482,6 +716,8 @@ def update_facture(id):
         conn.close()
 
 @app.route("/api/factures/export-csv", methods=["GET"])
+@token_required
+@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
 def export_factures_csv():
     """
     Exporte les factures d'une année donnée au format CSV.
@@ -523,6 +759,8 @@ def export_factures_csv():
 # -------------------------------
 
 @app.route("/api/budget", methods=["GET"])
+@token_required
+@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent voir le budget
 def get_budgets():
     """
     Récupère la liste des budgets pour une année financière donnée.
@@ -560,6 +798,8 @@ def get_budgets():
         conn.close()
 
 @app.route("/api/budget", methods=["POST"])
+@token_required
+@role_required(['gestionnaire']) # Seuls les gestionnaires peuvent créer des entrées budget
 def create_budget():
     """
     Crée un nouveau budget.
@@ -622,6 +862,8 @@ def create_budget():
         conn.close()
 
 @app.route("/api/budget/<int:id>", methods=["PUT"])
+@token_required
+@role_required(['gestionnaire']) # Seuls les gestionnaires peuvent modifier des entrées budget
 def update_budget(id):
     """
     Met à jour un budget existant.
@@ -694,6 +936,8 @@ def update_budget(id):
         conn.close()
 
 @app.route("/api/budget/<int:id>", methods=["DELETE"])
+@token_required
+@role_required(['gestionnaire']) # Seuls les gestionnaires peuvent supprimer des entrées budget
 def delete_budget(id):
     """
     Supprime un budget existant.
@@ -728,6 +972,8 @@ def delete_budget(id):
         conn.close()
 
 @app.route("/api/budget/revenue-types", methods=["GET"])
+@token_required # Nécessite d'être connecté pour voir les types de revenus
+# Pas de rôle spécifique requis, tout utilisateur connecté peut potentiellement voir
 def get_revenue_types_alias():
     """
     Retourne les types de revenus possibles pour chaque type de fonds.
@@ -751,6 +997,8 @@ def get_revenue_types_alias():
     return jsonify(revenue_types), 200
 
 @app.route("/api/budget/verify-pin", methods=["POST"])
+@token_required # Nécessite d'être connecté pour vérifier le PIN
+@role_required(['gestionnaire']) # Seuls les gestionnaires utilisent le PIN pour certaines actions budgetaires
 def verify_pin():
     """
     Vérifie un code PIN fourni par l'utilisateur.
@@ -762,6 +1010,192 @@ def verify_pin():
     PIN_CORRECT = "1234"  # TODO: Sécuriser en variable d'environnement
     ok = data.get("pin") == PIN_CORRECT
     return jsonify({"success": ok}), (200 if ok else 401)
+
+@app.route("/api/register", methods=["POST"])
+def register_user():
+    """
+    Crée un nouvel utilisateur avec le rôle par défaut 'soumetteur'.
+    Requiert username, email et password.
+    """
+    data = request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+    email = data.get("email")
+
+    if not username or not password or not email:
+        return jsonify({"error": "Nom d'utilisateur, mot de passe et courriel requis"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
+
+    try:
+        # Vérifier si l'utilisateur ou l'email existent déjà
+        cursor.execute("SELECT id FROM users WHERE username = %s OR email = %s", (username, email))
+        if cursor.fetchone():
+            return jsonify({"error": "Nom d'utilisateur ou courriel déjà utilisé"}), 409 # Conflict
+
+        hashed_password = hash_password(password)
+
+        # Insérer le nouvel utilisateur avec le rôle par défaut 'soumetteur'
+        # Pas besoin de spécifier le rôle ici si le DEFAULT 'soumetteur' est bien configuré dans la table
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, email) VALUES (%s, %s, %s) RETURNING id, username, email, role",
+            (username, hashed_password, email)
+        )
+        new_user = cursor.fetchone()
+        conn.commit()
+
+        # Retourner les informations de base du nouvel utilisateur (sans le hash du mot de passe)
+        user_data = {
+            "id": new_user[0],
+            "username": new_user[1],
+            "email": new_user[2],
+            "role": new_user[3] # Le rôle retourné sera 'soumetteur' grâce au RETURNING
+        }
+        return jsonify(user_data), 201
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur lors de l'enregistrement de l'utilisateur: {e}")
+        return jsonify({"error": "Une erreur est survenue lors de l'enregistrement"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    """
+    Authentifie un utilisateur et retourne un JWT incluant son ID et son rôle.
+    """
+    data = request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "Nom d'utilisateur et mot de passe requis"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor()
+
+    try:
+        # Sélectionner aussi le rôle de l'utilisateur
+        cursor.execute("SELECT id, password_hash, role FROM users WHERE username = %s", (username,))
+        user_row = cursor.fetchone()
+
+        if user_row and check_password(password, user_row[1]):
+            user_id = user_row[0]
+            user_role = user_row[2] # Récupérer le rôle
+
+            # Générer le token incluant l'ID utilisateur et le rôle
+            payload = {
+                'user_id': user_id,
+                'role': user_role, # Ajouter le rôle au payload
+                'exp': datetime.now() + timedelta(hours=1) # Token expire dans 1 heure
+            }
+            # Encode the token bytes to a string for the response
+            token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+
+            # Retourner le token et les informations de l'utilisateur (ID, rôle)
+            return jsonify({"token": token, "user_id": user_id, "user_role": user_role}), 200 # JWT is now a string
+
+        else:
+            # Message d'erreur générique pour des raisons de sécurité
+            return jsonify({"error": "Identifiants invalides"}), 401
+
+    except Exception as e:
+        print(f"Erreur lors de la connexion: {e}")
+        return jsonify({"error": "Une erreur est survenue lors de la connexion"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+# Ajoutez ces routes pour la gestion des utilisateurs
+
+@app.route("/api/users", methods=["GET"])
+@token_required
+@role_required(['gestionnaire']) # Seuls les gestionnaires peuvent lister les utilisateurs
+def get_users():
+    """
+    Récupère la liste de tous les utilisateurs (uniquement pour les gestionnaires).
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    try:
+        # Sélectionner les utilisateurs, EXCLURE le password_hash
+        cursor.execute("SELECT id, username, email, role, created_at FROM users ORDER BY username")
+        users = cursor.fetchall()
+        # Convertir en un format JSON sérialisable
+        users_list = [{key: convert_to_json_serializable(value) for key, value in dict(user).items()} for user in users]
+        return jsonify(users_list), 200
+
+    except Exception as e:
+        print(f"Erreur lors de la récupération des utilisateurs: {e}")
+        return jsonify({"error": "Une erreur est survenue lors de la récupération des utilisateurs"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/users/<int:user_id>", methods=["PUT"])
+@token_required
+@role_required(['gestionnaire']) # Seuls les gestionnaires peuvent modifier les utilisateurs
+def update_user(user_id):
+    """
+    Met à jour les informations d'un utilisateur (principalement le rôle) par un gestionnaire.
+    """
+    data = request.get_json() or {}
+    # Pour cet endpoint, on s'attend principalement à mettre à jour le rôle
+    new_role = data.get("role")
+    # Vous pourriez ajouter la modification d'autres champs ici si nécessaire,
+    # mais assurez-vous de ne pas permettre la modification du password_hash via cet endpoint sans vérification.
+
+    if not new_role:
+        return jsonify({"error": "Rôle requis pour la mise à jour"}), 400
+
+    # Valider que le nouveau rôle est valide
+    if new_role not in ['soumetteur', 'gestionnaire', 'approbateur']:
+         return jsonify({"error": "Rôle invalide"}), 400
+
+    # Optionnel mais recommandé : Empêcher un gestionnaire de modifier son propre rôle via cette route
+    # Si vous voulez permettre un super-admin plus tard, cette logique devra être ajustée
+    from flask import g # S'assurer que g est importé
+    if g.user_id == user_id:
+         return jsonify({"error": "Vous ne pouvez pas modifier votre propre rôle via cette fonction."}), 403 # Forbidden
+
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    try:
+        cursor.execute("UPDATE users SET role = %s WHERE id = %s RETURNING id, username, email, role", (new_role, user_id))
+        updated_user = cursor.fetchone()
+
+        if not updated_user:
+            return jsonify({"error": "Utilisateur non trouvé"}), 404
+
+        conn.commit()
+        user_data = {key: convert_to_json_serializable(value) for key, value in dict(updated_user).items()}
+        # Potentiellement émettre un événement SocketIO pour notifier les autres clients (ex: si l'utilisateur mis à jour est connecté)
+
+        return jsonify(user_data), 200
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur lors de la mise à jour de l'utilisateur {user_id}: {e}")
+        return jsonify({"error": "Une erreur est survenue lors de la mise à jour de l'utilisateur"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Vous pourriez vouloir ajouter une route DELETE /api/users/<int:user_id> pour supprimer des utilisateurs (uniquement gestionnaire)
+# Assurez-vous alors de gérer la suppression des factures et budgets associés si nécessaire, ou d'empêcher la suppression si des données y sont liées.
 
 if __name__ == '__main__':
     """
