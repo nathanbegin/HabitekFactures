@@ -5,3 +5,4 @@ flask-bcrypt
 flask-jwt-extended
 eventlet
 psycopg2-binary
+bcrypt
