@@ -983,6 +983,7 @@ function PinModal({ show, onVerify, onCancel, actionLabel }) {
 function BudgetDashboard({
   anneeFinanciere,
   fetchBudget, // Passé depuis MainLayout, utilise authorizedFetch
+  fetchFactures,
   addBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
   updateBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
   deleteBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
@@ -1074,43 +1075,29 @@ function BudgetDashboard({
      }
 
 
-     // Fetch Factures data for expense chart - Ajouter vérification de rôle UI
+      // Fetch Factures data for expense chart - Ajouter vérification de rôle UI
       // Charger les factures uniquement si l'utilisateur est gestionnaire ou approbateur
       if (userRole === 'gestionnaire' || userRole === 'approbateur') {
-         console.log(`BudgetDashboard: Fetching factures for expenses for ${anneeFinanciere}`);
-         // Utilisez authorizedFetch pour cet appel interne aussi
-         authorizedFetch(`${API_URL}/api/factures?annee=${anneeFinanciere}`)
-           .then(r => {
-            console.log(`BudgetDashboard: INSIDE fetchFacture for ${anneeFinanciere}`);
-             // authorizedFetch gère déjà les 401/403
-             if (!r.ok) throw new Error(`Erreur HTTP ! statut: ${r.status}`);
-             return r.json();
-           })
-           .then((data) => {
-               if (data) {
-                   // Convertir les montants en nombres
-                   setLocalFactures(
-                     data.map((f) => ({
-                       ...f,
-                       montant: parseFloat(f.montant),
-                     }))
-                   );
-               } else {
-                   setLocalFactures([]); // Vider les factures en cas de données vides
-               }
-           })
-           .catch((e) => {
-                console.error('BudgetDashboard: Erreur lors de la récupération des factures pour dépenses :', e);
-                // authorizedFetch gère déjà les erreurs 401/403 et les alertes
-                 if (!e.message.includes("Session expirée") && !e.message.includes("Accès refusé")) {
-                     // Afficher alerte pour autres erreurs
-                     alert(`Erreur lors du chargement des dépenses : ${e.message}`);
-                 }
-               setLocalFactures([]); // Vider les factures en cas d'erreur
-           });
+        console.log(`BudgetDashboard: fetchFactures pour ${anneeFinanciere}`);
+        fetchFactures(anneeFinanciere)
+          .then(data => {
+            if (Array.isArray(data)) {
+              setLocalFactures(
+                data.map(f => ({
+                  ...f,
+                  montant: parseFloat(f.montant),
+                }))
+              );
+            } else {
+              setLocalFactures([]);
+            }
+          })
+          .catch(e => {
+            console.error('BudgetDashboard: Erreur fetchFactures', e);
+            setLocalFactures([]);
+          });
       } else {
-          // Si le rôle n'est pas suffisant, vider les factures
-          setLocalFactures([]);
+        setLocalFactures([]);
       }
 
 
@@ -1155,7 +1142,7 @@ function BudgetDashboard({
        setPinAction(null);
        setPinActionData(null);
 
-   }, [anneeFinanciere, userRole, fetchBudget, authorizedFetch, API_URL]); // Dépendances pour re-fetch
+   }, [anneeFinanciere, userRole, fetchBudget,fetchFactures, authorizedFetch, API_URL]); // Dépendances pour re-fetch
 
   // -----------------------------------
   // Calculs pour les Graphiques

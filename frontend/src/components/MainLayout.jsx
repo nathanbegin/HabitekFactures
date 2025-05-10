@@ -822,6 +822,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           <BudgetDashboard
                               anneeFinanciere={anneeFinanciere}
                               fetchBudget={fetchBudget}
+                              fetchFactures={fetchFactures}
                               authorizedFetch={authorizedFetch}     // <— ajouté
                               API_URL={API_URL}                     // <— ajouté
                               addBudgetEntry={addBudgetEntry}
