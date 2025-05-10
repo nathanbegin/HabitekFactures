@@ -1168,13 +1168,29 @@ function BudgetDashboard({
     return acc;
   }, {});
 
-  // Calculer les totaux de dépenses par type de facture ('Dépense')
-  const expenseTotals = localFactures
-    .filter(facture => facture.type === 'Dépense' && facture.statut === 'Soumis') // Inclure uniquement les dépenses Soumises
-    .reduce((acc, facture) => {
-      acc[facture.ubr || 'Sans UBR'] = (acc[facture.ubr || 'Sans UBR'] || 0) + facture.montant;
-      return acc;
-    }, {});
+//   // Calculer les totaux de dépenses par type de facture ('Dépense')
+//   const expenseTotals = localFactures
+//     .filter(facture => facture.type === 'Dépense' && facture.statut === 'Soumis') // Inclure uniquement les dépenses Soumises
+//     .reduce((acc, facture) => {
+//       acc[facture.ubr || 'Sans UBR'] = (acc[facture.ubr || 'Sans UBR'] || 0) + facture.montant;
+//       return acc;
+//     }, {});
+
+
+  // Calcule les totaux des dépenses par type de facture
+  const relevantFactures = localFactures;
+  const expenseTotals = relevantFactures.reduce((totals, facture) => {
+    if (!facture.type) return totals;
+    totals[facture.type] = (totals[facture.type] || 0) + facture.montant;
+    return totals;
+  }, {});
+
+
+
+
+
+
+
 
 
   // Préparer les données pour le graphique budgétaire
