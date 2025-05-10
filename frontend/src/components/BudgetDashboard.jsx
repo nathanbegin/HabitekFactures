@@ -1046,6 +1046,18 @@ function BudgetDashboard({
   // Hooks useEffect
   // -----------------------------------
 
+
+
+  useEffect(() => {
+    console.log("Local Factures updated:", localFactures);
+    // Vous pouvez aussi vérifier si c'est vide ou non
+    if (localFactures.length === 0) {
+      console.log("Local Factures is currently empty.");
+    } else {
+      console.log("Local Factures contains", localFactures.length, "items.");
+    }
+  }, [localFactures]); // Ce useEffect s'exécute à chaque fois que localFactures change
+
   // Charger les données budget, factures (pour dépenses), et types de revenus
   // au changement d'année financière ou de rôle de l'utilisateur
    useEffect(() => {
