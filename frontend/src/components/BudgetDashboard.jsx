@@ -1077,28 +1077,23 @@ function BudgetDashboard({
 
       // Fetch Factures data for expense chart - Ajouter vérification de rôle UI
       // Charger les factures uniquement si l'utilisateur est gestionnaire ou approbateur
-      if (userRole === 'gestionnaire' || userRole === 'approbateur') {
-        console.log(`BudgetDashboard: fetchFactures pour ${anneeFinanciere}`);
+      if (['gestionnaire','approbateur'].includes(userRole)) {
         fetchFactures(anneeFinanciere)
           .then(data => {
-            if (Array.isArray(data)) {
-              setLocalFactures(
-                data.map(f => ({
-                  ...f,
-                  montant: parseFloat(f.montant),
-                }))
-              );
-            } else {
-              setLocalFactures([]);
-            }
+            // data est un array (peut être vide)
+            setLocalFactures(
+              data.map(f => ({ ...f, montant: parseFloat(f.montant) }))
+            );
           })
-          .catch(e => {
-            console.error('BudgetDashboard: Erreur fetchFactures', e);
+          .catch(err => {
+            console.error('BudgetDashboard: Erreur fetchFactures', err);
             setLocalFactures([]);
           });
       } else {
         setLocalFactures([]);
       }
+
+      
 
 
      // Fetch Revenue Types (Probablement accessible si on peut ajouter ou modifier le budget)

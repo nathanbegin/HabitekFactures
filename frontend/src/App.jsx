@@ -138,8 +138,7 @@ function App() {
        // Pour les autres codes d'état (2xx, 400, 404, 500...), les fonctions appelantes doivent les gérer
        return response;
     };
-
-
+    
   return (
     <BrowserRouter> {/* Utilisez BrowserRouter ici */}
       <Routes>
