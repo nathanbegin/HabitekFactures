@@ -1156,7 +1156,7 @@ function BudgetDashboard({
        setPinAction(null);
        setPinActionData(null);
 
-   }, [anneeFinanciere, userRole, fetchBudget,fetchFacturesForBudget, authorizedFetch, API_URL]); // Dépendances pour re-fetch
+   }, [anneeFinanciere, userRole, fetchBudget,fetchFacturesForBudget]); // Dépendances pour re-fetch
 
   // -----------------------------------
   // Calculs pour les Graphiques
