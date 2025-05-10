@@ -60,6 +60,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
   // Utilisez useLocation pour réagir aux changements de sous-route dans /dashboard
   // et anneeFinanciere pour réagir au changement d'année.
   useEffect(() => {
+
       // Charger les factures SEULEMENT si la sous-vue est 'manage-invoices'
       // et si l'utilisateur a la permission UI de voir les factures.
       // La vérification backend est la sécurité finale, mais la vérification UI optimise.
@@ -147,6 +148,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
 
     // La fonction fetchFactures est définie et utilisée dans useEffect et potentiellement par des événements socket
     async function fetchFactures(year) {
+         console.log(`TRACE : User role ${userRole}`);
          // Vérification de rôle UI (redondant avec backend mais pour UI rapide)
          if (userRole !== 'soumetteur' && userRole !== 'gestionnaire' && userRole !== 'approbateur') {
              console.warn("fetchFactures: Rôle UI insuffisant.");
@@ -821,8 +823,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                       <Route path="manage-budget" element={
                           <BudgetDashboard
                               anneeFinanciere={anneeFinanciere}
-                              fetchBudget={fetchBudget}
-                              fetchFactures={fetchFactures}
+                              fetchBudget={fetchBudget}                              
                               authorizedFetch={authorizedFetch}     // <— ajouté
                               API_URL={API_URL}                     // <— ajouté
                               addBudgetEntry={addBudgetEntry}
@@ -830,6 +831,8 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                               deleteBudgetEntry={deleteBudgetEntry}
                               verifyPin={verifyPin}
                               userRole={userRole}
+                              // PASSER UNE FONCTION QUI UTILISE authorizedFetch POUR RECUPERER LES FACTURES
+                              fetchFacturesForBudget={() => fetchFactures(anneeFinanciere)} // Nouvelle prop
                           />
                           // Note : BudgetDashboard semble fetch ses propres factures pour les dépenses,
                           // assurez-vous qu'il utilise authorizedFetch pour cela.

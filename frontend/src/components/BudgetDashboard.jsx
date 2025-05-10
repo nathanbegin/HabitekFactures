@@ -983,13 +983,13 @@ function PinModal({ show, onVerify, onCancel, actionLabel }) {
 function BudgetDashboard({
   anneeFinanciere,
   fetchBudget, // Passé depuis MainLayout, utilise authorizedFetch
-  fetchFactures,
   addBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
   updateBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
   deleteBudgetEntry, // Passé depuis MainLayout, utilise authorizedFetch
   verifyPin, // Passé depuis MainLayout, utilise authorizedFetch (si protégé)
   userRole, // Rôle de l'utilisateur connecté
-  authorizedFetch // Fonction pour faire des appels API avec le token
+  authorizedFetch, // Fonction pour faire des appels API avec le token
+  fetchFacturesForBudget
 }) {
   // -----------------------------------
   // Gestion des États
@@ -1077,20 +1077,27 @@ function BudgetDashboard({
 
       // Fetch Factures data for expense chart - Ajouter vérification de rôle UI
       // Charger les factures uniquement si l'utilisateur est gestionnaire ou approbateur
-      if (['gestionnaire','approbateur'].includes(userRole)) {
-        fetchFactures(anneeFinanciere)
-          .then(data => {
-            // data est un array (peut être vide)
+      
+      // MODIFICATION ICI : Utiliser la prop fetchFacturesForBudget pour récupérer les factures
+    if (fetchFacturesForBudget) {
+        fetchFacturesForBudget().then((data) => {
+          if (data) {
             setLocalFactures(
-              data.map(f => ({ ...f, montant: parseFloat(f.montant) }))
+              data.map((f) => ({
+                ...f,
+                montant: parseFloat(f.montant),
+              }))
             );
-          })
-          .catch(err => {
-            console.error('BudgetDashboard: Erreur fetchFactures', err);
+          } else {
+            setLocalFactures([]); // Assurez-vous que localFactures est vide si la récupération échoue ou n'est pas autorisée
+          }
+        }).catch((e) => {
+            console.error("Erreur lors de la récupération des factures pour le budget :", e);
             setLocalFactures([]);
-          });
+        });
       } else {
-        setLocalFactures([]);
+          console.warn("fetchFacturesForBudget prop not provided to BudgetDashboard.");
+          setLocalFactures([]);
       }
 
       
@@ -1137,7 +1144,7 @@ function BudgetDashboard({
        setPinAction(null);
        setPinActionData(null);
 
-   }, [anneeFinanciere, userRole, fetchBudget,fetchFactures, authorizedFetch, API_URL]); // Dépendances pour re-fetch
+   }, [anneeFinanciere, userRole, fetchBudget,fetchFacturesForBudget, authorizedFetch, API_URL]); // Dépendances pour re-fetch
 
   // -----------------------------------
   // Calculs pour les Graphiques
