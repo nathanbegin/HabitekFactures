@@ -1261,6 +1261,7 @@ function BudgetDashboard({
     const handlePinVerified = async (pin) => {
         // Appelle la fonction verifyPin passée en prop (qui utilise authorizedFetch)
         const success = await verifyPin(pin);
+        console.error("handlePinVerified: verifyPin response:", success);
         if (success) {
             // PIN correct, exécuter l'action en attente
             setShowPinModal(false); // Fermer la modale
@@ -1806,6 +1807,7 @@ function BudgetDashboard({
                  : ''
              }
            />
+           
        )}
     </div>
   );
