@@ -1286,10 +1286,12 @@ function BudgetDashboard({
              // Réinitialiser l'état de l'action PIN
              setPinAction(null);
              setPinActionData(null);
+            return true;
         } else {
              // PIN incorrect, l'erreur est affichée dans PinModal via setError
              // Pas besoin de fermer la modale, l'utilisateur peut réessayer
              console.warn("PIN incorrect.");
+             return false;
         }
     };
 
@@ -1317,6 +1319,7 @@ function BudgetDashboard({
       setIsAddingEntry(false);
       // Réinitialiser le formulaire d'ajout
       setNewEntryData({
+        financial_year: anneeFinanciere,
         fund_type: 'Fond 1',
         revenue_type:
           revenueTypes['Fond 1'] && revenueTypes['Fond 1'].length > 0
