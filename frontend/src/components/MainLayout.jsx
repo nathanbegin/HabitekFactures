@@ -566,7 +566,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     // 5) Vérifier un PIN côté back
     const verifyPin = async (pin) => {
         // tout rôle peut vérifier, selon votre back ; sinon adaptez ici
-        const res = await authorizedFetch(`${API_URL}/api/verify-pin`, {
+        const res = await authorizedFetch(`${API_URL}/api/budget/verify-pin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pin }),
