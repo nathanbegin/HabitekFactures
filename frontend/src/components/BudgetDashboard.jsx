@@ -1314,7 +1314,7 @@ function BudgetDashboard({
   const executeAddEntry = async () => {
     console.log('Exécution ajout entrée budget...');
     // addBudgetEntry est passé depuis MainLayout et utilise authorizedFetch + vérif rôle backend
-    const success = await addBudgetEntry(newEntryData);
+    const success = await addBudgetEntry(newEntryData,anneeFinanciere);
     if (success) {
       setIsAddingEntry(false);
       // Réinitialiser le formulaire d'ajout
