@@ -1267,7 +1267,7 @@ function BudgetDashboard({
             console.log("handlePinVerified: Dans la bouche if success:");
             // PIN correct, exécuter l'action en attente
             setShowPinModal(false); // Fermer la modale
-            setError('Validé'); // Vider toute erreur PIN précédente
+           
             switch (pinAction) {
                 case 'add':
                     console.log("handlePinVerified: executeAddEntry");
