@@ -575,8 +575,8 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
             console.error('verifyPin erreur HTTP', res.status);
             return false;
         }
-        const { valid } = await res.json();   // back devrait renvoyer { valid: true/false }
-        return valid === true;
+        const { success } = await res.json();  // <-- clé correcte
+        return success === true;
     };
 
 
