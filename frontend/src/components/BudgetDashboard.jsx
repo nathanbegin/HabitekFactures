@@ -1262,13 +1262,15 @@ function BudgetDashboard({
     const handlePinVerified = async (pin) => {
         // Appelle la fonction verifyPin passée en prop (qui utilise authorizedFetch)
         const success = await verifyPin(pin);
-        console.error("handlePinVerified: verifyPin response:", success);
+        console.log("handlePinVerified: verifyPin response:", success);
         if (success) {
+            console.log("handlePinVerified: Dans la bouche if success:");
             // PIN correct, exécuter l'action en attente
             setShowPinModal(false); // Fermer la modale
             setError(''); // Vider toute erreur PIN précédente
             switch (pinAction) {
                 case 'add':
+                    console.log("handlePinVerified: executeAddEntry");
                     executeAddEntry();
                     break;
                 case 'edit':
