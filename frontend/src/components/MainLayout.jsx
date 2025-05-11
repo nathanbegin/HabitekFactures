@@ -528,7 +528,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
         console.log("addBudgetEntry:",res);
         
         if (!res.ok) {
-          console.error("addBudgetEntry erreur HTTP", res.status);
+          console.log("addBudgetEntry erreur HTTP", res.status);
           return false;
         }
         return true;
