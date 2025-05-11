@@ -512,19 +512,24 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     };
 
     // 2) Ajouter une entrée budgétaire
-    const addBudgetEntry = async (entryData) => {
-        if (userRole !== 'gestionnaire') {
-            console.warn('addBudgetEntry blocqué, rôle insuffisant:', userRole);
-            return false;
-        }
+    const addBudgetEntry = async (entryData, anneeFinanciere) => {
+        const payload = {
+          financial_year: anneeFinanciere,  // clé attendue par votre backend
+          fund_type:    entryData.fund_type,
+          revenue_type: entryData.revenue_type,
+          amount:       entryData.amount,
+        };
+      
         const res = await authorizedFetch(`${API_URL}/api/budget`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(entryData),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
+        console.log("addBudgetEntry:",res);
+        
         if (!res.ok) {
-            console.error('addBudgetEntry erreur HTTP', res.status);
-            return false;
+          console.error("addBudgetEntry erreur HTTP", res.status);
+          return false;
         }
         return true;
     };
@@ -826,7 +831,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                               fetchBudget={fetchBudget}                              
                               authorizedFetch={authorizedFetch}     // <— ajouté
                               API_URL={API_URL}                     // <— ajouté
-                              addBudgetEntry={addBudgetEntry}
+                              addBudgetEntry={addBudgetEntry}                              
                               updateBudgetEntry={updateBudgetEntry}
                               deleteBudgetEntry={deleteBudgetEntry}
                               verifyPin={verifyPin}
