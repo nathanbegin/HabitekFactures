@@ -930,6 +930,7 @@ function PinModal({ show, onVerify, onCancel, actionLabel }) {
      // Appelle la fonction onVerify passée par le parent (BudgetDashboard)
      // BudgetDashboard appellera verifyPin du backend via authorizedFetch
      const success = await onVerify(pin);
+     console.error("handleVerifyClick: verifyPin response:", success);
      if (!success) {
          setError("PIN incorrect.");
      }
