@@ -140,8 +140,8 @@ function LoginPage({ onLoginSuccess }) {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/login`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
