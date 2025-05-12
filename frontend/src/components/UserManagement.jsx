@@ -188,7 +188,6 @@
 // src/components/UserManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authorizedFetch } from '../services/api';
 
 /**
  * Composant pour gérer les utilisateurs (CRUD de rôles et suppression).
