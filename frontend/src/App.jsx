@@ -10,10 +10,17 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz
 const SOCKET_URL = `${API_URL.replace('https', 'wss')}`; // Utilisez wss pour HTTPS
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userToken, setUserToken] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  
+  const [userToken, setUserToken]   = useState(savedToken);
+  const [userRole,    setUserRole]    = useState(savedRole);
+  const [isLoggedIn,  setIsLoggedIn]  = useState(!!savedToken);
   const [clientCount, setClientCount] = useState(0); // Déplacé ici pour être global
+
+  const savedToken = sessionStorage.getItem('habitek_auth_token');
+  const savedRole  = sessionStorage.getItem('habitek_user_role');
+
+  
+  
 
   // --- Connexion SocketIO globale (gérée ici car l'état d'auth est ici) ---
    useEffect(() => {
@@ -138,7 +145,7 @@ function App() {
        // Pour les autres codes d'état (2xx, 400, 404, 500...), les fonctions appelantes doivent les gérer
        return response;
     };
-    
+
   return (
     <BrowserRouter> {/* Utilisez BrowserRouter ici */}
       <Routes>
