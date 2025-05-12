@@ -106,8 +106,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+// Logo Habitek
+import logo from '../Logo Habitek_WEB_Transparent-06.png';
 
-// URL de votre API
+// URL de l'API
 const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 function LoginPage({ onLoginSuccess }) {
@@ -122,13 +124,13 @@ function LoginPage({ onLoginSuccess }) {
     document.title = 'Habitek | Page de connexion';
   }, []);
 
-  // Au montage, on ping le back-end
+  // Au montage, on ping le backend
   useEffect(() => {
     async function pingBackend() {
       try {
-        // appelle /api/users sans token
-        const res = await fetch(`${API_URL}/api/users`);
-        if (res) setBackendStatus('online');
+        // Appel d'un endpoint public
+        const res = await fetch(`${API_URL}/`);
+        setBackendStatus(res.ok ? 'online' : 'offline');
       } catch {
         setBackendStatus('offline');
       }
@@ -158,10 +160,10 @@ function LoginPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="relative max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+    <div className="relative max-w-md mx-auto mt-10 p-6 pb-16 bg-white rounded shadow">
       {/* Logo et titre */}
       <img
-        src="/logo.png"
+        src={logo}
         alt="Habitek Logo"
         className="h-12 mx-auto mb-4"
       />
@@ -192,7 +194,7 @@ function LoginPage({ onLoginSuccess }) {
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
           disabled={backendStatus !== 'online'}
         >
           Se connecter
@@ -201,8 +203,8 @@ function LoginPage({ onLoginSuccess }) {
 
       {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
 
-      {/* Statut du back-end en bas à droite */}
-      <div className="absolute bottom-4 right-4 text-sm">
+      {/* Statut du backend en bas à droite */}
+      <div className="absolute bottom-4 right-4 text-sm bg-white px-2 rounded">
         Statut serveur:{' '}
         {backendStatus === 'checking' && <span>…</span>}
         {backendStatus === 'online'   && <span className="text-green-600">🟢 En ligne</span>}
