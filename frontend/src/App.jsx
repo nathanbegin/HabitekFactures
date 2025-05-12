@@ -69,22 +69,22 @@ function App() {
 
 
   // --- Gestion de l'Authentification et sessionStorage ---
-  useEffect(() => {
-    // Charger l'état depuis sessionStorage au montage
-    const storedToken = sessionStorage.getItem('habitek_auth_token');
-    const storedRole = sessionStorage.getItem('habitek_user_role');
-     // Optionnel: récupérer l'ID utilisateur aussi si nécessaire
-    // const storedUserId = sessionStorage.getItem('habitek_user_id');
+  // useEffect(() => {
+  //   // Charger l'état depuis sessionStorage au montage
+  //   const storedToken = sessionStorage.getItem('habitek_auth_token');
+  //   const storedRole = sessionStorage.getItem('habitek_user_role');
+  //    // Optionnel: récupérer l'ID utilisateur aussi si nécessaire
+  //   // const storedUserId = sessionStorage.getItem('habitek_user_id');
 
 
-    if (storedToken && storedRole) { // Vérifier aussi la présence du rôle
-      setUserToken(storedToken);
-      setUserRole(storedRole);
-      // Optionnel: setUserId(storedUserId);
-      setIsLoggedIn(true);
-      // Optionnel: Valider le token côté backend ici si nécessaire pour s'assurer qu'il est toujours actif
-    }
-  }, []);
+  //   if (storedToken && storedRole) { // Vérifier aussi la présence du rôle
+  //     setUserToken(storedToken);
+  //     setUserRole(storedRole);
+  //     // Optionnel: setUserId(storedUserId);
+  //     setIsLoggedIn(true);
+  //     // Optionnel: Valider le token côté backend ici si nécessaire pour s'assurer qu'il est toujours actif
+  //   }
+  // }, []);
 
   // Fonction appelée par LoginPage en cas de succès
   const handleLoginSuccess = (token, userId, userRole) => {
