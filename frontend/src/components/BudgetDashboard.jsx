@@ -1067,20 +1067,25 @@ function BudgetDashboard({
      if (userRole === 'gestionnaire' || userRole === 'approbateur') {
          console.log(`BudgetDashboard: Fetching budget for ${anneeFinanciere}`);
          // Utilise la fonction fetchBudget passée en prop (qui utilise authorizedFetch)
+
+         const UI_FROM_DB = {
+            "fonds de type 1": "Fond 1",
+            "fonds de type 3": "Fond 3"
+          };
+
          fetchBudget(anneeFinanciere).then((data) => {
-           if (data) {
-            console.log(`BudgetDashboard: INSIDE fetchBudget for ${anneeFinanciere}`);
-             // Convertir les montants en nombres si nécessaire
-             const processed = data.map((e) => ({
-               ...e,
-               amount: parseFloat(e.amount),
-             }));
-             setBudgetEntries(processed);
-           } else {
-              // En cas d'erreur fetch (gérée par authorizedFetch) ou données vides
-             setBudgetEntries([]);
-           }
-         });
+            if (data) {
+              const processed = data.map((e) => ({
+                ...e,
+                amount: parseFloat(e.amount),
+                // remapper fund_type pour l’UI
+                fund_type: UI_FROM_DB[e.fund_type] || e.fund_type,
+              }));
+              setBudgetEntries(processed);
+            } else {
+              setBudgetEntries([]);
+            }
+          });
      } else {
          // Si le rôle n'est pas suffisant, vider les données
          setBudgetEntries([]);
