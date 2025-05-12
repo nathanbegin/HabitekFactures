@@ -188,8 +188,8 @@
 // src/components/UserManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// authorizedFetch est votre wrapper fetch avec JWT
-import { authorizedFetch } from '../services/api';
+
+
 
 function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
     const [users, setUsers] = useState([]);
