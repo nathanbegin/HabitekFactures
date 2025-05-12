@@ -106,31 +106,33 @@
 
 // src/components/LoginPage.jsx
 
+// src/components/LoginPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+// Importez directement votre logo depuis le dossier src
+import logo from '../Logo Habitek_WEB_Transparent-06.png';
 
-// URL de votre API
 const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 function LoginPage({ onLoginSuccess }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
+  const [username, setUsername]           = useState('');
+  const [password, setPassword]           = useState('');
+  const [error, setError]                 = useState('');
   const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
   const navigate = useNavigate();
 
-  // Mettre à jour le titre de la page
+  // Définir le titre de la page
   useEffect(() => {
     document.title = 'Habitek | Page de connexion';
   }, []);
 
-  // Au montage, on ping le back-end
+  // Ping du backend pour vérifier l'état du serveur
   useEffect(() => {
     async function pingBackend() {
       try {
-        // appelle /api/users sans token
         const res = await fetch(`${API_URL}/api/users`);
-        if (res) setBackendStatus('online');
+        setBackendStatus(res.ok ? 'online' : 'offline');
       } catch {
         setBackendStatus('offline');
       }
@@ -160,10 +162,10 @@ function LoginPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="relative max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+    <div className="max-w-md mx-auto mt-16 p-6 bg-white rounded-lg shadow-md">
       {/* Logo et titre */}
       <img
-        src="/logo.png"
+        src={logo}
         alt="Habitek Logo"
         className="h-12 mx-auto mb-4"
       />
@@ -194,18 +196,20 @@ function LoginPage({ onLoginSuccess }) {
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
           disabled={backendStatus !== 'online'}
         >
           Se connecter
         </button>
       </form>
 
-      {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+      {error && (
+        <p className="mt-4 text-red-500 text-center">{error}</p>
+      )}
 
-      {/* Statut du back-end en bas à droite */}
-      <div className="absolute bottom-4 right-4 text-sm">
-        Statut serveur:{' '}
+      {/* Statut serveur sous le formulaire */}
+      <div className="mt-6 text-sm text-right">
+        Statut serveur :{' '}
         {backendStatus === 'checking' && <span>…</span>}
         {backendStatus === 'online'   && <span className="text-green-600">🟢 En ligne</span>}
         {backendStatus === 'offline'  && <span className="text-red-600">🔴 Hors ligne</span>}
@@ -215,3 +219,4 @@ function LoginPage({ onLoginSuccess }) {
 }
 
 export default LoginPage;
+
