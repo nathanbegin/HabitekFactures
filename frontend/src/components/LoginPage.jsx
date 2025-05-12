@@ -104,6 +104,8 @@
 
 // src/components/LoginPage.jsx
 
+// src/components/LoginPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -117,18 +119,19 @@ function LoginPage({ onLoginSuccess }) {
   const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
   const navigate = useNavigate();
 
+  // Mettre à jour le titre de la page
+  useEffect(() => {
+    document.title = 'Habitek | Page de connexion';
+  }, []);
+
   // Au montage, on ping le back-end
   useEffect(() => {
     async function pingBackend() {
       try {
-        // on appelle /api/users (CORS autorisé) sans token
-        // on reçoit 401 ou 403 si le serveur répond, donc on le considère "online"
+        // appelle /api/users sans token
         const res = await fetch(`${API_URL}/api/users`);
-        if (res) {
-          setBackendStatus('online');
-        }
-      } catch (e) {
-        // s'il y a une vraie erreur réseau, on est offline
+        if (res) setBackendStatus('online');
+      } catch {
         setBackendStatus('offline');
       }
     }
@@ -157,14 +160,17 @@ function LoginPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-4 text-center">Connexion</h1>
-      <p className="mb-6 text-center">
-        Statut du serveur:{' '}
-        {backendStatus === 'checking' && <span>…</span>}
-        {backendStatus === 'online'   && <span className="text-green-600">🟢 En ligne</span>}
-        {backendStatus === 'offline'  && <span className="text-red-600">🔴 Hors ligne</span>}
-      </p>
+    <div className="relative max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      {/* Logo et titre */}
+      <img
+        src="/logo.png"
+        alt="Habitek Logo"
+        className="h-12 mx-auto mb-4"
+      />
+      <h1 className="text-2xl font-bold text-center mb-6">
+        Habitek | Page de connexion
+      </h1>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium">Nom d’utilisateur</label>
@@ -194,7 +200,16 @@ function LoginPage({ onLoginSuccess }) {
           Se connecter
         </button>
       </form>
+
       {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+
+      {/* Statut du back-end en bas à droite */}
+      <div className="absolute bottom-4 right-4 text-sm">
+        Statut serveur:{' '}
+        {backendStatus === 'checking' && <span>…</span>}
+        {backendStatus === 'online'   && <span className="text-green-600">🟢 En ligne</span>}
+        {backendStatus === 'offline'  && <span className="text-red-600">🔴 Hors ligne</span>}
+      </div>
     </div>
   );
 }
