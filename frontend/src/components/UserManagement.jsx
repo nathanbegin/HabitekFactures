@@ -190,7 +190,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 
-
 function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -205,7 +204,7 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
     const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
     const roles = ['soumetteur', 'gestionnaire', 'approbateur'];
 
-    // Fonction de chargement des utilisateurs
+    // Charge la liste des utilisateurs
     const fetchUsers = async () => {
         try {
             setLoading(true);
@@ -239,14 +238,13 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
         }
     }, [authorizedFetch, API_URL, currentUserRole]);
 
-    // Gestion changement formulaire ajout
-    const handleNewUserChange = (e) => {
+    // Création d'un nouvel utilisateur
+    const handleNewUserChange = e => {
         const { name, value } = e.target;
         setNewUserData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Soumission création nouvel utilisateur
-    const handleNewUserSubmit = async (e) => {
+    const handleNewUserSubmit = async e => {
         e.preventDefault();
         if (currentUserRole !== 'gestionnaire') {
             alert("Vous n'avez pas le rôle nécessaire pour créer un utilisateur.");
@@ -259,7 +257,7 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
         }
         try {
             setRegisterError('');
-            // Enregistrer via /api/register
+            // Enregistrement initial
             let res = await authorizedFetch(`${API_URL}/api/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -267,17 +265,14 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const newUser = await res.json();
-            // Si rôle souhaité différent du role par défaut
+            // Mise à jour du rôle si différent
             if (role && role !== newUser.role) {
-                const upd = await authorizedFetch(`${API_URL}/api/users/${newUser.id}`, {
+                let upd = await authorizedFetch(`${API_URL}/api/users/${newUser.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ role })
                 });
-                if (!upd.ok) {
-                    const txt = await upd.text();
-                    console.warn('Erreur mise à jour rôle:', txt);
-                }
+                if (!upd.ok) console.warn('Erreur mise à jour rôle:', await upd.text());
             }
             alert('Utilisateur créé avec succès.');
             setNewUserData({ username: '', email: '', password: '', role: 'soumetteur' });
@@ -288,6 +283,7 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
         }
     };
 
+    // Modification du rôle
     const handleRoleChange = async (userId, newRole) => {
         if (currentUserRole !== 'gestionnaire') {
             alert("Vous n'avez pas le rôle nécessaire pour modifier les rôles.");
@@ -302,18 +298,37 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
             const response = await authorizedFetch(`${API_URL}/api/users/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: newRole }),
+                body: JSON.stringify({ role: newRole })
             });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText);
-            }
+            if (!response.ok) throw new Error(await response.text());
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
             alert('Rôle mis à jour.');
         } catch (err) {
             setError(err.message || 'Erreur lors de la mise à jour du rôle.');
             console.error('Update role error:', err);
             fetchUsers();
+        }
+    };
+
+    // Suppression d'un utilisateur
+    const handleDeleteUser = async userId => {
+        if (currentUserRole !== 'gestionnaire') {
+            alert("Vous n'avez pas le rôle nécessaire pour supprimer un utilisateur.");
+            return;
+        }
+        if (userId === currentUserId) {
+            alert("Vous ne pouvez pas supprimer votre propre compte.");
+            return;
+        }
+        if (!window.confirm(`Supprimer l'utilisateur ID ${userId} ? Cette action est irréversible.`)) return;
+        try {
+            const res = await authorizedFetch(`${API_URL}/api/users/${userId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            alert('Utilisateur supprimé.');
+            fetchUsers();
+        } catch (err) {
+            setError(err.message || 'Erreur lors de la suppression.');
+            console.error('Delete user error:', err);
         }
     };
 
@@ -334,53 +349,23 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
                 <form onSubmit={handleNewUserSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Nom d'utilisateur</label>
-                        <input
-                            name="username"
-                            value={newUserData.username}
-                            onChange={handleNewUserChange}
-                            className="mt-1 w-full p-2 border rounded"
-                            required
-                        />
+                        <input name="username" value={newUserData.username} onChange={handleNewUserChange} className="mt-1 w-full p-2 border rounded" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Courriel</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={newUserData.email}
-                            onChange={handleNewUserChange}
-                            className="mt-1 w-full p-2 border rounded"
-                            required
-                        />
+                        <input type="email" name="email" value={newUserData.email} onChange={handleNewUserChange} className="mt-1 w-full p-2 border rounded" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={newUserData.password}
-                            onChange={handleNewUserChange}
-                            className="mt-1 w-full p-2 border rounded"
-                            required
-                        />
+                        <input type="password" name="password" value={newUserData.password} onChange={handleNewUserChange} className="mt-1 w-full p-2 border rounded" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Rôle</label>
-                        <select
-                            name="role"
-                            value={newUserData.role}
-                            onChange={handleNewUserChange}
-                            className="mt-1 w-full p-2 border rounded"
-                        >
+                        <select name="role" value={newUserData.role} onChange={handleNewUserChange} className="mt-1 w-full p-2 border rounded">
                             {roles.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                     </div>
-                    <button
-                        type="submit"
-                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                    >
-                        Créer
-                    </button>
+                    <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Créer</button>
                 </form>
             </div>
 
@@ -403,17 +388,14 @@ function UserManagement({ authorizedFetch, currentUserRole, currentUserId }) {
                                 <td className="p-2 border">{user.username}</td>
                                 <td className="p-2 border">{user.email}</td>
                                 <td className="p-2 border">
-                                    <select
-                                        value={user.role}
-                                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                                        className="p-1 border rounded"
-                                        disabled={user.id === currentUserId}
-                                    >
+                                    <select value={user.role} onChange={e => handleRoleChange(user.id, e.target.value)} className="p-1 border rounded" disabled={user.id === currentUserId}>
                                         {roles.map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
                                 </td>
                                 <td className="p-2 border">
-                                    {/* Ici on pourrait ajouter un bouton Supprimer */}
+                                    <button onClick={() => handleDeleteUser(user.id)} className="text-red-500 hover:text-red-700 text-sm" disabled={user.id === currentUserId}>
+                                        Supprimer
+                                    </button>
                                 </td>
                             </tr>
                         ))}
