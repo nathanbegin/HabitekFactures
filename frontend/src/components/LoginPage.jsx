@@ -104,13 +104,8 @@
 
 // src/components/LoginPage.jsx
 
-// src/components/LoginPage.jsx
-
-// src/components/LoginPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Importez directement votre logo depuis le dossier src
 import logo from '../Logo Habitek_WEB_Transparent-06.png';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
@@ -122,16 +117,17 @@ function LoginPage({ onLoginSuccess }) {
   const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
   const navigate = useNavigate();
 
-  // Définir le titre de la page
+  // Titre de la page
   useEffect(() => {
     document.title = 'Habitek | Page de connexion';
   }, []);
 
-  // Ping du backend pour vérifier l'état du serveur
+  // Ping sur la racine (endpoint public)
   useEffect(() => {
     async function pingBackend() {
       try {
-        const res = await fetch(`${API_URL}/api/users`);
+        // on appelle "/" qui est public et renvoie toujours 200
+        const res = await fetch(`${API_URL}/`);
         setBackendStatus(res.ok ? 'online' : 'offline');
       } catch {
         setBackendStatus('offline');
@@ -150,8 +146,8 @@ function LoginPage({ onLoginSuccess }) {
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({}));
-        throw new Error(msg || `Erreur ${res.status}`);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Erreur ${res.status}`);
       }
       const { token, user_id, user_role } = await res.json();
       onLoginSuccess(token, user_id, user_role);
@@ -163,12 +159,7 @@ function LoginPage({ onLoginSuccess }) {
 
   return (
     <div className="max-w-md mx-auto mt-16 p-6 bg-white rounded-lg shadow-md">
-      {/* Logo et titre */}
-      <img
-        src={logo}
-        alt="Habitek Logo"
-        className="h-12 mx-auto mb-4"
-      />
+      <img src={logo} alt="Habitek Logo" className="h-12 mx-auto mb-4" />
       <h1 className="text-2xl font-bold text-center mb-6">
         Habitek | Page de connexion
       </h1>
@@ -203,11 +194,8 @@ function LoginPage({ onLoginSuccess }) {
         </button>
       </form>
 
-      {error && (
-        <p className="mt-4 text-red-500 text-center">{error}</p>
-      )}
+      {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
 
-      {/* Statut serveur sous le formulaire */}
       <div className="mt-6 text-sm text-right">
         Statut serveur :{' '}
         {backendStatus === 'checking' && <span>…</span>}
@@ -219,4 +207,3 @@ function LoginPage({ onLoginSuccess }) {
 }
 
 export default LoginPage;
-
