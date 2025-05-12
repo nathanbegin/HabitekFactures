@@ -106,30 +106,30 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logo from '../Logo Habitek_WEB_Transparent-06.png';
 
+// URL de votre API
 const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 function LoginPage({ onLoginSuccess }) {
-  const [username, setUsername]           = useState('');
-  const [password, setPassword]           = useState('');
-  const [error, setError]                 = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
   const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
   const navigate = useNavigate();
 
-  // Titre de la page
+  // Mettre à jour le titre de la page
   useEffect(() => {
     document.title = 'Habitek | Page de connexion';
   }, []);
 
-  // Ping sur la racine (endpoint public)
+  // Au montage, on ping le back-end
   useEffect(() => {
     async function pingBackend() {
       try {
-        // on appelle "/" qui est public et renvoie toujours 200
-        const res = await fetch(`${API_URL}/`);
-        setBackendStatus(res.ok ? 'online' : 'offline');
-      } catch (e) {
+        // appelle /api/users sans token
+        const res = await fetch(`${API_URL}/api/users`);
+        if (res) setBackendStatus('online');
+      } catch {
         setBackendStatus('offline');
       }
     }
@@ -141,13 +141,13 @@ function LoginPage({ onLoginSuccess }) {
     setError('');
     try {
       const res = await fetch(`${API_URL}/api/login`, {
-        method: 'GET',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Erreur ${res.status}`);
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Erreur ${res.status}`);
       }
       const { token, user_id, user_role } = await res.json();
       onLoginSuccess(token, user_id, user_role);
@@ -158,8 +158,13 @@ function LoginPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-6 bg-white rounded-lg shadow-md">
-      <img src={logo} alt="Habitek Logo" className="h-12 mx-auto mb-4" />
+    <div className="relative max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      {/* Logo et titre */}
+      <img
+        src="/logo.png"
+        alt="Habitek Logo"
+        className="h-12 mx-auto mb-4"
+      />
       <h1 className="text-2xl font-bold text-center mb-6">
         Habitek | Page de connexion
       </h1>
@@ -187,7 +192,7 @@ function LoginPage({ onLoginSuccess }) {
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
           disabled={backendStatus !== 'online'}
         >
           Se connecter
@@ -196,8 +201,9 @@ function LoginPage({ onLoginSuccess }) {
 
       {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
 
-      <div className="mt-6 text-sm text-right">
-        Statut serveur :{' '}
+      {/* Statut du back-end en bas à droite */}
+      <div className="absolute bottom-4 right-4 text-sm">
+        Statut serveur:{' '}
         {backendStatus === 'checking' && <span>…</span>}
         {backendStatus === 'online'   && <span className="text-green-600">🟢 En ligne</span>}
         {backendStatus === 'offline'  && <span className="text-red-600">🔴 Hors ligne</span>}
