@@ -11,13 +11,14 @@ const SOCKET_URL = `${API_URL.replace('https', 'wss')}`; // Utilisez wss pour HT
 
 function App() {
   
+  
+
+  const savedToken = sessionStorage.getItem('habitek_auth_token');
+  const savedRole  = sessionStorage.getItem('habitek_user_role');
   const [userToken, setUserToken]   = useState(savedToken);
   const [userRole,    setUserRole]    = useState(savedRole);
   const [isLoggedIn,  setIsLoggedIn]  = useState(!!savedToken);
   const [clientCount, setClientCount] = useState(0); // Déplacé ici pour être global
-
-  const savedToken = sessionStorage.getItem('habitek_auth_token');
-  const savedRole  = sessionStorage.getItem('habitek_user_role');
 
   
   
