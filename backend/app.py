@@ -1209,7 +1209,7 @@ def update_user(user_id):
     # Si vous voulez permettre un super-admin plus tard, cette logique devra être ajustée
     from flask import g # S'assurer que g est importé
     if g.user_id == user_id:
-         return jsonify({"error": "Vous ne pouvez pas modifier votre propre rôle via cette fonction."}), 403 # Forbidden
+         return jsonify({"error": "Vous ne pouvez pas modifier votre propre rôle via cette fonction."}), 400 # Forbidden
 
 
     conn = get_db_connection()
