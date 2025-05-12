@@ -189,6 +189,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+
 /**
  * Composant pour gérer les utilisateurs (CRUD de rôles et suppression).
  * Requiert :
@@ -346,3 +347,4 @@ function UserManagement({ authorizedFetch, currentUserRole /*, currentUserId*/ }
 }
 
 export default UserManagement;
+
