@@ -129,7 +129,7 @@ function LoginPage({ onLoginSuccess }) {
         // on appelle "/" qui est public et renvoie toujours 200
         const res = await fetch(`${API_URL}/`);
         setBackendStatus(res.ok ? 'online' : 'offline');
-      } catch {
+      } catch (e) {
         setBackendStatus('offline');
       }
     }
@@ -140,7 +140,7 @@ function LoginPage({ onLoginSuccess }) {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch(`${API_URL}/`, {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
