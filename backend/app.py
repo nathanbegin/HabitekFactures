@@ -1239,6 +1239,37 @@ def update_user(user_id):
         conn.close()
 
 # Vous pourriez vouloir ajouter une route DELETE /api/users/<int:user_id> pour supprimer des utilisateurs (uniquement gestionnaire)
+@app.route("/api/users/<int:user_id>", methods=["DELETE"])
+@token_required
+@role_required(['gestionnaire'])  # Seuls les gestionnaires peuvent supprimer un utilisateur
+def delete_user(user_id):
+    """
+    Supprime un utilisateur par son ID.
+    - Empêche un gestionnaire de se supprimer lui-même.
+    """
+    if g.user_id == user_id:
+        return jsonify({"error": "Vous ne pouvez pas supprimer votre propre compte."}), 403
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM users WHERE id = %s RETURNING id", (user_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Utilisateur non trouvé"}), 404
+        conn.commit()
+        # Optionnel : émettre un événement SocketIO pour notifier les autres clients
+        socketio.emit("delete_user", {"id": user_id})
+        return jsonify({"message": "Utilisateur supprimé"}), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur lors de la suppression de l'utilisateur {user_id}: {e}")
+        return jsonify({"error": "Impossible de supprimer l'utilisateur"}), 500
+    finally:
+        cur.close()
+        conn.close()
 # Assurez-vous alors de gérer la suppression des factures et budgets associés si nécessaire, ou d'empêcher la suppression si des données y sont liées.
 
 if __name__ == '__main__':
