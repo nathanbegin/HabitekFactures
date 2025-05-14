@@ -152,58 +152,6 @@ def normalize_fund_type(raw: str) -> str:
         raise ValueError(f"Type de fonds invalide: {raw!r}")
     return normalized
 
-# @socketio.on('connect')
-# def handle_connect():
-#     """
-#     Gère la connexion d'un nouveau client via SocketIO.
-#     - Incrémente le compteur de clients.
-#     - Diffuse le nouveau nombre de clients connectés à tous les clients.
-#     """
-#     global client_count
-#     client_count += 1
-#     emit('client_count', client_count, broadcast=True)
-
-# @socketio.on('connect')
-# def handle_connect():
-#     # Récupérer le token. Si vous utilisez l'option `auth` côté client io(... { auth: { token: userToken } }),
-#     # le token sera dans request.auth.
-#     # Si vous utilisez extraHeaders, vous devrez les lire manuellement ici (c'est plus complexe avec SocketIO).
-#     # L'option `auth` est généralement recommandée pour SocketIO v3+.
-#     token = request.auth.get('token') if request.auth else None
-
-#     if not token:
-#          print("Socket connection refused: No token provided.")
-#          return False # Refuser la connexion si aucun token n'est fourni
-
-#     try:
-#         # Valider le token
-#         # data = jwt.decode(token, SECRET_KEY.encode('utf-8'), algorithms=['HS256']) # Adapter si besoin
-#         data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-
-#         user_id = data.get('user_id')
-#         user_role = data.get('role')
-
-#         if not user_id or not user_role:
-#             print(f"Socket connection refused: Token payload incomplete ({data}).")
-#             return False # Refuser si le payload est incomplet
-
-#         # Stocker l'ID utilisateur et le rôle pour cette session SocketIO
-#         request.sid['user_id'] = user_id
-#         request.sid['user_role'] = user_role # Stocker aussi le rôle si utile pour les événements SocketIO
-#         print(f"Socket authenticated for user ID: {user_id}, role: {user_role}, sid: {request.sid}")
-
-#         # Continuer avec la logique de connexion normale
-#         global client_count
-#         client_count += 1
-#         print(f"Client connecté, count: {client_count}")
-#         emit('client_count', client_count, broadcast=True)
-
-#     except (jwt.ExpiredSignatureError, jwt.InvalidSignatureError, jwt.InvalidTokenError) as e:
-#         print(f"Socket connection refused: Token invalid or expired ({e}).")
-#         return False # Refuser la connexion en cas de token invalide/expiré
-#     except Exception as e:
-#         print(f"Socket connection refused: Unexpected error validating token ({e}).")
-#         return False
 
 @socketio.on('connect')
 def handle_connect(auth):  # 👈 Ajoutez le paramètre `auth`
@@ -299,56 +247,7 @@ def get_db_connection():
         print(f"Erreur de connexion à PostgreSQL : {e}")
         return None
 
-# def init_db():
-#     """
-#     Initialise la base de données en créant les tables 'factures' et 'budgets' si elles n'existent pas.
-#     - Table 'factures' : stocke les informations des factures (année, type, montant, fichier, etc.).
-#     - Table 'budgets' : stocke les budgets (année financière, type de fonds, revenus, montant).
-#     """
-#     conn = get_db_connection()
-#     if conn is None:
-#         print("Échec de la connexion à la base de données, impossible d'initialiser les tables.")
-#         return
 
-#     cursor = conn.cursor()
-#     try:
-#         # Création de la table 'factures'
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS factures (
-#                 id SERIAL PRIMARY KEY,
-#                 annee VARCHAR(4) NOT NULL,
-#                 type VARCHAR(50) NOT NULL,
-#                 ubr VARCHAR(50),
-#                 fournisseur VARCHAR(255),
-#                 description TEXT,
-#                 montant DECIMAL(10,2) NOT NULL,
-#                 statut VARCHAR(50) NOT NULL,
-#                 fichier_nom VARCHAR(255),
-#                 numero INTEGER,
-#                 date_ajout TIMESTAMP NOT NULL
-#             );
-#         """)
-#         # Création de la table 'budgets'
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS budgets (
-#                 id SERIAL PRIMARY KEY,
-#                 financial_year VARCHAR(4) NOT NULL,
-#                 fund_type VARCHAR(50) NOT NULL,
-#                 revenue_type VARCHAR(255) NOT NULL,
-#                 amount NUMERIC(10,2) NOT NULL,
-#                 date_added TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
-#             );
-#         """)
-        
-#         conn.commit()
-#         print("Tableau de factures vérifié/créé.")
-#         print("Tableau de budgets vérifié/créé.")
-#     except psycopg2.Error as e:
-#         print(f"Erreur d'initialisation de la base de données : {e}")
-#         conn.rollback()
-#     finally:
-#         cursor.close()
-#         conn.close()
 def init_db():
     """
     Initialise la base de données en créant les tables 'factures', 'budgets' et 'users' si elles n'existent pas.
