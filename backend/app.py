@@ -473,7 +473,7 @@ def home():
 
 @app.route('/api/factures', methods=['POST'])
 @token_required
-@role_required(roles=['soumetteur', 'gestionnaire', 'approbateur'])
+@role_required(['soumetteur', 'gestionnaire', 'approbateur'])
 def upload_facture():
     # Récupérer les données JSON de la requête
     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
@@ -657,7 +657,7 @@ def upload_facture():
 
 @app.route('/api/factures', methods=['GET'])
 @token_required
-@role_required(roles=['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
+@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
 def get_factures():
     """
     Récupère la liste des factures pour une année donnée.
@@ -884,7 +884,7 @@ def delete_facture(id):
 
 @app.route('/api/factures/<int:id>', methods=['PUT'])
 @token_required
-@role_required(roles=['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
+@role_required(['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
 def update_facture(id):
     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
     data = request.form.to_dict()
@@ -1131,7 +1131,7 @@ def update_facture(id):
 
 @app.route('/api/factures/export-csv', methods=['GET'])
 @token_required
-@role_required(roles=['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
+@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
 def export_factures_csv():
     """
     Exporte les factures d'une année donnée au format CSV.
