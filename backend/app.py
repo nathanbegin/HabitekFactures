@@ -260,21 +260,45 @@ def init_db():
     cursor = conn.cursor()
     try:
         # Création de la table 'factures' (doit déjà exister)
+        # cursor.execute("""
+        #     CREATE TABLE IF NOT EXISTS factures (
+        #         id SERIAL PRIMARY KEY,
+        #         annee VARCHAR(4) NOT NULL,
+        #         type VARCHAR(50) NOT NULL,
+        #         ubr VARCHAR(50),
+        #         fournisseur VARCHAR(255),
+        #         description TEXT,
+        #         montant DECIMAL(10,2) NOT NULL,
+        #         statut VARCHAR(50) NOT NULL,
+        #         fichier_nom VARCHAR(255),
+        #         numero INTEGER,
+        #         date_ajout TIMESTAMP NOT NULL
+        #     );
+        # """)
+
+       
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS factures (
-                id SERIAL PRIMARY KEY,
-                annee VARCHAR(4) NOT NULL,
-                type VARCHAR(50) NOT NULL,
-                ubr VARCHAR(50),
-                fournisseur VARCHAR(255),
-                description TEXT,
-                montant DECIMAL(10,2) NOT NULL,
-                statut VARCHAR(50) NOT NULL,
-                fichier_nom VARCHAR(255),
-                numero INTEGER,
-                date_ajout TIMESTAMP NOT NULL
-            );
-        """)
+                CREATE TABLE IF NOT EXISTS factures (
+                    id SERIAL PRIMARY KEY,
+                    numero_facture VARCHAR(255) UNIQUE NOT NULL,
+                    date_facture DATE NOT NULL,
+                    fournisseur VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    montant DECIMAL(10, 2) NOT NULL,
+                    devise VARCHAR(10) NOT NULL,
+                    statut VARCHAR(50) NOT NULL DEFAULT 'soumis', -- soumis, approuve, rejete, paye
+                    chemin_fichier VARCHAR(255),
+                    id_soumetteur INTEGER REFERENCES users(id), -- Existing column
+                    date_soumission TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Existing column
+                    -- New columns added below
+                    created_by INTEGER REFERENCES users(id),
+                    last_modified_by INTEGER REFERENCES users(id),
+                    last_modified_timestamp TIMESTAMP,
+                    categorie VARCHAR(255), -- Adjust size as needed
+                    ligne_budgetaire VARCHAR(255) -- Adjust size as needed
+                );
+            """)
+
         # Création de la table 'budgets' (doit déjà exister)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
@@ -335,144 +359,353 @@ def home():
     """
     return "Flask fonctionne ✅"
 
-@app.route("/api/factures", methods=["POST"])
-@token_required
-@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent soumettre une facture
-def upload_facture():
-    """
-    Crée une nouvelle facture et enregistre un fichier associé si fourni.
-    - Valide les champs obligatoires (année, type, montant).
-    - Génère un numéro unique pour la facture en fonction du type et de l'année.
-    - Sauvegarde le fichier uploadé avec un nom sécurisé.
-    - Insère les données en base et notifie les clients via SocketIO.
-    Returns:
-        JSON: Données de la facture créée ou message d'erreur.
-    """
-    file = request.files.get("fichier")
-    data = request.form
-    annee = data.get("annee")
-    print(f"Données reçues : annee={annee}, fichier={file}")  # Débogage
+# @app.route("/api/factures", methods=["POST"])
+# @token_required
+# @role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent soumettre une facture
+# def upload_facture():
+#     """
+#     Crée une nouvelle facture et enregistre un fichier associé si fourni.
+#     - Valide les champs obligatoires (année, type, montant).
+#     - Génère un numéro unique pour la facture en fonction du type et de l'année.
+#     - Sauvegarde le fichier uploadé avec un nom sécurisé.
+#     - Insère les données en base et notifie les clients via SocketIO.
+#     Returns:
+#         JSON: Données de la facture créée ou message d'erreur.
+#     """
+#     file = request.files.get("fichier")
+#     data = request.form
+#     annee = data.get("annee")
+#     print(f"Données reçues : annee={annee}, fichier={file}")  # Débogage
 
-    # Validation des données obligatoires
-    if not annee or not data.get("type") or not data.get("montant"):
-        return jsonify({"error": "Données obligatoires manquantes (année, type, montant)."}), 400
+#     # Validation des données obligatoires
+#     if not annee or not data.get("type") or not data.get("montant"):
+#         return jsonify({"error": "Données obligatoires manquantes (année, type, montant)."}), 400
+
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor()
+#     filepath = None
+#     filename = None
+#     try:
+#         # Compter les factures du même type pour générer le numéro
+#         cursor.execute("SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s", 
+#                        (annee, data.get("type")))
+#         count = cursor.fetchone()[0]
+#         numero = count + 1
+
+#         # Gérer le fichier s'il est fourni
+#         if file and file.filename:
+#             print(f"Tentative de sauvegarde du fichier : {file.filename}")  # Débogage
+#             original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
+#             filename = secure_filename(
+#                 f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr', 'N-A')}_{original_filename}{file_extension}"
+#             )
+#             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+#             try:
+#                 file.save(filepath)
+#                 print(f"Fichier sauvegardé : {filepath}")  # Débogage
+#                 if not os.path.exists(filepath):
+#                     print(f"Erreur : le fichier {filepath} n'a pas été créé.")  # Débogage
+#                     return jsonify({"error": "Échec de la sauvegarde du fichier."}), 500
+#             except Exception as e:
+#                 print(f"Erreur lors de la sauvegarde du fichier : {e}")  # Débogage
+#                 return jsonify({"error": f"Erreur lors de l'enregistrement du fichier : {e}"}), 500
+#         else:
+#             print("Aucun fichier fourni ou fichier vide.")  # Débogage
+
+#         # Valider le montant
+#         try:
+#             montant = float(data.get("montant"))
+#         except ValueError:
+#             print("Erreur : Montant invalide.")  # Débogage
+#             return jsonify({"error": "Montant invalide."}), 400
+
+#         # Insérer la facture
+#         sql = """
+#         INSERT INTO factures (
+#             annee, type, ubr, fournisseur, description,
+#             montant, statut, fichier_nom, numero, date_ajout
+#         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#         RETURNING id
+#         """
+#         params = (
+#             annee,
+#             data.get("type"),
+#             data.get("ubr"),
+#             data.get("fournisseur"),
+#             data.get("description"),
+#             montant,
+#             data.get("statut"),
+#             filename,  # Peut être None si aucun fichier
+#             numero,
+#             datetime.now()
+#         )
+#         cursor.execute(sql, params)
+#         new_id = cursor.fetchone()[0]
+#         conn.commit()
+
+#         # Récupérer la facture insérée
+#         dict_cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#         dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
+#         new_f = dict_cursor.fetchone()
+#         facture = {key: convert_to_json_serializable(value) for key, value in dict(new_f).items()}  # Convertir Decimal et datetime
+#         dict_cursor.close()
+
+#         socketio.emit('new_facture', facture)
+#         return jsonify(facture), 201
+#     except psycopg2.Error as e:
+#         conn.rollback()
+#         if filepath and os.path.exists(filepath):
+#             os.remove(filepath)
+#         print(f"Erreur PostgreSQL lors de l'enregistrement de la facture : {e}")  # Débogage
+#         return jsonify({"error": f"Erreur lors de l'enregistrement en base de données : {e}"}), 500
+#     except Exception as e:
+#         conn.rollback()
+#         if filepath and os.path.exists(filepath):
+#             os.remove(filepath)
+#         print(f"Erreur inattendue lors de l'enregistrement de la facture : {e}")  # Débogage
+#         return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+
+@app.route('/api/factures', methods=['POST'])
+@token_required
+@role_required(roles=['soumetteur', 'gestionnaire', 'approbateur'])
+def upload_facture():
+    # Récupérer les données JSON de la requête
+    # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
+    data = request.form.to_dict()
+    if not data:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
+
+
+    # Extraction des champs requis de la facture
+    numero_facture = data.get('numero_facture')
+    date_facture = data.get('date_facture')
+    fournisseur = data.get('fournisseur')
+    description = data.get('description')
+    montant = data.get('montant')
+    devise = data.get('devise')
+    statut = data.get('statut', 'soumis') # Statut par défaut 'soumis'
+
+    # Extraction des NOUVEAUX champs
+    categorie = data.get('categorie')
+    ligne_budgetaire = data.get('ligne_budgetaire')
+
+    # --- Début de la gestion optionnelle du fichier ---
+    file_path = None # Initialiser le chemin du fichier à None
+    file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
+
+    # Vérifier si un fichier a été joint et s'il a un nom de fichier valide
+    if file and file.filename != '':
+        # Assurer que le nom de fichier est sécurisé
+        filename = secure_filename(file.filename)
+        # Créer le chemin complet pour sauvegarder le fichier
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Sauvegarder le fichier sur le système de fichiers
+        try:
+            file.save(file_path)
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde du fichier: {e}")
+            return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
+    # --- Fin de la gestion optionnelle du fichier ---
+
+
+    # Vérifier si les champs requis (hors fichier) sont présents
+    if not all([numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire]):
+        # Le chemin_fichier n'est plus requis ici
+        return jsonify({"error": "Champs requis manquants (numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire)"}), 400
+
+
+    # Validation basique du format de la date (ajuster selon votre besoin)
+    try:
+        datetime.datetime.strptime(date_facture, '%Y-%m-%d')
+    except ValueError:
+        # Supprimer le fichier sauvegardé s'il y a une erreur de date après la sauvegarde
+        if file_path and os.path.exists(file_path):
+             os.remove(file_path)
+        return jsonify({"error": "Format de date invalide. Utilisez AAAA-MM-JJ"}), 400
+
+    # Convertir le montant en Decimal
+    try:
+        montant = Decimal(montant)
+    except InvalidOperation:
+         # Supprimer le fichier sauvegardé s'il y a une erreur de montant après la sauvegarde
+        if file_path and os.path.exists(file_path):
+             os.remove(file_path)
+        return jsonify({"error": "Format de montant invalide"}), 400
+
 
     conn = get_db_connection()
-    if conn is None:
-        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-    cursor = conn.cursor()
-    filepath = None
-    filename = None
+    cur = conn.cursor()
     try:
-        # Compter les factures du même type pour générer le numéro
-        cursor.execute("SELECT COUNT(*) FROM factures WHERE annee = %s AND type = %s", 
-                       (annee, data.get("type")))
-        count = cursor.fetchone()[0]
-        numero = count + 1
+        # Vérifier s'il existe déjà une facture avec le même numéro
+        cur.execute("SELECT id FROM factures WHERE numero_facture = %s", (numero_facture,))
+        if cur.fetchone():
+            # Si le numéro de facture existe déjà, supprimer le fichier sauvegardé (s'il y en a un)
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+            return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
 
-        # Gérer le fichier s'il est fourni
-        if file and file.filename:
-            print(f"Tentative de sauvegarde du fichier : {file.filename}")  # Débogage
-            original_filename, file_extension = os.path.splitext(secure_filename(file.filename))
-            filename = secure_filename(
-                f"{annee}_{data.get('type')}_{numero}_UBR_{data.get('ubr', 'N-A')}_{original_filename}{file_extension}"
-            )
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            try:
-                file.save(filepath)
-                print(f"Fichier sauvegardé : {filepath}")  # Débogage
-                if not os.path.exists(filepath):
-                    print(f"Erreur : le fichier {filepath} n'a pas été créé.")  # Débogage
-                    return jsonify({"error": "Échec de la sauvegarde du fichier."}), 500
-            except Exception as e:
-                print(f"Erreur lors de la sauvegarde du fichier : {e}")  # Débogage
-                return jsonify({"error": f"Erreur lors de l'enregistrement du fichier : {e}"}), 500
-        else:
-            print("Aucun fichier fourni ou fichier vide.")  # Débogage
+        # Date de soumission actuelle
+        date_soumission = datetime.datetime.now()
 
-        # Valider le montant
-        try:
-            montant = float(data.get("montant"))
-        except ValueError:
-            print("Erreur : Montant invalide.")  # Débogage
-            return jsonify({"error": "Montant invalide."}), 400
-
-        # Insérer la facture
-        sql = """
-        INSERT INTO factures (
-            annee, type, ubr, fournisseur, description,
-            montant, statut, fichier_nom, numero, date_ajout
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-        """
-        params = (
-            annee,
-            data.get("type"),
-            data.get("ubr"),
-            data.get("fournisseur"),
-            data.get("description"),
-            montant,
-            data.get("statut"),
-            filename,  # Peut être None si aucun fichier
-            numero,
-            datetime.now()
+        # Insérer la nouvelle facture dans la base de données
+        # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire
+        # created_by est l'utilisateur actuellement authentifié (via g.user_id)
+        # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
+        cur.execute(
+            """
+            INSERT INTO factures (
+                numero_facture, date_facture, fournisseur, description, montant, devise,
+                statut, chemin_fichier, id_soumetteur, date_soumission,
+                created_by, categorie, ligne_budgetaire
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id;
+            """,
+            (numero_facture, date_facture, fournisseur, description, montant, devise,
+             statut, file_path, g.user_id, date_soumission,
+             g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
         )
-        cursor.execute(sql, params)
-        new_id = cursor.fetchone()[0]
+        facture_id = cur.fetchone()[0]
         conn.commit()
 
-        # Récupérer la facture insérée
-        dict_cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        dict_cursor.execute("SELECT * FROM factures WHERE id = %s", (new_id,))
-        new_f = dict_cursor.fetchone()
-        facture = {key: convert_to_json_serializable(value) for key, value in dict(new_f).items()}  # Convertir Decimal et datetime
-        dict_cursor.close()
+        # --- Récupérer la facture nouvellement créée pour l'émettre via SocketIO ---
+        # Inclure les NOUVEAUX champs et les jointures pour les noms d'utilisateur associés
+        cur.execute(
+            """
+            SELECT
+                f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+                f.statut, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+                u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+            FROM factures f
+            JOIN users u ON f.id_soumetteur = u.id
+            LEFT JOIN users uc ON f.created_by = uc.id -- Joindre pour le nom d'utilisateur de created_by
+            LEFT JOIN users um ON f.last_modified_by = um.id -- Joindre pour le nom d'utilisateur de last_modified_by
+            WHERE f.id = %s
+            """, (facture_id,)
+        )
+        new_facture = cur.fetchone()
 
-        socketio.emit('new_facture', facture)
-        return jsonify(facture), 201
-    except psycopg2.Error as e:
+        if new_facture:
+             # Convertir la ligne de résultat en dictionnaire pour un accès plus facile
+            new_facture_dict = dict(new_facture)
+            # Convertir les types non sérialisables en JSON
+            serializable_facture = convert_to_json_serializable(new_facture_dict)
+            # Émettre l'événement SocketIO
+            socketio.emit('new_facture', serializable_facture)
+
+        # --- Fin de la récupération et émission SocketIO ---
+
+
+        return jsonify({"message": "Facture créée avec succès (fichier joint optionnel)", "id": facture_id}), 201
+
+    except psycopg2.errors.UniqueViolation:
         conn.rollback()
-        if filepath and os.path.exists(filepath):
-            os.remove(filepath)
-        print(f"Erreur PostgreSQL lors de l'enregistrement de la facture : {e}")  # Débogage
-        return jsonify({"error": f"Erreur lors de l'enregistrement en base de données : {e}"}), 500
+        # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'erreur de violation unique
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
     except Exception as e:
         conn.rollback()
-        if filepath and os.path.exists(filepath):
-            os.remove(filepath)
-        print(f"Erreur inattendue lors de l'enregistrement de la facture : {e}")  # Débogage
-        return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
+        if file_path and os.path.exists(file_path):
+             os.remove(file_path)
+        print(f"Erreur de base de données: {e}")
+        return jsonify({"error": "Échec de la sauvegarde de la facture dans la base de données.", "details": str(e)}), 500
     finally:
-        cursor.close()
+        cur.close()
         conn.close()
 
-@app.route("/api/factures", methods=["GET"])
+
+
+# @app.route("/api/factures", methods=["GET"])
+# @token_required
+# @role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
+# def get_factures():
+#     """
+#     Récupère la liste des factures pour une année donnée.
+#     - Par défaut, utilise l'année en cours si aucune année n'est spécifiée.
+#     - Retourne les factures triées par ID (du plus récent au plus ancien).
+#     Returns:
+#         JSON: Liste des factures ou message d'erreur.
+#     """
+#     annee = request.args.get("annee", str(datetime.now().year))
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
+#         rows = cursor.fetchall()
+#         # Convertir Decimal et datetime pour toutes les factures
+#         result = [{key: convert_to_json_serializable(value) for key, value in dict(row).items()} for row in rows]
+#         return jsonify(result)
+#     except psycopg2.Error as e:
+#         print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
+#         return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+@app.route('/api/factures', methods=['GET'])
 @token_required
-@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
+@role_required(roles=['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
 def get_factures():
     """
     Récupère la liste des factures pour une année donnée.
     - Par défaut, utilise l'année en cours si aucune année n'est spécifiée.
-    - Retourne les factures triées par ID (du plus récent au plus ancien).
+    - Inclut les nouvelles colonnes et les noms d'utilisateur associés.
+    - Retourne les factures triées par date_facture (du plus récent au plus ancien).
     Returns:
         JSON: Liste des factures ou message d'erreur.
     """
-    annee = request.args.get("annee", str(datetime.now().year))
+    # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
+    year = request.args.get('year', type=int, default=datetime.datetime.now().year)
+
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # Utiliser DictCursor pour que les résultats soient accessibles par nom de colonne
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
-        rows = cursor.fetchall()
-        # Convertir Decimal et datetime pour toutes les factures
-        result = [{key: convert_to_json_serializable(value) for key, value in dict(row).items()} for row in rows]
-        return jsonify(result)
-    except psycopg2.Error as e:
-        print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
-        return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
+        # --- Requête SELECT mise à jour pour inclure les nouvelles colonnes et les noms d'utilisateur ---
+        cur.execute(
+            """
+            SELECT
+                f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+                f.statut, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+                u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+            FROM factures f
+            JOIN users u ON f.id_soumetteur = u.id           -- Joindre pour le nom d'utilisateur du soumetteur
+            LEFT JOIN users uc ON f.created_by = uc.id        -- Joindre pour le nom d'utilisateur de created_by
+            LEFT JOIN users um ON f.last_modified_by = um.id  -- Joindre pour le nom d'utilisateur de last_modified_by
+            WHERE EXTRACT(YEAR FROM date_facture) = %s
+            ORDER BY date_facture DESC -- Tri par date de facture
+            """, (year,) # Filtrer par année
+        )
+        factures = cur.fetchall() # Récupérer toutes les lignes
+
+        # Convertir chaque ligne (DictRow) en dictionnaire et rendre JSON sérialisable
+        factures_list = [convert_to_json_serializable(dict(row)) for row in factures]
+
+        return jsonify(factures_list), 200 # Retourner la liste des factures
+
+    except Exception as e:
+        print(f"Erreur de base de données lors de la récupération des factures : {e}")
+        return jsonify({"error": "Échec de la récupération des factures.", "details": str(e)}), 500
     finally:
-        cursor.close()
+        # Fermer le curseur et la connexion
+        cur.close()
         conn.close()
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
@@ -588,104 +821,409 @@ def delete_facture(id):
         cursor.close()
         conn.close()
 
-@app.route("/api/factures/<int:id>", methods=["PUT"])
+# @app.route("/api/factures/<int:id>", methods=["PUT"])
+# @token_required
+# @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent mettre à jour (y compris statut)
+# def update_facture(id):
+#     """
+#     Met à jour les champs d'une facture existante.
+#     - Valide les champs modifiables (type, ubr, fournisseur, description, montant, statut).
+#     - Construit dynamiquement la requête SQL pour les champs fournis.
+#     - Notifie les clients via SocketIO.
+#     Args:
+#         id (int): ID de la facture.
+#     Returns:
+#         JSON: Données de la facture mise à jour ou message d'erreur.
+#     """
+#     data = request.get_json() or {}
+#     annee = data.get("annee", str(datetime.now().year))
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         allowed = ["type", "ubr", "fournisseur", "description", "montant", "statut"]
+#         fields, vals = [], []
+#         for key in allowed:
+#             if key in data:
+#                 fields.append(f"{key} = %s")
+#                 if key == "montant":
+#                     try:
+#                         vals.append(float(data[key]))
+#                     except ValueError:
+#                         return jsonify({"error": "Montant invalide"}), 400
+#                 else:
+#                     vals.append(data[key])
+
+#         if not fields:
+#             return jsonify({"error": "Aucun champ à mettre à jour"}), 400
+
+#         vals.append(id)
+#         vals.append(annee)
+#         sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = %s AND annee = %s RETURNING *"
+#         cursor.execute(sql, vals)
+#         updated = cursor.fetchone()
+#         if not updated:
+#             return jsonify({"error": "Facture non trouvée"}), 404
+#         conn.commit()
+#         facture = {key: convert_to_json_serializable(value) for key, value in dict(updated).items()}  # Convertir Decimal et datetime
+#         socketio.emit('update_facture', facture)
+#         return jsonify(facture), 200
+#     except psycopg2.Error as e:
+#         conn.rollback()
+#         print(f"Erreur PostgreSQL lors de la mise à jour de la facture : {e}")
+#         return jsonify({"error": f"Erreur lors de la mise à jour : {e}"}), 500
+#     except Exception as e:
+#         conn.rollback()
+#         print(f"Erreur inattendue lors de la mise à jour de la facture : {e}")
+#         return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+
+@app.route('/api/factures/<int:id>', methods=['PUT'])
 @token_required
-@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent mettre à jour (y compris statut)
+@role_required(roles=['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
 def update_facture(id):
-    """
-    Met à jour les champs d'une facture existante.
-    - Valide les champs modifiables (type, ubr, fournisseur, description, montant, statut).
-    - Construit dynamiquement la requête SQL pour les champs fournis.
-    - Notifie les clients via SocketIO.
-    Args:
-        id (int): ID de la facture.
-    Returns:
-        JSON: Données de la facture mise à jour ou message d'erreur.
-    """
-    data = request.get_json() or {}
-    annee = data.get("annee", str(datetime.now().year))
+    # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
+    data = request.form.to_dict()
+    if not data:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
+
+    # Récupérer les champs de la requête, y compris les nouveaux
+    numero_facture = data.get('numero_facture')
+    date_facture = data.get('date_facture')
+    fournisseur = data.get('fournisseur')
+    description = data.get('description')
+    montant = data.get('montant')
+    devise = data.get('devise')
+    statut = data.get('statut') # Permettre la mise à jour du statut
+    categorie = data.get('categorie')
+    ligne_budgetaire = data.get('ligne_budgetaire')
+
+    # Indicateur pour supprimer le fichier existant
+    remove_file = data.get('remove_file', '').lower() == 'true'
+
     conn = get_db_connection()
-    if conn is None:
-        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur = conn.cursor()
+
     try:
-        allowed = ["type", "ubr", "fournisseur", "description", "montant", "statut"]
-        fields, vals = [], []
-        for key in allowed:
-            if key in data:
-                fields.append(f"{key} = %s")
-                if key == "montant":
-                    try:
-                        vals.append(float(data[key]))
-                    except ValueError:
-                        return jsonify({"error": "Montant invalide"}), 400
-                else:
-                    vals.append(data[key])
+        # --- Début de la gestion du fichier lors de la mise à jour ---
+        current_file_path = None
+        new_file_path = None
+        file = request.files.get('fichier') # Tenter de récupérer un nouveau fichier uploadé
 
-        if not fields:
-            return jsonify({"error": "Aucun champ à mettre à jour"}), 400
-
-        vals.append(id)
-        vals.append(annee)
-        sql = f"UPDATE factures SET {', '.join(fields)} WHERE id = %s AND annee = %s RETURNING *"
-        cursor.execute(sql, vals)
-        updated = cursor.fetchone()
-        if not updated:
+        # Récupérer le chemin du fichier existant avant toute modification
+        cur.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (id,))
+        result = cur.fetchone()
+        if result:
+            current_file_path = result[0]
+        else:
+             # Facture non trouvée, même avant de tenter le UPDATE
             return jsonify({"error": "Facture non trouvée"}), 404
+
+
+        # Cas 1: Un nouveau fichier est uploadé
+        if file and file.filename != '':
+            # Assurer que le nom de fichier est sécurisé
+            filename = secure_filename(file.filename)
+            # Créer le chemin complet pour sauvegarder le nouveau fichier
+            new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+            try:
+                 # Sauvegarder le nouveau fichier
+                file.save(new_file_path)
+                # Le chemin_fichier sera mis à jour avec new_file_path dans la requête UPDATE ci-dessous
+            except Exception as e:
+                print(f"Erreur lors de la sauvegarde du nouveau fichier: {e}")
+                return jsonify({"error": "Échec de la sauvegarde du nouveau fichier", "details": str(e)}), 500
+
+        # Cas 2: L'utilisateur demande la suppression du fichier existant SANS en uploader un nouveau
+        elif remove_file:
+             # Le chemin_fichier sera mis à NULL dans la requête UPDATE ci-dessous
+             new_file_path = None # S'assurer que new_file_path est None pour la mise à jour de la DB
+
+        # Si un nouveau fichier a été sauvegardé ou si l'utilisateur a demandé la suppression
+        # et qu'il existait un fichier précédent, supprimer l'ancien fichier.
+        if (new_file_path is not None or remove_file) and current_file_path and os.path.exists(current_file_path):
+            try:
+                os.remove(current_file_path)
+                print(f"Ancien fichier supprimé: {current_file_path}")
+            except Exception as e:
+                 print(f"Avertissement: Échec de la suppression de l'ancien fichier {current_file_path}: {e}")
+                 # Ne pas bloquer la mise à jour si la suppression de l'ancien fichier échoue
+
+        # --- Fin de la gestion du fichier lors de la mise à jour ---
+
+
+        # --- Début de la construction de la requête UPDATE ---
+        updates = []
+        values = []
+
+        # Ajouter les champs si présents dans les données reçues
+        if numero_facture is not None:
+            updates.append("numero_facture = %s")
+            values.append(numero_facture)
+        if date_facture is not None:
+            # Validation basique du format de la date (ajuster selon votre besoin)
+            try:
+                datetime.datetime.strptime(date_facture, '%Y-%m-%d')
+                updates.append("date_facture = %s")
+                values.append(date_facture)
+            except ValueError:
+                 # Supprimer le nouveau fichier sauvegardé s'il y a une erreur de date
+                 if new_file_path and os.path.exists(new_file_path):
+                      os.remove(new_file_path)
+                 return jsonify({"error": "Format de date invalide pour la mise à jour. Utilisez AAAA-MM-JJ"}), 400
+        if fournisseur is not None:
+            updates.append("fournisseur = %s")
+            values.append(fournisseur)
+        if description is not None:
+            updates.append("description = %s")
+            values.append(description)
+        if montant is not None:
+            # Convertir le montant en Decimal
+            try:
+                montant = Decimal(montant)
+                updates.append("montant = %s")
+                values.append(montant)
+            except InvalidOperation:
+                 # Supprimer le nouveau fichier sauvegardé s'il y a une erreur de montant
+                 if new_file_path and os.path.exists(new_file_path):
+                      os.remove(new_file_path)
+                 return jsonify({"error": "Format de montant invalide pour la mise à jour"}), 400
+        if devise is not None:
+            updates.append("devise = %s")
+            values.append(devise)
+        if statut is not None:
+            updates.append("statut = %s")
+            values.append(statut)
+        # Ajouter les NOUVEAUX champs si présents
+        if categorie is not None:
+            updates.append("categorie = %s")
+            values.append(categorie)
+        if ligne_budgetaire is not None:
+            updates.append("ligne_budgetaire = %s")
+            values.append(ligne_budgetaire)
+
+        # Si un nouveau fichier a été uploadé OU si la suppression a été demandée, mettre à jour chemin_fichier
+        if new_file_path is not None or remove_file:
+             updates.append("chemin_fichier = %s")
+             values.append(new_file_path) # new_file_path sera le chemin ou None
+
+        # Mettre à jour automatiquement last_modified_by et last_modified_timestamp lors de toute modification
+        updates.append("last_modified_by = %s")
+        values.append(g.user_id)
+        updates.append("last_modified_timestamp = CURRENT_TIMESTAMP")
+
+
+        if not updates:
+            return jsonify({"message": "Aucun champ fourni pour la mise à jour"}), 400
+
+        # Construire la requête UPDATE finale
+        update_query = "UPDATE factures SET " + ", ".join(updates) + " WHERE id = %s RETURNING id;"
+        values.append(id) # Ajouter l'ID de la facture à la fin des valeurs
+
+
+        cur.execute(update_query, tuple(values))
+
+        updated_row_id = cur.fetchone()
+        if updated_row_id is None:
+            conn.rollback()
+            # Si la facture n'est pas trouvée APRES la tentative de mise à jour, supprimer le nouveau fichier si sauvegardé
+            if new_file_path and os.path.exists(new_file_path):
+                 os.remove(new_file_path)
+            return jsonify({"error": "Facture non trouvée"}), 404
+
         conn.commit()
-        facture = {key: convert_to_json_serializable(value) for key, value in dict(updated).items()}  # Convertir Decimal et datetime
-        socketio.emit('update_facture', facture)
-        return jsonify(facture), 200
-    except psycopg2.Error as e:
+
+        # --- Récupérer la facture mise à jour pour l'émettre via SocketIO ---
+        # Inclure tous les champs et les jointures pour les noms d'utilisateur associés
+        cur.execute(
+            """
+            SELECT
+                f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+                f.statut, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+                u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+            FROM factures f
+            JOIN users u ON f.id_soumetteur = u.id
+            LEFT JOIN users uc ON f.created_by = uc.id -- Joindre pour le nom d'utilisateur de created_by
+            LEFT JOIN users um ON f.last_modified_by = um.id -- Joindre pour le nom d'utilisateur de last_modified_by
+            WHERE f.id = %s
+            """, (id,)
+        )
+        updated_facture = cur.fetchone()
+
+        if updated_facture:
+            # Convertir la ligne de résultat en dictionnaire
+            updated_facture_dict = dict(updated_facture)
+            # Convertir les types non sérialisables en JSON
+            serializable_facture = convert_to_json_serializable(updated_facture_dict)
+            # Émettre l'événement SocketIO
+            socketio.emit('update_facture', serializable_facture)
+
+        # --- Fin de la récupération et émission SocketIO ---
+
+        return jsonify({"message": "Facture mise à jour avec succès"}), 200
+
+    except psycopg2.errors.UniqueViolation:
         conn.rollback()
-        print(f"Erreur PostgreSQL lors de la mise à jour de la facture : {e}")
-        return jsonify({"error": f"Erreur lors de la mise à jour : {e}"}), 500
+         # Supprimer le nouveau fichier sauvegardé s'il y a une erreur de violation unique
+        if new_file_path and os.path.exists(new_file_path):
+             os.remove(new_file_path)
+        return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
     except Exception as e:
         conn.rollback()
-        print(f"Erreur inattendue lors de la mise à jour de la facture : {e}")
-        return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+         # Supprimer le nouveau fichier sauvegardé en cas d'autre erreur
+        if new_file_path and os.path.exists(new_file_path):
+             os.remove(new_file_path)
+        print(f"Erreur de base de données lors de la mise à jour: {e}")
+        return jsonify({"error": "Échec de la mise à jour de la facture.", "details": str(e)}), 500
     finally:
-        cursor.close()
+        cur.close()
         conn.close()
 
-@app.route("/api/factures/export-csv", methods=["GET"])
+
+# @app.route("/api/factures/export-csv", methods=["GET"])
+# @token_required
+# @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
+# def export_factures_csv():
+#     """
+#     Exporte les factures d'une année donnée au format CSV.
+#     - Récupère toutes les factures pour l'année spécifiée.
+#     - Génère un fichier CSV avec les en-têtes et les données.
+#     - Retourne le CSV en tant que pièce jointe.
+#     Returns:
+#         Response: Fichier CSV ou message d'erreur JSON.
+#     """
+#     annee = request.args.get("annee", str(datetime.now().year))
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor()
+#     try:
+#         cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
+#         rows = cursor.fetchall()
+
+#         csv_buffer = io.StringIO()
+#         csv_writer = csv.writer(csv_buffer)
+#         header = [desc[0] for desc in cursor.description]
+#         csv_writer.writerow(header)
+#         for row in rows:
+#             csv_writer.writerow(row)
+
+#         csv_content = csv_buffer.getvalue()
+#         response = Response(csv_content, mimetype='text/csv')
+#         response.headers.set("Content-Disposition", "attachment", filename=f"factures_{annee}.csv")
+#         return response
+#     except psycopg2.Error as e:
+#         print(f"Erreur PostgreSQL lors de l'exportation CSV : {e}")
+#         return jsonify({"error": "Erreur lors de l'accès à la base de données pour l'exportation."}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+
+
+@app.route('/api/factures/export-csv', methods=['GET'])
 @token_required
-@role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
+@role_required(roles=['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
 def export_factures_csv():
     """
     Exporte les factures d'une année donnée au format CSV.
+    - Inclut les nouvelles colonnes et les noms d'utilisateur associés.
     - Récupère toutes les factures pour l'année spécifiée.
     - Génère un fichier CSV avec les en-têtes et les données.
     - Retourne le CSV en tant que pièce jointe.
     Returns:
         Response: Fichier CSV ou message d'erreur JSON.
     """
-    annee = request.args.get("annee", str(datetime.now().year))
+    # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
+    year = request.args.get('year', type=int, default=datetime.datetime.now().year)
+
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-    cursor = conn.cursor()
+
+    # Utiliser un curseur standard car csv.writer gère l'itération sur les lignes
+    cur = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
-        rows = cursor.fetchall()
+        # --- Requête SELECT mise à jour pour inclure les nouvelles colonnes et les noms d'utilisateur ---
+        # Assurez-vous que l'ordre des colonnes ici correspond à l'ordre dans l'en-tête CSV ci-dessous
+        cur.execute(
+             """
+            SELECT
+                f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+                f.statut, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+                u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+            FROM factures f
+            JOIN users u ON f.id_soumetteur = u.id           -- Joindre pour le nom d'utilisateur du soumetteur
+            LEFT JOIN users uc ON f.created_by = uc.id        -- Joindre pour le nom d'utilisateur de created_by
+            LEFT JOIN users um ON f.last_modified_by = um.id  -- Joindre pour le nom d'utilisateur de last_modified_by
+            WHERE EXTRACT(YEAR FROM date_facture) = %s
+            ORDER BY date_facture DESC -- Tri par date de facture
+            """, (year,) # Filtrer par année
+        )
+        factures = cur.fetchall() # Récupérer toutes les lignes
 
-        csv_buffer = io.StringIO()
-        csv_writer = csv.writer(csv_buffer)
-        header = [desc[0] for desc in cursor.description]
-        csv_writer.writerow(header)
-        for row in rows:
-            csv_writer.writerow(row)
+        # Si aucune facture n'est trouvée, retourner un fichier CSV avec seulement l'en-tête
+        # ou un message d'erreur selon ce qui est préféré. Ici, un en-tête vide est retourné.
+        if not factures:
+             header = [
+                "ID", "Numero Facture", "Date Facture", "Fournisseur", "Description", "Montant", "Devise",
+                "Statut", "Chemin Fichier", "ID Soumetteur", "Date Soumission",
+                "Created By ID", "Last Modified By ID", "Last Modified Timestamp", "Categorie", "Ligne Budgetaire",
+                "Soumetteur Username", "Created By Username", "Last Modified By Username" # Nouveaux en-têtes
+            ]
+             csv_buffer = io.StringIO()
+             csv_writer = csv.writer(csv_buffer)
+             csv_writer.writerow(header)
+             output = Response(csv_buffer.getvalue(), mimetype='text/csv')
+             output.headers.set("Content-Disposition", "attachment", filename=f"factures_{year}.csv")
+             return output # Retourne l'en-tête CSV vide
 
-        csv_content = csv_buffer.getvalue()
-        response = Response(csv_content, mimetype='text/csv')
-        response.headers.set("Content-Disposition", "attachment", filename=f"factures_{annee}.csv")
-        return response
-    except psycopg2.Error as e:
-        print(f"Erreur PostgreSQL lors de l'exportation CSV : {e}")
-        return jsonify({"error": "Erreur lors de l'accès à la base de données pour l'exportation."}), 500
+        # --- Écrire les données dans un buffer CSV en mémoire ---
+        si = io.StringIO() # Utiliser StringIO pour écrire le CSV en mémoire
+        cw = csv.writer(si)
+
+        # Écrire la ligne d'en-tête - mise à jour pour inclure les nouvelles colonnes et noms d'utilisateur
+        header = [
+            "ID", "Numero Facture", "Date Facture", "Fournisseur", "Description", "Montant", "Devise",
+            "Statut", "Chemin Fichier", "ID Soumetteur", "Date Soumission",
+            "Created By ID", "Last Modified By ID", "Last Modified Timestamp", "Categorie", "Ligne Budgetaire",
+            "Soumetteur Username", "Created By Username", "Last Modified By Username" # Nouveaux en-têtes
+        ]
+        cw.writerow(header)
+
+        # Écrire les lignes de données
+        for row in factures:
+            # Convertir les valeurs None en chaînes vides pour la compatibilité CSV
+            # Assurez-vous que l'ordre des éléments dans row correspond à l'ordre de l'en-tête
+            row_data = ["" if col is None else str(col) for col in row]
+            cw.writerow(row_data)
+
+        # --- Préparer la réponse HTTP avec le contenu CSV ---
+        output = Response(si.getvalue(), mimetype='text/csv')
+        output.headers["Content-Disposition"] = f"attachment; filename=factures_{year}.csv"
+        output.headers["Content-type"] = "text/csv"
+        return output # Retourne la réponse avec le fichier CSV
+
+    except Exception as e:
+        print(f"Erreur de base de données lors de l'exportation CSV : {e}")
+        return jsonify({"error": "Échec de l'exportation des factures.", "details": str(e)}), 500
     finally:
-        cursor.close()
+        # Fermer le curseur et la connexion
+        cur.close()
         conn.close()
+
+
+
+
 
 # -------------------------------
 #       Routes CRUD pour budgets
