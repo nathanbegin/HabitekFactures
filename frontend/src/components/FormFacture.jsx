@@ -854,8 +854,6 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
     // Ajouter les champs du formulaire à l'objet FormData
     // Utiliser l'année financière courante passée en prop 'annee'
     data.append('annee', annee); // annee vient de MainLayout et est passée en prop
-
-
     // Ajouter les champs existants (et corrigés pour être dans formData)
     data.append('numero_facture', formData.numero_facture);
     data.append('date_facture', formData.date_facture);
@@ -866,9 +864,6 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
     data.append('statut', formData.statut); // Assurez-vous que ce statut est pertinent pour la CRÉATION (soumis)
     data.append('type', formData.type);
     data.append('ubr', formData.ubr);
-
-
-    // Ajouter les NOUVEAUX champs
     data.append('categorie', formData.categorie);
     data.append('ligne_budgetaire', formData.ligne_budgetaire);
 
@@ -892,7 +887,7 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
 
 
     // Appeler la fonction onSubmit passée par le parent (MainLayout) avec l'objet FormData
-    console.log(data)
+    console.log(data);
     onSubmit(data);
 
     // Optionnel: Réinitialiser le formulaire après soumission réussie (si c'est un formulaire de création)
