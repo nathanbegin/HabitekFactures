@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 import csv
 import io
 from urllib.parse import urlparse
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import bcrypt # Pour le hachage des mots de passe
 import jwt # Pour les JSON Web Tokens
 from functools import wraps # Utile pour créer des décorateurs Flask
@@ -525,7 +525,7 @@ def upload_facture():
 
     # Validation basique du format de la date (ajuster selon votre besoin)
     try:
-        datetime.datetime.strptime(date_facture, '%Y-%m-%d')
+        datetime.strptime(date_facture, '%Y-%m-%d')
     except ValueError:
         # Supprimer le fichier sauvegardé s'il y a une erreur de date après la sauvegarde
         if file_path and os.path.exists(file_path):
@@ -554,7 +554,7 @@ def upload_facture():
             return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
 
         # Date de soumission actuelle
-        date_soumission = datetime.datetime.now()
+        date_soumission = datetime.now()
 
         # Insérer la nouvelle facture dans la base de données
         # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire
@@ -668,7 +668,7 @@ def get_factures():
         JSON: Liste des factures ou message d'erreur.
     """
     # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
-    year = request.args.get('year', type=int, default=datetime.datetime.now().year)
+    year = request.args.get('year', type=int, default=datetime.now().year)
 
     conn = get_db_connection()
     if conn is None:
