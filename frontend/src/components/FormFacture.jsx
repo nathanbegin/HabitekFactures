@@ -721,9 +721,7 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
           devise: 'CAD', // Ajouté car nécessaire pour le backend
           statut: 'soumis', // Ajouté car nécessaire pour le backend, avec valeur par défaut
           type: '',
-          ubr: '',
-
-          // NOUVEAUX champs à ajouter au formulaire
+          ubr: '',          
           categorie: '',
           ligne_budgetaire: '',
       }
@@ -800,16 +798,33 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
    */
   const handleFileChange = (e) => {
     const file = e.target.files[0]; // Correctement obtenir le premier fichier sélectionné
-    if (file && file.size > MAX_FILE_SIZE_BYTES) {
-      alert(`Le fichier est trop grand. La taille maximale est de ${MAX_FILE_SIZE_BYTES / (1024 * 1024 * 1024)} Go.`);
-      // Réinitialiser l'input fichier et l'état
-      e.target.value = null;
-      setSelectedFile(null);
-      return;
+
+    // --- NOUVEAUX CONSOLE.LOG ICI ---
+    console.log("DEBUG Frontend - Fichier sélectionné (objet File) :", file);
+    if (file) {
+        console.log("DEBUG Frontend - Nom du fichier :", file.name);
+        console.log("DEBUG Frontend - Taille du fichier :", file.size, "bytes");
+        console.log("DEBUG Frontend - Type du fichier :", file.type);
     }
+    // --- FIN NOUVEAUX CONSOLE.LOG ---
+
+    // Assurez-vous que MAX_FILE_SIZE_BYTES est défini quelque part, par exemple :
+    // const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // Exemple: 2 Mo (2 * 1024 * 1024 octets)
+    // Ou si c'est 2 Go comme dans un commentaire précédent :
+    const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
+
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`Le fichier est trop grand. La taille maximale est de ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} Mo.`);
+        // Réinitialiser l'input fichier et l'état
+        e.target.value = null; // Cela efface le fichier sélectionné dans l'input
+        setSelectedFile(null); // Réinitialise l'état React
+        console.log("DEBUG Frontend - Fichier trop grand, réinitialisé.");
+        return;
+    }
+
     setSelectedFile(file); // Stocker l'objet File dans l'état dédié
-    console.log('e fichier Selected : ',selectedFile);
-  };
+    // L'ancien console.log était ici, mais il verrait l'ancienne valeur de `selectedFile`
+};
 
    /**
     * Gère le changement de l'état de la case à cocher "Supprimer le fichier existant".
@@ -870,8 +885,11 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
     // Ajouter le fichier SEULEMENT s'il y en a un sélectionné
     // Utiliser l'état 'selectedFile' qui contient l'objet File
     if (selectedFile) {
+      console.log("DEBUG Frontend: selectedFile before appending:", selectedFile);
+      console.log("DEBUG Frontend: selectedFile.name:", selectedFile.name);
+      console.log("DEBUG Frontend: selectedFile.size:", selectedFile.size); // Check its size here!
       data.append('fichier', selectedFile);
-    }
+  }
 
     // --- Logique pour la MODIFICATION (si ce formulaire est utilisé pour l'édition) ---
     // Si le formulaire est utilisé pour la MODIFICATION (ex: initialData est présent)
