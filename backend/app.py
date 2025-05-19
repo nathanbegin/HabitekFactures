@@ -477,12 +477,19 @@ def home():
 def upload_facture():
     # Récupérer les données JSON de la requête
     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
-    data = request.form.to_dict()
+    # data = request.form.to_dict()
+    data = request.form
     if not data:
         data = request.get_json()
         if not data:
             return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
 
+    # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+    print(f"\n--- DEBUG POST /api/factures ---")
+    print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
+    print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
+    print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
+    # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
 
     # Extraction des champs requis de la facture
     numero_facture = data.get('numero_facture')
@@ -501,19 +508,53 @@ def upload_facture():
     file_path = None # Initialiser le chemin du fichier à None
     file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
 
-    # Vérifier si un fichier a été joint et s'il a un nom de fichier valide
-    if file and file.filename != '':
-        # Assurer que le nom de fichier est sécurisé
-        filename = secure_filename(file.filename)
-        # Créer le chemin complet pour sauvegarder le fichier
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+     # --- DÉBUT DES LIGNES DE DÉBOGAGE POUR LE FICHIER ---
+    print(f"DEBUG: Objet 'file' après request.files.get('fichier'): {file}")
+    if file:
+        print(f"DEBUG: Nom du fichier détecté: {file.filename}")
+        print(f"DEBUG: Taille du fichier (content_length): {file.content_length} bytes")
+    else:
+        print("DEBUG: Aucune clé 'fichier' trouvée dans request.files ou fichier est vide.")
+    # --- FIN DES LIGNES DE DÉBOGAGE POUR LE FICHIER ---
 
-        # Sauvegarder le fichier sur le système de fichiers
+    # Vérifier si un fichier a été joint et s'il a un nom de fichier valide
+    # if file and file.filename != '':
+    #     # Assurer que le nom de fichier est sécurisé
+    #     filename = secure_filename(file.filename)
+    #     # Créer le chemin complet pour sauvegarder le fichier
+    #     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    #     # Sauvegarder le fichier sur le système de fichiers
+    #     try:
+    #         file.save(file_path)
+    #     except Exception as e:
+    #         print(f"Erreur lors de la sauvegarde du fichier: {e}")
+    #         return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
+
+     if file and file.filename != '':
+        print(f"DEBUG: Condition 'file and file.filename != ''' est VRAIE.")
+        filename = secure_filename(file.filename)
+        upload_folder = app.config['UPLOAD_FOLDER']
+
+        # --- DÉBOGAGE DU CHEMIN ET CRÉATION DE DOSSIER ---
+        print(f"DEBUG: UPLOAD_FOLDER configuré: {upload_folder}")
+        # Assurez-vous que le répertoire de téléversement existe
+        os.makedirs(upload_folder, exist_ok=True) # Cette ligne crée le dossier s'il n'existe pas
+        print(f"DEBUG: Le dossier de téléversement '{upload_folder}' a été vérifié/créé.")
+        # --- FIN DÉBOGAGE DU CHEMIN ---
+
+        file_path = os.path.join(upload_folder, filename)
+        print(f"DEBUG: Chemin complet où le fichier sera sauvegardé: {file_path}")
+
         try:
             file.save(file_path)
+            print(f"DEBUG: Fichier '{filename}' sauvegardé avec succès dans '{file_path}'")
         except Exception as e:
-            print(f"Erreur lors de la sauvegarde du fichier: {e}")
+            print(f"DEBUG ERROR: Échec de la sauvegarde du fichier: {e}")
+            traceback.print_exc() # Cela imprimera le traceback complet de l'erreur
             return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
+    else:
+        print("DEBUG: Condition 'file and file.filename != ''' est FAUSSE. Pas de fichier à sauvegarder.")
     # --- Fin de la gestion optionnelle du fichier ---
 
 
