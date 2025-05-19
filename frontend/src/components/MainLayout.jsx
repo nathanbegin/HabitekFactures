@@ -193,28 +193,28 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
               alert("Vous n'avez pas le rôle nécessaire pour ajouter une facture.");
               return;
           }
-        // ... (création de formData et logique de progression/temps)
-        const file = factureData.fichier;
-        const formData = new FormData();
-        formData.append('annee', anneeFinanciere);
-        formData.append('type', factureData.type);
-        formData.append('ubr', factureData.ubr || '');
-        formData.append('fournisseur', factureData.fournisseur || '');
-        formData.append('description', factureData.description || '');
-        formData.append('montant', factureData.montant);
-        formData.append('statut', factureData.statut); // Le statut par défaut peut être 'Soumis' défini ici si pas géré par backend
-        if (file) {
-          // Validation UI de la taille du fichier (déjà présente si copié)
-          const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
-          if (file.size > MAX_FILE_SIZE_BYTES) {
-             alert(`La taille du fichier (${(file.size / 1024 / 1024).toFixed(2)} MB) dépasse la limite autorisée (2 GB).`);
-             return;
-          }
-          formData.append('fichier', file);
-        } else {
-             // Si aucun fichier, s'assurer que le backend accepte
-             // ou ajouter une validation si le fichier est requis pour certains types/statuts
-        }
+        // // ... (création de formData et logique de progression/temps)
+        // const file = factureData.fichier;
+        
+        // formData.append('annee', anneeFinanciere);
+        // formData.append('type', factureData.type);
+        // formData.append('ubr', factureData.ubr || '');
+        // formData.append('fournisseur', factureData.fournisseur || '');
+        // formData.append('description', factureData.description || '');
+        // formData.append('montant', factureData.montant);
+        // formData.append('statut', factureData.statut); // Le statut par défaut peut être 'Soumis' défini ici si pas géré par backend
+        // if (file) {
+        //   // Validation UI de la taille du fichier (déjà présente si copié)
+        //   const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
+        //   if (file.size > MAX_FILE_SIZE_BYTES) {
+        //      alert(`La taille du fichier (${(file.size / 1024 / 1024).toFixed(2)} MB) dépasse la limite autorisée (2 GB).`);
+        //      return;
+        //   }
+        //   formData.append('fichier', file);
+        // } else {
+        //      // Si aucun fichier, s'assurer que le backend accepte
+        //      // ou ajouter une validation si le fichier est requis pour certains types/statuts
+        // }
 
 
         const startTime = Date.now();
@@ -288,9 +288,12 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
               }
               // Recharger les factures si on est dans la vue manage-invoices pour cette année
               // et si SocketIO ne gère pas nativement cette mise à jour côté client pour l'émetteur
-               if (location.pathname.endsWith('/manage-invoices') && String(response.annee) === anneeFinanciere) {
-                   fetchFactures(anneeFinanciere); // Recharger pour être sûr
-               }
+              //  if (location.pathname.endsWith('/manage-invoices') && String(response.annee) === anneeFinanciere) {
+              //      fetchFactures(anneeFinanciere); // Recharger pour être sûr
+              //  }
+              if (location.pathname.endsWith('/manage-invoices')) { // C'EST ICI
+                fetchFactures(anneeFinanciere); // Recharger pour être sûr
+              }
               console.log('Facture ajoutée avec succès.');
                // Réinitialiser le formulaire si nécessaire dans FormFacture ou ici
             }
@@ -303,7 +306,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
             alert('Erreur réseau lors de l\'ajout de la facture.');
         };
 
-        xhr.send(formData);
+        xhr.send(factureData);
     }
 
 
