@@ -808,6 +808,7 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
       return;
     }
     setSelectedFile(file); // Stocker l'objet File dans l'état dédié
+    console.log('e fichier Selected : ',selectedFile);
   };
 
    /**
@@ -891,6 +892,7 @@ function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
 
 
     // Appeler la fonction onSubmit passée par le parent (MainLayout) avec l'objet FormData
+    console.log(data)
     onSubmit(data);
 
     // Optionnel: Réinitialiser le formulaire après soumission réussie (si c'est un formulaire de création)
