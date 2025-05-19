@@ -531,7 +531,7 @@ def upload_facture():
     #         print(f"Erreur lors de la sauvegarde du fichier: {e}")
     #         return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
 
-     if file and file.filename != '':
+    if (file and file.filename != ''):
         print(f"DEBUG: Condition 'file and file.filename != ''' est VRAIE.")
         filename = secure_filename(file.filename)
         upload_folder = app.config['UPLOAD_FOLDER']
