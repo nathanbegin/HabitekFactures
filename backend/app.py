@@ -506,6 +506,7 @@ def upload_facture():
 
     # --- Début de la gestion optionnelle du fichier ---
     file_path = None # Initialiser le chemin du fichier à None
+    
     file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
 
      # --- DÉBUT DES LIGNES DE DÉBOGAGE POUR LE FICHIER ---
@@ -601,6 +602,21 @@ def upload_facture():
         # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire
         # created_by est l'utilisateur actuellement authentifié (via g.user_id)
         # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
+        print(f"\n--- DEBUG: Types des paramètres pour l'INSERT ---")
+        print(f"DEBUG: numero_facture: Type={type(numero_facture)}, Value='{numero_facture}'")
+        print(f"DEBUG: date_facture: Type={type(date_facture)}, Value='{date_facture}'")
+        print(f"DEBUG: fournisseur: Type={type(fournisseur)}, Value='{fournisseur}'")
+        print(f"DEBUG: description: Type={type(description)}, Value='{description}'")
+        print(f"DEBUG: montant: Type={type(montant)}, Value='{montant}'")
+        print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
+        print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
+        print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
+        print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
+        print(f"DEBUG: date_soumission: Type={type(date_soumission)}, Value='{date_soumission}'")
+        print(f"DEBUG: g.user_id (created_by): Type={type(g.user_id)}, Value='{g.user_id}'")
+        print(f"DEBUG: categorie: Type={type(categorie)}, Value='{categorie}'")
+        print(f"DEBUG: ligne_budgetaire: Type={type(ligne_budgetaire)}, Value='{ligne_budgetaire}'")
+        print(f"--- FIN DEBUG: Types des paramètres ---")
         cur.execute(
             """
             INSERT INTO factures (
@@ -928,7 +944,7 @@ def delete_facture(id):
 @role_required(['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
 def update_facture(id):
     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
-    data = request.form.to_dict()
+    data = request.form
     if not data:
         data = request.get_json()
         if not data:
