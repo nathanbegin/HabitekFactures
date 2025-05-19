@@ -218,7 +218,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
 
 
         const startTime = Date.now();
-        const totalBytes = file ? file.size : 0;
+        //const totalBytes = file ? file.size : 0;
 
         setUploadProgress(0);
         setTimeLeft('');
