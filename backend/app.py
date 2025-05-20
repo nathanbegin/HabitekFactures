@@ -883,7 +883,7 @@ def delete_facture(id):
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s", (id, annee))
+        cursor.execute("SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s", (id, annee))
         row = cursor.fetchone()
         if not row:
             return jsonify({"error": "Facture non trouvée"}), 404
