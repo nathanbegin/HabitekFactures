@@ -704,7 +704,7 @@
 import React, { useState } from 'react'; // Importez useState
 import { format } from 'date-fns'; // Importez la fonction format de date-fns
 import { fr } from 'date-fns/locale'; // Importez la locale française
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, toDate} from 'date-fns-tz';
 
 // -----------------------------------
 // Composant TableFactures
