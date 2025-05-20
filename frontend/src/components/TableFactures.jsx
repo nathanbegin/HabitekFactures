@@ -439,10 +439,10 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                     </select>
                   ) : (
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${facture.statut === 'soumis' ? 'bg-blue-100 text-blue-800'
-                        : facture.statut === 'approuve' ? 'bg-green-100 text-green-800'
-                          : facture.statut === 'rejete' ? 'bg-red-100 text-red-800'
-                            : facture.statut === 'paye' ? 'bg-purple-100 text-purple-800'
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${facture.statut === 'Soumis' ? 'bg-blue-100 text-blue-800'
+                        : facture.statut === 'Approuve' ? 'bg-green-100 text-green-800'
+                          : facture.statut === 'Rejete' ? 'bg-red-100 text-red-800'
+                            : facture.statut === 'Paye' ? 'bg-purple-100 text-purple-800'
                               : 'bg-gray-100 text-gray-800'
                         }`}
                     >
