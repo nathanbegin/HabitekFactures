@@ -867,7 +867,7 @@ def get_file(id):
         if not os.path.isabs(base_upload_dir):
             base_upload_dir = os.path.join(app.root_path, base_upload_dir)
 
-        full_absolute_filepath = os.path.join(base_upload_dir, relative_path_with_filename)
+        full_absolute_filepath = os.path.join(app.root_path, relative_path_with_filename)
         print(f"Le chemin absolu complet est :{full_absolute_filepath}")
 
         # If the file has been deleted from the file system
