@@ -46,6 +46,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   // Fonctions Utilitaires
   // -----------------------------------
   const MONTREAL_TIMEZONE = 'America/Montreal';
+  
 
   /**
    * Formate une date/heure pour l'affichage dans le fuseau horaire de Montréal.
@@ -53,43 +54,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
    * @param {string|Date} dateString - La date/heure UTC à formater.
    * @returns {string} La date/heure formatée ou un indicateur si absent.
    */
-  // const formatDateTime = (dateString) => {
-  //   if (!dateString) return 'N/A';
-  //   try {
-  //     console.log('==============================');
-  //     console.log('🔵 dateString reçu :', dateString);
-
-  //     const rawDate = new Date(dateString);
-  //     console.log('🟢 Date JS brute (UTC)       :', rawDate.toISOString());
-  //     console.log('🟠 Date JS locale (navigateur):', rawDate.toString());
-
-  //     if (isNaN(rawDate.getTime())) {
-  //       console.error("⛔️ Date invalide avant toDate :", dateString);
-  //       return 'Date invalide';
-  //     }
-
-  //     const date = toDate(rawDate); // Normalise vers objet Date cohérent
-  //     const formatted = formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-
-  //     // Extraire l'heure en UTC, en local et en MTL
-  //     const utcHour = rawDate.getUTCHours();
-  //     const localHour = rawDate.getHours();
-  //     const montrealHour = formatInTimeZone(date, MONTREAL_TIMEZONE, 'HH:mm');
-
-  //     console.log('🕒 Heure UTC       :', utcHour);
-  //     console.log('🕒 Heure locale    :', localHour);
-  //     console.log('🕒 Heure Montréal  :', montrealHour);
-  //     console.log('✅ Format final     :', formatted);
-
-  //     return formatted;
-
-  //   } catch (error) {
-  //     console.error("❌ Erreur lors du formatage de la date :", dateString, error);
-  //     return 'Erreur formatage';
-  //   }
-  // };
-
-
+ 
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
@@ -245,7 +210,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
          }
 
          const lowerNewStatut = newStatut.trim().toLowerCase();
-         const allowedStatuses = ['soumis', 'approuve', 'rejete', 'paye'];
+         const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
          if (!allowedStatuses.includes(lowerNewStatut)) {
              alert(`Statut invalide. Veuillez utiliser l'un des statuts suivants : ${allowedStatuses.join(', ')}.`);
              return;
@@ -254,6 +219,13 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
          // APPEL VIA PROP : Appelle la fonction onUpdate passée par MainLayout
          // Passer l'ID et un objet contenant les champs à mettre à jour (ici, seulement le statut)
          onUpdate(factureId, { statut: lowerNewStatut });
+    };
+    const handleStatusChange = (factureId, newStatut) => {
+      if (!allowedStatuses.includes(newStatut)) {
+        alert("Statut invalide.");
+        return;
+      }
+      onUpdate(factureId, { statut: newStatut });
     };
 
     /**
@@ -356,9 +328,26 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                        <td className="p-2 border">{facture.description || 'N/A'}</td>
                       <td className="p-2 border">{facture.montant}$</td>
                       <td className="p-2 border">{facture.devise}</td>
-                      <td className="p-2 border">{facture.statut}</td>
-                       <td className="p-2 border">{facture.categorie || 'N/A'}</td>
-                       <td className="p-2 border">{facture.ligne_budgetaire || 'N/A'}</td>
+                      <td className="p-2 border">
+                        {(userRole === 'gestionnaire' || userRole === 'approbateur') ? (
+                          <select
+                            value={facture.statut}
+                            onChange={(e) => handleStatusChange(facture.id, e.target.value)}
+                            className="text-sm border rounded px-1 py-0.5"
+                          >
+                            {allowedStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          facture.statut
+                        )}
+                      </td>
+
+                      <td className="p-2 border">{facture.categorie || 'N/A'}</td>
+                      <td className="p-2 border">{facture.ligne_budgetaire || 'N/A'}</td>
                        <td className="p-2 border">{facture.soumetteur_username || 'N/A'}</td>
                        <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
                        <td className="p-2 border">{facture.created_by_username || 'N/A'}</td>
