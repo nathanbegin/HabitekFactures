@@ -833,7 +833,7 @@ def get_file(id):
     """
     Récupère le fichier associé à une facture spécifique.
     - Vérifie si la facture existe et si le fichier est toujours présent.
-    - Met à jour la base si le fichier est manquant (fichier_nom = NULL).
+    - Met à jour la base si le fichier est manquant (chemin_fichier = NULL).
     - Retourne le fichier en tant que pièce jointe.
     Args:
         id (int): ID de la facture.
@@ -848,12 +848,12 @@ def get_file(id):
     try:
         # Récupérer le nom du fichier en base
         cursor.execute(
-            "SELECT fichier_nom FROM factures WHERE id = %s AND annee = %s",
+            "SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s",
             (id, annee)
         )
         row = cursor.fetchone()
 
-        # Si pas de ligne ou fichier_nom déjà NULL
+        # Si pas de ligne ou chemin_fichier déjà NULL
         if not row or not row[0]:
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
 
@@ -862,9 +862,9 @@ def get_file(id):
 
         # Si le fichier a été supprimé du système de fichiers
         if not os.path.exists(filepath):
-            # Mettre à jour la base pour nullifier fichier_nom
+            # Mettre à jour la base pour nullifier chemin_fichier
             cursor.execute(
-                "UPDATE factures SET fichier_nom = NULL WHERE id = %s AND annee = %s",
+                "UPDATE factures SET chemin_fichier = NULL WHERE id = %s AND annee = %s",
                 (id, annee)
             )
             conn.commit()
