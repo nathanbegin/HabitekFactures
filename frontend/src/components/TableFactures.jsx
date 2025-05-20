@@ -61,8 +61,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
         return 'Date invalide';
       }
       const date = toDate(rawDate);
-      // return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-      return date;
+      return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
     } catch (error) {
       console.error("Erreur lors du formatage de la date :", dateString, error);
       return 'Erreur formatage';
