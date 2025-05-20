@@ -92,6 +92,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
   try {
+    console.log('🔵 dateString reçu :', dateString);
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Date invalide';
 
