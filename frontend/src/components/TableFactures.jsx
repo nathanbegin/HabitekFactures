@@ -45,14 +45,52 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   // -----------------------------------
   // Fonctions Utilitaires
   // -----------------------------------
-// Définissez le fuseau horaire de Montréal
-  const MONTREAL_TIMEZONE = 'America/Montreal'; // Ou 'America/Toronto', 'America/New_York' - ce sont les mêmes pour le fuseau horaire de l'Est
+  const MONTREAL_TIMEZONE = 'America/Montreal';
+
   /**
- * Formate une date/heure pour l'affichage dans le fuseau horaire de Montréal.
- * @param {string|Date} dateString - La date/heure UTC à formater.
- * @returns {string} La date/heure formatée ou un indicateur si absent.
- */
+   * Formate une date/heure pour l'affichage dans le fuseau horaire de Montréal.
+   * Inclut des logs détaillés pour comprendre le décalage.
+   * @param {string|Date} dateString - La date/heure UTC à formater.
+   * @returns {string} La date/heure formatée ou un indicateur si absent.
+   */
   const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      console.log('==============================');
+      console.log('🔵 dateString reçu :', dateString);
+
+      const rawDate = new Date(dateString);
+      console.log('🟢 Date JS brute (UTC)       :', rawDate.toISOString());
+      console.log('🟠 Date JS locale (navigateur):', rawDate.toString());
+
+      if (isNaN(rawDate.getTime())) {
+        console.error("⛔️ Date invalide avant toDate :", dateString);
+        return 'Date invalide';
+      }
+
+      const date = toDate(rawDate); // Normalise vers objet Date cohérent
+      const formatted = formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+
+      // Extraire l'heure en UTC, en local et en MTL
+      const utcHour = rawDate.getUTCHours();
+      const localHour = rawDate.getHours();
+      const montrealHour = formatInTimeZone(date, MONTREAL_TIMEZONE, 'HH:mm');
+
+      console.log('🕒 Heure UTC       :', utcHour);
+      console.log('🕒 Heure locale    :', localHour);
+      console.log('🕒 Heure Montréal  :', montrealHour);
+      console.log('✅ Format final     :', formatted);
+
+      return formatted;
+
+    } catch (error) {
+      console.error("❌ Erreur lors du formatage de la date :", dateString, error);
+      return 'Erreur formatage';
+    }
+  };
+
+  
+  const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       const rawDate = new Date(dateString);
@@ -61,33 +99,15 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
         return 'Date invalide';
       }
       const date = toDate(rawDate);
-      return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-      
+      const formatted = formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+  
+      console.log(`📅 formatDate : ${dateString} → ${formatted}`);
+      return formatted;
     } catch (error) {
       console.error("Erreur lors du formatage de la date :", dateString, error);
       return 'Erreur formatage';
     }
   };
-/**
- * Formate une date seule (jour/mois/année).
- * @param {string|Date} dateString - La date à formater.
- * @returns {string} La date formatée ou un indicateur si absent.
- */
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    const rawDate = new Date(dateString);
-    if (isNaN(rawDate.getTime())) {
-      console.error("Date invalide avant toDate :", dateString);
-      return 'Date invalide';
-    }
-    const date = toDate(rawDate);
-    return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
-  } catch (error) {
-    console.error("Erreur lors du formatage de la date :", dateString, error);
-    return 'Erreur formatage';
-  }
-};
 
   // -----------------------------------
   // Logique de Tri
