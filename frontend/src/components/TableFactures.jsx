@@ -704,6 +704,7 @@
 import React, { useState } from 'react'; // Importez useState
 import { format } from 'date-fns'; // Importez la fonction format de date-fns
 import { fr } from 'date-fns/locale'; // Importez la locale française
+import { formatInTimeZone } from 'date-fns-tz';
 
 // -----------------------------------
 // Composant TableFactures
@@ -735,45 +736,43 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   // -----------------------------------
 
   /**
-   * Formate une date/heure pour l'affichage.
-   * @param {string|Date} dateString - La date/heure à formater.
-   * @returns {string} La date/heure formatée ou un indicateur si absent.
-   */
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-          console.error("Date invalide reçue :", dateString);
-          return 'Date invalide';
-      }
-      return format(date, 'dd/MM/yyyy HH:mm', { locale: fr });
-    } catch (error) {
-       console.error("Erreur lors du formatage de la date :", dateString, error);
-       return 'Erreur formatage';
-    }
-  };
+ * Formate une date/heure pour l'affichage dans le fuseau horaire de Montréal.
+ * @param {string|Date} dateString - La date/heure UTC à formater.
+ * @returns {string} La date/heure formatée ou un indicateur si absent.
+ */
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    // 'new Date(dateString)' crée un objet Date dans le fuseau horaire du navigateur.
+    // formatInTimeZone va prendre cet objet et le formater correctement dans le fuseau horaire spécifié.
+    return formatInTimeZone(dateString, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+  } catch (error) {
+    console.error("Erreur lors du formatage de la date :", dateString, error);
+    return 'Erreur formatage';
+  }
+};
 
-    /**
-   * Formate une date seule (jour/mois/année).
-   * @param {string|Date} dateString - La date à formater.
-   * @returns {string} La date formatée ou un indicateur si absent.
-   */
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) {
-                console.error("Date invalide reçue :", dateString);
-                return 'Date invalide';
-            }
-             return format(date, 'dd/MM/yyyy', { locale: fr });
-        } catch (error) {
-            console.error("Erreur lors du formatage de la date :", dateString, error);
-            return 'Erreur formatage';
-        }
-    };
-
+/**
+ * Formate une date seule (jour/mois/année).
+ * @param {string|Date} dateString - La date à formater.
+ * @returns {string} La date formatée ou un indicateur si absent.
+ */
+ const formatDate = (dateString) => {
+     if (!dateString) return 'N/A';
+     try {
+         // Pour les dates seules, le fuseau horaire est généralement moins critique,
+         // mais formatInTimeZone peut aussi être utilisé pour la cohérence.
+         // Si date_facture est toujours au format 'YYYY-MM-DD' sans heure,
+         // alors 'new Date(dateString)' peut interpréter cela comme UTC medianuit du jour,
+         // et format() le formatera simplement.
+         // Si la date peut être influencée par le fuseau horaire (ex: si c'est un datetime converti en date),
+         // l'utilisation de formatInTimeZone est plus sûre.
+         return formatInTimeZone(dateString, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+     } catch (error) {
+         console.error("Erreur lors du formatage de la date :", dateString, error);
+         return 'Erreur formatage';
+     }
+ };
 
   // -----------------------------------
   // Logique de Tri
