@@ -21,6 +21,20 @@ from functools import wraps # Utile pour créer des décorateurs Flask
 import traceback
 import json
 from json import JSONEncoder # Importez JSONEncoder de Flask
+
+# Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            # Formate les objets datetime en chaîne ISO 8601
+            return obj.isoformat()
+        if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            # Convertit les objets Decimal en chaîne (pour éviter la perte de précision)
+            return str(obj)
+        return super().default(obj) # Laisse l'encodeur par défaut gérer les autres types
+
 # Initialisation de l'application Flask
 app = Flask(__name__)
 # Limite la taille des fichiers uploadés à 2 Go
