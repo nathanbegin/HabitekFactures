@@ -828,74 +828,156 @@ def get_factures():
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 @token_required
-@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent télécharger leur fichier (et peut-être les autres s'ils les voient?)
+@role_required(['soumetteur', 'gestionnaire', 'approbateur'])
 def get_file(id):
     """
     Récupère le fichier associé à une facture spécifique.
-    - Vérifie si la facture existe et si le fichier est toujours présent.
-    - Met à jour la base si le fichier est manquant (chemin_fichier = NULL).
-    - Retourne le fichier en tant que pièce jointe.
-    Args:
-        id (int): ID de la facture.
-    Returns:
-        Fichier ou message d'erreur JSON.
     """
-    annee = request.args.get("annee", str(datetime.now().year))
-    print(f"L'année de la recherche est :{annee}")
+    # annee = request.args.get("annee", str(datetime.now().year))
+    # print(f"L'année de la recherche est :{annee}") # This `annee` is not used in the DB query, but could be used for file path
 
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
     cursor = conn.cursor()
     try:
-        # Récupérer le nom du fichier en base
-        # cursor.execute(
-        #     "SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s",
-        #     (id, annee)
-        #)
+        # Retrieve the file path from the database
         cursor.execute(
             "SELECT chemin_fichier FROM factures WHERE id = %s",
-            (id,)
+            (id,) # Corrected: Ensure it's a tuple for psycopg2
         )
         row = cursor.fetchone()
         print(f"La row de la recherche est :{row}")
-        # Si pas de ligne ou chemin_fichier déjà NULL
-        if not row or not row[0]:
-            return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
 
-        # filename = secure_filename(row[0])
-        # print(f"Le filename de la recherche est :{filename}")
-        # filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        # print(f"Le filepath de la recherche est :{filepath}")
-        filepath=row[0]
-        # Si le fichier a été supprimé du système de fichiers
-        if not os.path.exists(filepath):
-            # Mettre à jour la base pour nullifier chemin_fichier
-            # cursor.execute(
-            #     "UPDATE factures SET chemin_fichier = NULL WHERE id = %s AND annee = %s",
-            #     (id, annee)
-            # )
+        # If no row or file path is NULL
+        if not row or not row[0]:
+            return jsonify({"warning": "La facture n'existe plus sur le système ou aucun fichier n'y est associé."}), 404
+
+        # The 'filepath' from DB is actually the 'relative_path_with_filename'
+        relative_path_with_filename = row[0]
+        print(f"Le chemin relatif complet est :{relative_path_with_filename}")
+
+        # Construct the full absolute path on the server
+        # It's better to explicitly join with app.root_path if UPLOAD_FOLDER is relative
+        # or ensure UPLOAD_FOLDER itself is absolute and base the path from there.
+        # Assuming UPLOAD_FOLDER is a base directory like 'uploads' and 'relative_path_with_filename'
+        # already includes the year subfolder (e.g., '2025/invoice.pdf')
+        # Let's assume UPLOAD_FOLDER is the top-level 'uploads' directory
+        base_upload_dir = app.config["UPLOAD_FOLDER"]
+        if not os.path.isabs(base_upload_dir):
+            base_upload_dir = os.path.join(app.root_path, base_upload_dir)
+
+        full_absolute_filepath = os.path.join(base_upload_dir, relative_path_with_filename)
+        print(f"Le chemin absolu complet est :{full_absolute_filepath}")
+
+        # If the file has been deleted from the file system
+        if not os.path.exists(full_absolute_filepath):
+            # Update DB to nullify chemin_fichier
             cursor.execute(
                 "UPDATE factures SET chemin_fichier = NULL WHERE id = %s",
-                (id,)
+                (id,) # Corrected: Ensure it's a tuple for psycopg2
             )
             conn.commit()
-            return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
+            return jsonify({"warning": "Le fichier physique de la facture n'existe plus sur le système."}), 404
 
-        # Retourner le fichier
+        # Correctly get the directory and filename for send_from_directory
+        directory_to_serve_from = os.path.dirname(full_absolute_filepath)
+        filename_to_serve = os.path.basename(full_absolute_filepath)
+        
+        print(f"Le répertoire à servir est :{directory_to_serve_from}")
+        print(f"Le nom de fichier à servir est :{filename_to_serve}")
+
+        # Return the file for download
         return send_from_directory(
-            app.config["UPLOAD_FOLDER"],
-            filename,
-            as_attachment=True
+            directory_to_serve_from, # Pass the directory path
+            filename_to_serve,       # Pass only the filename
+            as_attachment=True,
+            download_name=filename_to_serve # Suggest the original filename to the browser
         )
 
     except psycopg2.Error as e:
+        conn.rollback()
         print(f"Erreur PostgreSQL lors de la récupération du fichier : {e}")
-        return jsonify({"error": "Erreur lors de l'accès au fichier."}), 500
-
+        return jsonify({"error": "Erreur lors de l'accès au fichier dans la base de données."}), 500
+    except Exception as e:
+        conn.rollback() # Rollback in case of non-PostgreSQL errors too
+        print(f"Erreur inattendue lors de la récupération du fichier : {e}")
+        import traceback # Import traceback at the top of your file
+        traceback.print_exc() # Print full traceback for debugging
+        return jsonify({"error": f"Une erreur inattendue est survenue lors du téléchargement : {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
+# @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
+# @token_required
+# @role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent télécharger leur fichier (et peut-être les autres s'ils les voient?)
+# def get_file(id):
+#     """
+#     Récupère le fichier associé à une facture spécifique.
+#     - Vérifie si la facture existe et si le fichier est toujours présent.
+#     - Met à jour la base si le fichier est manquant (chemin_fichier = NULL).
+#     - Retourne le fichier en tant que pièce jointe.
+#     Args:
+#         id (int): ID de la facture.
+#     Returns:
+#         Fichier ou message d'erreur JSON.
+#     """
+#     annee = request.args.get("annee", str(datetime.now().year))
+#     print(f"L'année de la recherche est :{annee}")
+
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor()
+#     try:
+#         # Récupérer le nom du fichier en base
+#         # cursor.execute(
+#         #     "SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s",
+#         #     (id, annee)
+#         #)
+#         cursor.execute(
+#             "SELECT chemin_fichier FROM factures WHERE id = %s",
+#             (id,)
+#         )
+#         row = cursor.fetchone()
+#         print(f"La row de la recherche est :{row}")
+#         # Si pas de ligne ou chemin_fichier déjà NULL
+#         if not row or not row[0]:
+#             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
+
+#         # filename = secure_filename(row[0])
+#         # print(f"Le filename de la recherche est :{filename}")
+#         # filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+#         # print(f"Le filepath de la recherche est :{filepath}")
+#         filepath=row[0]
+#         # Si le fichier a été supprimé du système de fichiers
+#         if not os.path.exists(filepath):
+#             # Mettre à jour la base pour nullifier chemin_fichier
+#             # cursor.execute(
+#             #     "UPDATE factures SET chemin_fichier = NULL WHERE id = %s AND annee = %s",
+#             #     (id, annee)
+#             # )
+#             cursor.execute(
+#                 "UPDATE factures SET chemin_fichier = NULL WHERE id = %s",
+#                 (id,)
+#             )
+#             conn.commit()
+#             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
+
+#         # Retourner le fichier
+#         return send_from_directory(
+#             app.config["UPLOAD_FOLDER"],
+#             filename,
+#             as_attachment=True
+#         )
+
+#     except psycopg2.Error as e:
+#         print(f"Erreur PostgreSQL lors de la récupération du fichier : {e}")
+#         return jsonify({"error": "Erreur lors de l'accès au fichier."}), 500
+
+#     finally:
+#         cursor.close()
+#         conn.close()
 
 # @app.route("/api/factures/<int:id>", methods=["DELETE"])
 # @token_required
