@@ -41,7 +41,11 @@ app = Flask(__name__)
 
 # Définissez le fuseau horaire de Montréal
 MONTREAL_TIMEZONE = pytz.timezone('America/Montreal')
-
+# --- DEBUG FUSEAUX HORAIRE ---
+print("DEBUG UTC:", datetime.utcnow().isoformat())
+print("DEBUG Local:", datetime.now().isoformat())
+print("DEBUG Montréal:", MONTREAL_TIMEZONE.localize(datetime.now()).isoformat())
+# ----------------------------
 # Limite la taille des fichiers uploadés à 2 Go
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
 # Appliquer l'encodeur JSON personnalisé à l'application Flask
