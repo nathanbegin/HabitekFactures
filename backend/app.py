@@ -699,6 +699,17 @@ def upload_facture():
             # Convertir les types non sérialisables en JSON
             #serializable_facture = convert_to_json_serializable(new_facture_dict)
             # Émettre l'événement SocketIO
+            # --- CRITICAL DEBUG LINE ---
+            try:
+                # Explicitly use app.json_encoder to see what it produces
+                json_payload_to_emit = json.dumps(new_facture_dict, cls=app.json_encoder)
+                print(f"\n--- DEBUG BACKEND: JSON payload as processed by CustomJSONEncoder (BEFORE SocketIO emit) ---\n{json_payload_to_emit}\n--- END DEBUG ---")
+            except Exception as e:
+                print(f"DEBUG BACKEND ERROR: CustomJSONEncoder test failed to serialize DictRow: {e}")
+                import traceback # Ensure this is imported
+                traceback.print_exc()
+            # --- END CRITICAL DEBUG LINE ---
+
             socketio.emit('new_facture', new_facture)
 
         # --- Fin de la récupération et émission SocketIO ---
