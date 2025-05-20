@@ -379,7 +379,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                                     Supprimer
                                   </button>
                              )}
-                             {/* Bouton Changer Statut */}
+                             {/* Bouton Changer Statut
                               {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
                                  <button
                                    onClick={() => handleUpdateStatus(facture.id, facture.statut)} // Appelle la fonction locale qui appelle la prop
@@ -387,7 +387,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                                  >
                                    {facture.statut === 'soumis' ? 'Approuver/Rejeter/Payer' : 'Modifier Statut'}
                                  </button>
-                             )}
+                             )} */}
                               {/* Ajouter un bouton Modifier pour ouvrir le formulaire d'édition (si vous avez un tel formulaire/modale) */}
                                {/* Le soumetteur peut modifier SA facture (logique backend et UI à ajouter) */}
                                {/* Example (hypothétique): */}
@@ -500,7 +500,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                         Supprimer
                       </button>
                     )}
-                    {/* Bouton Changer Statut mobile */}
+                    {/* Bouton Changer Statut mobile
                     {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
                       <button
                         onClick={() => handleUpdateStatus(facture.id, facture.statut)} // Appelle la fonction locale qui appelle la prop
@@ -508,7 +508,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                       >
                         {facture.statut === 'soumis' ? 'Approuver/Rejeter/Payer' : 'Modifier Statut'}
                       </button>
-                    )}
+                    )} */}
                     {/* Ajouter un bouton Modifier pour ouvrir le formulaire d'édition (si vous avez un tel formulaire/modale) */}
                     {/* Le soumetteur peut modifier SA facture (logique backend et UI à ajouter) */}
                     {/* Example (hypothétique): */}
