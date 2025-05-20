@@ -1243,7 +1243,7 @@ def update_facture(id):
 
         if updated_facture:
             # Convertir la ligne de résultat en dictionnaire
-             updated_facture_dict = updated_facture
+            updated_facture_dict = updated_facture
             # Convertir les types non sérialisables en JSON
             # serializable_facture = convert_to_json_serializable(updated_facture_dict)
             # Émettre l'événement SocketIO
