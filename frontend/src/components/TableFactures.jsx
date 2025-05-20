@@ -196,30 +196,31 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
     * @param {number} factureId - ID de la facture à modifier.
     * @param {string} currentStatut - Statut actuel de la facture.
     */
-    const handleUpdateStatus = (factureId, currentStatut) => {
-         // Vérification de rôle UI (la sécurité backend est la finale)
-         if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
-              alert("Vous n'avez pas le rôle nécessaire pour changer le statut.");
-              return;
-          }
+    // const handleUpdateStatus = (factureId, currentStatut) => {
+    //      // Vérification de rôle UI (la sécurité backend est la finale)
+    //      if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
+    //           alert("Vous n'avez pas le rôle nécessaire pour changer le statut.");
+    //           return;
+    //       }
 
-         const newStatut = prompt(`Changer le statut de la facture ${factureId}. Statut actuel : ${currentStatut}\nEntrez le nouveau statut (soumis, approuve, rejete, paye) :`);
+    //      const newStatut = prompt(`Changer le statut de la facture ${factureId}. Statut actuel : ${currentStatut}\nEntrez le nouveau statut (soumis, approuve, rejete, paye) :`);
 
-         if (newStatut === null || newStatut.trim() === "") {
-             return; // L'utilisateur a annulé ou entré une chaîne vide
-         }
+    //      if (newStatut === null || newStatut.trim() === "") {
+    //          return; // L'utilisateur a annulé ou entré une chaîne vide
+    //      }
 
-         const lowerNewStatut = newStatut.trim().toLowerCase();
-         const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
-         if (!allowedStatuses.includes(lowerNewStatut)) {
-             alert(`Statut invalide. Veuillez utiliser l'un des statuts suivants : ${allowedStatuses.join(', ')}.`);
-             return;
-         }
+    //      const lowerNewStatut = newStatut.trim().toLowerCase();
+    //      const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
+    //      if (!allowedStatuses.includes(lowerNewStatut)) {
+    //          alert(`Statut invalide. Veuillez utiliser l'un des statuts suivants : ${allowedStatuses.join(', ')}.`);
+    //          return;
+    //      }
 
-         // APPEL VIA PROP : Appelle la fonction onUpdate passée par MainLayout
-         // Passer l'ID et un objet contenant les champs à mettre à jour (ici, seulement le statut)
-         onUpdate(factureId, { statut: lowerNewStatut });
-    };
+    //      // APPEL VIA PROP : Appelle la fonction onUpdate passée par MainLayout
+    //      // Passer l'ID et un objet contenant les champs à mettre à jour (ici, seulement le statut)
+    //      onUpdate(factureId, { statut: lowerNewStatut });
+    // };
+    const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
     const handleStatusChange = (factureId, newStatut) => {
       if (!allowedStatuses.includes(newStatut)) {
         alert("Statut invalide.");
