@@ -741,18 +741,21 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
  * @param {string|Date} dateString - La date/heure UTC à formater.
  * @returns {string} La date/heure formatée ou un indicateur si absent.
  */
-const formatDateTime = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    // 'new Date(dateString)' crée un objet Date dans le fuseau horaire du navigateur.
-    // formatInTimeZone va prendre cet objet et le formater correctement dans le fuseau horaire spécifié.
-    return formatInTimeZone(dateString, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-  } catch (error) {
-    console.error("Erreur lors du formatage de la date :", dateString, error);
-    return 'Erreur formatage';
-  }
-};
-
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      // toDate de date-fns-tz peut aider à transformer la chaîne en objet Date valide
+      const date = toDate(dateString);
+      if (isNaN(date.getTime())) {
+          console.error("Date invalide après toDate :", dateString);
+          return 'Date invalide';
+      }
+      return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+    } catch (error) {
+      console.error("Erreur lors du formatage de la date :", dateString, error);
+      return 'Erreur formatage';
+    }
+  };
 /**
  * Formate une date seule (jour/mois/année).
  * @param {string|Date} dateString - La date à formater.
