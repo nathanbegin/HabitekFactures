@@ -1091,7 +1091,7 @@ def update_facture(id):
     remove_file = data.get('remove_file', '').lower() == 'true'
 
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     try:
         # --- Début de la gestion du fichier lors de la mise à jour ---
@@ -1243,11 +1243,11 @@ def update_facture(id):
 
         if updated_facture:
             # Convertir la ligne de résultat en dictionnaire
-            updated_facture_dict = dict(updated_facture)
+             updated_facture_dict = updated_facture
             # Convertir les types non sérialisables en JSON
-            serializable_facture = convert_to_json_serializable(updated_facture_dict)
+            # serializable_facture = convert_to_json_serializable(updated_facture_dict)
             # Émettre l'événement SocketIO
-            socketio.emit('update_facture', serializable_facture)
+            socketio.emit('update_facture', updated_facture_dict)
 
         # --- Fin de la récupération et émission SocketIO ---
 
