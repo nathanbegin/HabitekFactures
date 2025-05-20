@@ -853,7 +853,7 @@ def get_file(id):
         #)
         cursor.execute(
             "SELECT chemin_fichier FROM factures WHERE id = %s",
-            (id)
+            (id,)
         )
         row = cursor.fetchone()
 
@@ -873,7 +873,7 @@ def get_file(id):
             # )
             cursor.execute(
                 "UPDATE factures SET chemin_fichier = NULL WHERE id = %s",
-                (id)
+                (id,)
             )
             conn.commit()
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
