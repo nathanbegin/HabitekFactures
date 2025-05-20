@@ -867,7 +867,7 @@ def get_file(id):
         # print(f"Le filename de la recherche est :{filename}")
         # filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         # print(f"Le filepath de la recherche est :{filepath}")
-        filepath=row
+        filepath=row[0]
         # Si le fichier a été supprimé du système de fichiers
         if not os.path.exists(filepath):
             # Mettre à jour la base pour nullifier chemin_fichier
