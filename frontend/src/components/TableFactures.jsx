@@ -55,12 +55,12 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      // toDate de date-fns-tz peut aider à transformer la chaîne en objet Date valide
-      const date = toDate(dateString);
-      if (isNaN(date.getTime())) {
-          console.error("Date invalide après toDate :", dateString);
-          return 'Date invalide';
+      const rawDate = new Date(dateString);
+      if (isNaN(rawDate.getTime())) {
+        console.error("Date invalide avant toDate :", dateString);
+        return 'Date invalide';
       }
+      const date = toDate(rawDate);
       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
     } catch (error) {
       console.error("Erreur lors du formatage de la date :", dateString, error);
@@ -75,11 +75,12 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   try {
-    const date = toDate(dateString);
-    if (isNaN(date.getTime())) {
-      console.error("Date invalide après toDate :", dateString);
+    const rawDate = new Date(dateString);
+    if (isNaN(rawDate.getTime())) {
+      console.error("Date invalide avant toDate :", dateString);
       return 'Date invalide';
     }
+    const date = toDate(rawDate);
     return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
   } catch (error) {
     console.error("Erreur lors du formatage de la date :", dateString, error);
