@@ -358,7 +358,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                         {facture.chemin_fichier ? (
                           // APPEL VIA PROP : Utiliser la fonction handleDownloadClick qui appelle la prop downloadFile
                           <button
-                            onClick={() => handleDownloadClick(facture.id, facture.annee)} // Passer l'ID et l'année (si besoin)
+                            onClick={() => handleDownloadClick(facture.id, new Date(facture.date_facture).getFullYear())} // Passer l'ID et l'année (si besoin)
                             className="text-green-500 underline hover:text-green-700 text-sm"
                           >
                              {/* Afficher le nom du fichier extrait du chemin si possible */}
