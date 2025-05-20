@@ -38,12 +38,6 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   // État pour la direction du tri ('asc' ou 'desc')
   const [sortDirection, setSortDirection] = useState('desc');
 
-////////////DEBUG TIMEZONE ERROR
-
-
-  // --- DEBUG GLOBAL FACTURES PROP ---
-  console.log("DEBUG FRONTEND - TableFactures: factures prop received (check raw object for date formats):", factures);
-  // --- END DEBUG GLOBAL ---
 
 
 
@@ -78,22 +72,20 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
  * @param {string|Date} dateString - La date à formater.
  * @returns {string} La date formatée ou un indicateur si absent.
  */
- const formatDate = (dateString) => {
-     if (!dateString) return 'N/A';
-     try {
-         // Pour les dates seules, le fuseau horaire est généralement moins critique,
-         // mais formatInTimeZone peut aussi être utilisé pour la cohérence.
-         // Si date_facture est toujours au format 'YYYY-MM-DD' sans heure,
-         // alors 'new Date(dateString)' peut interpréter cela comme UTC medianuit du jour,
-         // et format() le formatera simplement.
-         // Si la date peut être influencée par le fuseau horaire (ex: si c'est un datetime converti en date),
-         // l'utilisation de formatInTimeZone est plus sûre.
-         return formatInTimeZone(dateString, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
-     } catch (error) {
-         console.error("Erreur lors du formatage de la date :", dateString, error);
-         return 'Erreur formatage';
-     }
- };
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = toDate(dateString);
+    if (isNaN(date.getTime())) {
+      console.error("Date invalide après toDate :", dateString);
+      return 'Date invalide';
+    }
+    return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+  } catch (error) {
+    console.error("Erreur lors du formatage de la date :", dateString, error);
+    return 'Erreur formatage';
+  }
+};
 
   // -----------------------------------
   // Logique de Tri
