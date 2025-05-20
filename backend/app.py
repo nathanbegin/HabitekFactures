@@ -864,6 +864,7 @@ def get_file(id):
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
 
         filename = secure_filename(row[0])
+        print(f"Le filename de la recherche est :{filename}")
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         print(f"Le filepath de la recherche est :{filepath}")
 
