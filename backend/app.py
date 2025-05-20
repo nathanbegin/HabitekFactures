@@ -654,7 +654,7 @@ def upload_facture():
         print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
         print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
         print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
-        print(f"DEBUG: date_soumission: Type={type(date_soumission)}, Value='{date_soumission}'")
+        print(f"DEBUG: date_soumission: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
         print(f"DEBUG: g.user_id (created_by): Type={type(g.user_id)}, Value='{g.user_id}'")
         print(f"DEBUG: categorie: Type={type(categorie)}, Value='{categorie}'")
         print(f"DEBUG: ligne_budgetaire: Type={type(ligne_budgetaire)}, Value='{ligne_budgetaire}'")
