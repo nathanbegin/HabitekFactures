@@ -89,27 +89,19 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   //   }
   // };
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    console.log('🔵 dateString reçu :', dateString);
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Date invalide';
 
-    return date.toLocaleString('fr-CA', {
-      // Facultatif mais explicite
-      // timeZone: 'America/Montreal',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch (error) {
-    console.error("Erreur lors du formatage :", dateString, error);
-    return 'Erreur formatage';
-  }
-};
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date invalide';
+  
+      return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+    } catch (error) {
+      console.error("Erreur lors du formatage :", dateString, error);
+      return 'Erreur formatage';
+    }
+  };
 
 
   const formatDate = (dateString) => {
