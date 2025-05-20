@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 import os
 import psycopg2
 import psycopg2.extras
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 import csv
 import io
 from urllib.parse import urlparse
@@ -21,6 +21,7 @@ from functools import wraps # Utile pour créer des décorateurs Flask
 import traceback
 import json
 from json import JSONEncoder # Importez JSONEncoder de Flask
+import pytz
 
 # Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
 class CustomJSONEncoder(JSONEncoder):
@@ -37,6 +38,10 @@ class CustomJSONEncoder(JSONEncoder):
 
 # Initialisation de l'application Flask
 app = Flask(__name__)
+
+# Définissez le fuseau horaire de Montréal
+MONTREAL_TIMEZONE = pytz.timezone('America/Montreal')
+
 # Limite la taille des fichiers uploadés à 2 Go
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
 # Appliquer l'encodeur JSON personnalisé à l'application Flask
@@ -630,11 +635,13 @@ def upload_facture():
                 os.remove(file_path)
             return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
 
-        # Date de soumission actuelle
-        date_soumission = datetime.now()
-
+       # Date de soumission actuelle (assurée d'être en UTC)
+        # Crée un datetime conscient du fuseau horaire de Montréal, puis le convertit en UTC
+        now_aware_local = MONTREAL_TIMEZONE.localize(datetime.now(), is_dst=None)
+        date_soumission_utc = now_aware_local.astimezone(pytz.utc)  
+    
         # Insérer la nouvelle facture dans la base de données
-        # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire
+        # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire  
         # created_by est l'utilisateur actuellement authentifié (via g.user_id)
         # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
         print(f"\n--- DEBUG: Types des paramètres pour l'INSERT ---")
@@ -662,7 +669,7 @@ def upload_facture():
             RETURNING id;
             """,
             (numero_facture, date_facture, fournisseur, description, montant, devise,
-             statut, file_path, g.user_id, date_soumission,
+             statut, file_path, g.user_id, date_soumission_utc,
              g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
         )
         facture_id = cur.fetchone()[0]
@@ -1197,10 +1204,15 @@ def update_facture(id):
              updates.append("chemin_fichier = %s")
              values.append(new_file_path) # new_file_path sera le chemin ou None
 
-        # Mettre à jour automatiquement last_modified_by et last_modified_timestamp lors de toute modification
+        # Mettre à jour automatiquement last_modified_by et last_modified_timestamp
+        # Crée un datetime conscient du fuseau horaire de Montréal, puis le convertit en UTC
+        now_aware_local = MONTREAL_TIMEZONE.localize(datetime.now(), is_dst=None)
+        last_modified_dt_utc = now_aware_local.astimezone(pytz.utc)
+
         updates.append("last_modified_by = %s")
         values.append(g.user_id)
-        updates.append("last_modified_timestamp = CURRENT_TIMESTAMP")
+        updates.append("last_modified_timestamp = %s") # <-- Utilisez un placeholder pour la date UTC
+        values.append(last_modified_dt_utc) # <-- Utilisez la variable UTC
 
 
         if not updates:
