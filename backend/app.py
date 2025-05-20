@@ -19,10 +19,14 @@ import bcrypt # Pour le hachage des mots de passe
 import jwt # Pour les JSON Web Tokens
 from functools import wraps # Utile pour créer des décorateurs Flask
 import traceback
+import json
+from flask.json import JSONEncoder # Importez JSONEncoder de Flask
 # Initialisation de l'application Flask
 app = Flask(__name__)
 # Limite la taille des fichiers uploadés à 2 Go
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
+# Appliquer l'encodeur JSON personnalisé à l'application Flask
+app.json_encoder = CustomJSONEncoder # Ajoutez cette ligne
 
 # Configuration de CORS pour permettre les requêtes cross-origin sur les routes /api/*
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
@@ -39,6 +43,21 @@ client_count = 0
 SECRET_KEY = os.environ.get('SECRET_KEY', 'votre_super_cle_secrete_a_changer_absolument_en_prod_12345')
 # !!! REMPLACEZ 'votre_super_cle_secrete_a_changer_absolument_en_prod_12345' par une clé aléatoire et complexe !!!
 # En production, définissez une variable d'environnement SECRET_KEY sur votre serveur/service d'hébergement.
+
+
+# Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            # Formate les objets datetime en chaîne ISO 8601
+            return obj.isoformat()
+        if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            # Convertit les objets Decimal en chaîne (pour éviter la perte de précision)
+            return str(obj)
+        return super().default(obj) # Laisse l'encodeur par défaut gérer les autres types
+
 
 # Fonctions pour gérer le hachage et la vérification des mots de passe
 
@@ -656,9 +675,9 @@ def upload_facture():
              # Convertir la ligne de résultat en dictionnaire pour un accès plus facile
             new_facture_dict = dict(new_facture)
             # Convertir les types non sérialisables en JSON
-            serializable_facture = convert_to_json_serializable(new_facture_dict)
+            #serializable_facture = convert_to_json_serializable(new_facture_dict)
             # Émettre l'événement SocketIO
-            socketio.emit('new_facture', serializable_facture)
+            socketio.emit('new_facture', new_facture)
 
         # --- Fin de la récupération et émission SocketIO ---
 
