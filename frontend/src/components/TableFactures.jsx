@@ -418,87 +418,101 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
       {/* Vue en cartes pour les écrans mobiles */}
       {/* Afficher les cartes uniquement si l'utilisateur peut voir les factures */}
       {userRole && ['soumetteur', 'gestionnaire', 'approbateur'].includes(userRole) && (
-          <div className="sm:hidden">
-            {/* Utiliser sortedFactures pour afficher les données triées */}
-            {sortedFactures.length > 0 ? (
-                sortedFactures.map((facture) => (
-                  <div key={facture.id} className="bg-white p-4 mb-4 rounded-lg shadow border">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-semibold text-gray-600">Facture #{facture.id}</span>
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          facture.statut === 'soumis' ? 'bg-blue-100 text-blue-800'
-                          : facture.statut === 'approuve' ? 'bg-green-100 text-green-800'
+        <div className="sm:hidden">
+          {/* Utiliser sortedFactures pour afficher les données triées */}
+          {sortedFactures.length > 0 ? (
+            sortedFactures.map((facture) => (
+              <div key={facture.id} className="bg-white p-4 mb-4 rounded-lg shadow border">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold text-gray-600">Facture #{facture.id}</span>
+                  {(userRole === 'gestionnaire' || userRole === 'approbateur') ? (
+                    <select
+                      value={facture.statut}
+                      onChange={(e) => handleStatusChange(facture.id, e.target.value)}
+                      className="text-xs rounded border px-2 py-1 bg-white text-gray-800"
+                    >
+                      {allowedStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${facture.statut === 'soumis' ? 'bg-blue-100 text-blue-800'
+                        : facture.statut === 'approuve' ? 'bg-green-100 text-green-800'
                           : facture.statut === 'rejete' ? 'bg-red-100 text-red-800'
-                          : facture.statut === 'paye' ? 'bg-purple-100 text-purple-800'
-                          : 'bg-gray-100 text-gray-800'
+                            : facture.statut === 'paye' ? 'bg-purple-100 text-purple-800'
+                              : 'bg-gray-100 text-gray-800'
                         }`}
+                    >
+                      {facture.statut}
+                    </span>
+                  )}
+
+                </div>
+                <div className="mb-2"><span className="font-semibold">Numéro :</span> {facture.numero_facture}</div>
+                <div className="mb-2"><span className="font-semibold">Date Facture :</span> {formatDate(facture.date_facture)}</div>
+                <div className="mb-2">
+                  <span className="font-semibold">Type :</span> {facture.type || 'N/A'}
+                </div>
+                <div className="mb-2">
+                  <span className="font-semibold">Fournisseur :</span> {facture.fournisseur || 'N/A'}
+                </div>
+                <div className="mb-2">
+                  <span className="font-semibold">UBR :</span> {facture.ubr || 'N/A'}
+                </div>
+                <div className="mb-2"><span className="font-semibold">Montant :</span> {facture.montant}$ {facture.devise}</div>
+                {facture.description && (
+                  <div className="mb-2 text-sm text-gray-700">
+                    <span className="font-semibold">Description :</span> {facture.description}
+                  </div>
+                )}
+                <div className="mb-2"><span className="font-semibold">Catégorie :</span> {facture.categorie || 'N/A'}</div>
+                <div className="mb-2"><span className="font-semibold">Ligne Budgétaire :</span> {facture.ligne_budgetaire || 'N/A'}</div>
+                <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Soumise par :</span> {facture.soumetteur_username || 'N/A'} le {formatDateTime(facture.date_soumission)}</div>
+                <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Créée par :</span> {facture.created_by_username || 'N/A'}</div>
+                {facture.last_modified_timestamp && (
+                  <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Dernière modif. par :</span> {facture.last_modified_by_username || 'N/A'} le {formatDateTime(facture.last_modified_timestamp)}</div>
+                )}
+                <div className="mb-4">
+                  <span className="font-semibold">Fichier :</span>{' '}
+                  {facture.chemin_fichier ? (
+                    // APPEL VIA PROP : Utiliser la fonction handleDownloadClick qui appelle la prop downloadFile
+                    <button
+                      onClick={() => handleDownloadClick(facture.id, facture.annee)} // Passer l'ID et l'année (si besoin)
+                      className="text-green-500 underline hover:text-green-700 text-sm"
+                    >
+                      {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
+                    </button>
+                  ) : (
+                    <span className="text-gray-500 text-sm">—</span>
+                  )}
+                </div>
+                {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+                  <div className="flex justify-end space-x-2">
+                    {/* Bouton Supprimer mobile */}
+                    {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+                      <button
+                        onClick={() => handleDelete(facture.id)} // Appelle la fonction locale qui appelle la prop
+                        className="text-red-500 hover:text-red-700 text-sm"
                       >
-                        {facture.statut}
-                      </span>
-                    </div>
-                     <div className="mb-2"><span className="font-semibold">Numéro :</span> {facture.numero_facture}</div>
-                     <div className="mb-2"><span className="font-semibold">Date Facture :</span> {formatDate(facture.date_facture)}</div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Type :</span> {facture.type || 'N/A'}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Fournisseur :</span> {facture.fournisseur || 'N/A'}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">UBR :</span> {facture.ubr || 'N/A'}
-                    </div>
-                     <div className="mb-2"><span className="font-semibold">Montant :</span> {facture.montant}$ {facture.devise}</div>
-                    {facture.description && (
-                      <div className="mb-2 text-sm text-gray-700">
-                        <span className="font-semibold">Description :</span> {facture.description}
-                      </div>
+                        Supprimer
+                      </button>
                     )}
-                     <div className="mb-2"><span className="font-semibold">Catégorie :</span> {facture.categorie || 'N/A'}</div>
-                     <div className="mb-2"><span className="font-semibold">Ligne Budgétaire :</span> {facture.ligne_budgetaire || 'N/A'}</div>
-                     <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Soumise par :</span> {facture.soumetteur_username || 'N/A'} le {formatDateTime(facture.date_soumission)}</div>
-                     <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Créée par :</span> {facture.created_by_username || 'N/A'}</div>
-                     {facture.last_modified_timestamp && (
-                          <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Dernière modif. par :</span> {facture.last_modified_by_username || 'N/A'} le {formatDateTime(facture.last_modified_timestamp)}</div>
-                     )}
-                    <div className="mb-4">
-                      <span className="font-semibold">Fichier :</span>{' '}
-                      {facture.chemin_fichier ? (
-                        // APPEL VIA PROP : Utiliser la fonction handleDownloadClick qui appelle la prop downloadFile
-                        <button
-                          onClick={() => handleDownloadClick(facture.id, facture.annee)} // Passer l'ID et l'année (si besoin)
-                          className="text-green-500 underline hover:text-green-700 text-sm"
-                        >
-                           {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
-                        </button>
-                      ) : (
-                        <span className="text-gray-500 text-sm">—</span>
-                      )}
-                    </div>
-                     {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                         <div className="flex justify-end space-x-2">
-                             {/* Bouton Supprimer mobile */}
-                             {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                               <button
-                                 onClick={() => handleDelete(facture.id)} // Appelle la fonction locale qui appelle la prop
-                                 className="text-red-500 hover:text-red-700 text-sm"
-                               >
-                                 Supprimer
-                               </button>
-                            )}
-                             {/* Bouton Changer Statut mobile */}
-                              {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                                 <button
-                                   onClick={() => handleUpdateStatus(facture.id, facture.statut)} // Appelle la fonction locale qui appelle la prop
-                                   className="text-blue-500 hover:text-blue-700 text-sm"
-                                 >
-                                   {facture.statut === 'soumis' ? 'Approuver/Rejeter/Payer' : 'Modifier Statut'}
-                                 </button>
-                             )}
-                               {/* Ajouter un bouton Modifier pour ouvrir le formulaire d'édition (si vous avez un tel formulaire/modale) */}
-                                {/* Le soumetteur peut modifier SA facture (logique backend et UI à ajouter) */}
-                                {/* Example (hypothétique): */}
-                                {/* {(userRole === 'soumetteur' && facture.id_soumetteur === userId) || userRole === 'gestionnaire' || userRole === 'approbateur' ? (
+                    {/* Bouton Changer Statut mobile */}
+                    {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+                      <button
+                        onClick={() => handleUpdateStatus(facture.id, facture.statut)} // Appelle la fonction locale qui appelle la prop
+                        className="text-blue-500 hover:text-blue-700 text-sm"
+                      >
+                        {facture.statut === 'soumis' ? 'Approuver/Rejeter/Payer' : 'Modifier Statut'}
+                      </button>
+                    )}
+                    {/* Ajouter un bouton Modifier pour ouvrir le formulaire d'édition (si vous avez un tel formulaire/modale) */}
+                    {/* Le soumetteur peut modifier SA facture (logique backend et UI à ajouter) */}
+                    {/* Example (hypothétique): */}
+                    {/* {(userRole === 'soumetteur' && facture.id_soumetteur === userId) || userRole === 'gestionnaire' || userRole === 'approbateur' ? (
                                     <button
                                       onClick={() => onEditClick(facture)} // Appelle la fonction locale qui gère l'édition
                                       className="text-orange-500 hover:text-orange-700 text-sm ml-2"
@@ -506,15 +520,15 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
                                       Modifier
                                     </button>
                                 ): null} */}
-                         </div>
-                     )}
                   </div>
-                ))
-            ) : (
-              <p className="text-center text-gray-500">Aucune facture ajoutée pour cette année.</p>
-            )}
-          </div>
-       )}
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">Aucune facture ajoutée pour cette année.</p>
+          )}
+        </div>
+      )}
     </>
   );
 }
