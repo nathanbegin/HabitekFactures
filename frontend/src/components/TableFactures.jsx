@@ -97,7 +97,7 @@ const formatDateTime = (dateString) => {
 
     return date.toLocaleString('fr-CA', {
       // Facultatif mais explicite
-      timeZone: 'America/Montreal',
+      // timeZone: 'America/Montreal',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
