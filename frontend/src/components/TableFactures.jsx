@@ -734,7 +734,8 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
   // -----------------------------------
   // Fonctions Utilitaires
   // -----------------------------------
-
+// Définissez le fuseau horaire de Montréal
+  const MONTREAL_TIMEZONE = 'America/Montreal'; // Ou 'America/Toronto', 'America/New_York' - ce sont les mêmes pour le fuseau horaire de l'Est
   /**
  * Formate une date/heure pour l'affichage dans le fuseau horaire de Montréal.
  * @param {string|Date} dateString - La date/heure UTC à formater.
