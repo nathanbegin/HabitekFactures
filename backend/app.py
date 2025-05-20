@@ -585,7 +585,8 @@ def upload_facture():
 
 
     conn = get_db_connection()
-    cur = conn.cursor()
+    # cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         # Vérifier s'il existe déjà une facture avec le même numéro
         cur.execute("SELECT id FROM factures WHERE numero_facture = %s", (numero_facture,))
