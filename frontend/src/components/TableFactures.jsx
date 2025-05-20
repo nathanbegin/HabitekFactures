@@ -80,7 +80,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole })
       const date = toDate(rawDate);
       const formatted = formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
   
-      console.log(`📅 formatDate : ${dateString} → ${formatted}`);
+      // console.log(`📅 formatDate : ${dateString} → ${formatted}`);
       return formatted;
     } catch (error) {
       console.error("Erreur lors du formatage de la date :", dateString, error);
