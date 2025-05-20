@@ -841,6 +841,8 @@ def get_file(id):
         Fichier ou message d'erreur JSON.
     """
     annee = request.args.get("annee", str(datetime.now().year))
+    print(f"L'année de la recherche est :{annee}")
+
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
@@ -856,7 +858,7 @@ def get_file(id):
             (id,)
         )
         row = cursor.fetchone()
-
+        print(f"La row de la recherche est :{row}")
         # Si pas de ligne ou chemin_fichier déjà NULL
         if not row or not row[0]:
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
