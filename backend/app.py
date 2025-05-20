@@ -46,7 +46,8 @@ app.json_encoder = CustomJSONEncoder # Ajoutez cette ligne
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
 
 # Initialisation de SocketIO pour la communication en temps réel
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+# socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet", json=app.json)
 # Compteur global du nombre de clients connectés via SocketIO
 client_count = 0
 
