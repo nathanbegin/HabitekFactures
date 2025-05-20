@@ -20,7 +20,7 @@ import jwt # Pour les JSON Web Tokens
 from functools import wraps # Utile pour créer des décorateurs Flask
 import traceback
 import json
-from flask.json import JSONEncoder # Importez JSONEncoder de Flask
+from json import JSONEncoder # Importez JSONEncoder de Flask
 # Initialisation de l'application Flask
 app = Flask(__name__)
 # Limite la taille des fichiers uploadés à 2 Go
