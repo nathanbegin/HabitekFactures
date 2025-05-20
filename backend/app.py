@@ -863,6 +863,60 @@ def get_file(id):
         cursor.close()
         conn.close()
 
+# @app.route("/api/factures/<int:id>", methods=["DELETE"])
+# @token_required
+# @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent supprimer
+# def delete_facture(id):
+#     """
+#     Supprime une facture et son fichier associé (si existant).
+#     - Supprime le fichier du système de fichiers si présent.
+#     - Supprime l'entrée de la base de données.
+#     - Notifie les clients via SocketIO.
+#     Args:
+#         id (int): ID de la facture.
+#     Returns:
+#         JSON: Message de confirmation ou erreur.
+#     """
+#     annee = request.args.get("annee", str(datetime.now().year))
+#     conn = get_db_connection()
+#     if conn is None:
+#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+#     cursor = conn.cursor()
+#     try:
+#         cursor.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (id))
+#         row = cursor.fetchone()
+#         if not row:
+#             return jsonify({"error": "Facture non trouvée"}), 404
+
+#         # Supprimer le fichier si existant
+#         if row[0]:
+#             filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row[0]))
+#             if os.path.exists(filepath):
+#                 try:
+#                     os.remove(filepath)
+#                     print(f"Fichier supprimé : {filepath}")  # Débogage
+#                 except Exception as e:
+#                     print(f"Erreur lors de la suppression du fichier {filepath} : {e}")  # Débogage
+
+#         cursor.execute("DELETE FROM factures WHERE id = %s", (id))
+#         if cursor.rowcount == 0:
+#             return jsonify({"error": "Facture non trouvée après tentative de suppression"}), 404
+#         conn.commit()
+
+#         socketio.emit('delete_facture', {'id': id})
+#         return jsonify({"message": "Facture supprimée"}), 200
+#     except psycopg2.Error as e:
+#         conn.rollback()
+#         print(f"Erreur PostgreSQL lors de la suppression de la facture : {e}")
+#         return jsonify({"error": f"Erreur lors de la suppression : {e}"}), 500
+#     except Exception as e:
+#         conn.rollback()
+#         print(f"Erreur inattendue lors de la suppression de la facture : {e}")
+#         return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
+#     finally:
+#         cursor.close()
+#         conn.close()
+
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent supprimer
@@ -877,45 +931,78 @@ def delete_facture(id):
     Returns:
         JSON: Message de confirmation ou erreur.
     """
-    annee = request.args.get("annee", str(datetime.now().year))
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+    # Conservez le curseur par défaut ici, car nous voulons une tuple (row[0])
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (id))
+        # Assurez-vous que l'année n'est PAS dans la requête SELECT ou DELETE
+        # puisque la colonne 'annee' n'existe pas dans la table 'factures'.
+        # L'ID est suffisant pour la suppression.
+        cursor.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (id,))
         row = cursor.fetchone()
+
         if not row:
+            # Si aucune ligne n'est trouvée, la facture n'existe pas
             return jsonify({"error": "Facture non trouvée"}), 404
 
-        # Supprimer le fichier si existant
-        if row[0]:
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(row[0]))
-            if os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                    print(f"Fichier supprimé : {filepath}")  # Débogage
-                except Exception as e:
-                    print(f"Erreur lors de la suppression du fichier {filepath} : {e}")  # Débogage
+        file_path_from_db = row[0] # chemin_fichier est le premier (et seul) élément du tuple
 
-        cursor.execute("DELETE FROM factures WHERE id = %s", (id))
+        # Supprimer le fichier si existant
+        if file_path_from_db:
+            # IMPORTANT: secure_filename NE DOIT PAS être utilisé ici.
+            # chemin_fichier devrait déjà être le chemin relatif ou complet sécurisé.
+            # Si chemin_fichier est comme 'backend/uploads/nom_du_fichier.pdf', utilisez-le directement.
+            # Si chemin_fichier est JUSTE 'nom_du_fichier.pdf', alors utilisez os.path.join.
+            
+            # Je suppose ici que 'chemin_fichier' dans la BD est le chemin relatif depuis la racine du projet,
+            # ou un chemin absolu. Si c'est un chemin relatif au dossier d'upload, alors os.path.join est utile.
+            # Pour la cohérence avec votre log "Chemin complet où le fichier sera sauvegardé: backend/uploads/...",
+            # il est probable que chemin_fichier contienne déjà ce chemin relatif.
+
+            filepath_to_delete = file_path_from_db # Utilisez le chemin exact de la BD
+            
+            # Si votre DB stocke juste le nom de fichier (ex: 'mon_doc.pdf'), et non 'backend/uploads/mon_doc.pdf',
+            # ALORS décommentez la ligne suivante et commentez celle au-dessus:
+            # filepath_to_delete = os.path.join(app.config["UPLOAD_FOLDER"], file_path_from_db)
+
+
+            if os.path.exists(filepath_to_delete):
+                try:
+                    os.remove(filepath_to_delete)
+                    print(f"Fichier supprimé : {filepath_to_delete}")
+                except Exception as e:
+                    print(f"Erreur lors de la suppression du fichier {filepath_to_delete} : {e}")
+            else:
+                print(f"Avertissement: Fichier physique non trouvé à {filepath_to_delete}, mais l'entrée de la BD sera supprimée.")
+
+
+        # Supprimer l'entrée de la base de données
+        cursor.execute("DELETE FROM factures WHERE id = %s", (id,))
         if cursor.rowcount == 0:
+            # Cela ne devrait pas arriver si la facture a été trouvée juste avant,
+            # à moins d'une suppression concurrente.
             return jsonify({"error": "Facture non trouvée après tentative de suppression"}), 404
         conn.commit()
 
         socketio.emit('delete_facture', {'id': id})
         return jsonify({"message": "Facture supprimée"}), 200
+
     except psycopg2.Error as e:
         conn.rollback()
         print(f"Erreur PostgreSQL lors de la suppression de la facture : {e}")
+        # traceback.print_exc() # Décommentez pour un débogage plus détaillé si besoin
         return jsonify({"error": f"Erreur lors de la suppression : {e}"}), 500
     except Exception as e:
         conn.rollback()
         print(f"Erreur inattendue lors de la suppression de la facture : {e}")
+        # traceback.print_exc() # Décommentez pour un débogage plus détaillé si besoin
         return jsonify({"error": f"Une erreur est survenue : {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
+
 
 # @app.route("/api/factures/<int:id>", methods=["PUT"])
 # @token_required
