@@ -419,7 +419,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
              setIsSidebarOpen(false); // Fermer la sidebar même en cas d'échec de rôle côté UI
              return false;
          }
-
+         
         try {
             const exportUrl = `${API_URL}/api/factures/export-csv?annee=${anneeFinanciere}`;
             console.log(`exportFacturesCsv: Exportation des factures pour l'année financière ${anneeFinanciere}...`);

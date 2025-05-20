@@ -1447,7 +1447,7 @@ def export_factures_csv():
         Response: Fichier CSV ou message d'erreur JSON.
     """
     # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
-    year = request.args.get('year', type=int, default=datetime.datetime.now().year)
+    year = request.args.get('year', type=int, default=datetime.now().year)
 
     conn = get_db_connection()
     if conn is None:
