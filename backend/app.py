@@ -847,9 +847,13 @@ def get_file(id):
     cursor = conn.cursor()
     try:
         # Récupérer le nom du fichier en base
+        # cursor.execute(
+        #     "SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s",
+        #     (id, annee)
+        #)
         cursor.execute(
-            "SELECT chemin_fichier FROM factures WHERE id = %s AND annee = %s",
-            (id, annee)
+            "SELECT chemin_fichier FROM factures WHERE id = %s",
+            (id)
         )
         row = cursor.fetchone()
 
@@ -863,9 +867,13 @@ def get_file(id):
         # Si le fichier a été supprimé du système de fichiers
         if not os.path.exists(filepath):
             # Mettre à jour la base pour nullifier chemin_fichier
+            # cursor.execute(
+            #     "UPDATE factures SET chemin_fichier = NULL WHERE id = %s AND annee = %s",
+            #     (id, annee)
+            # )
             cursor.execute(
-                "UPDATE factures SET chemin_fichier = NULL WHERE id = %s AND annee = %s",
-                (id, annee)
+                "UPDATE factures SET chemin_fichier = NULL WHERE id = %s",
+                (id)
             )
             conn.commit()
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
