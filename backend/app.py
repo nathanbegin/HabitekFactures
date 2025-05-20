@@ -863,11 +863,11 @@ def get_file(id):
         if not row or not row[0]:
             return jsonify({"warning": "La facture n'existe plus sur le système"}), 404
 
-        filename = secure_filename(row[0])
-        print(f"Le filename de la recherche est :{filename}")
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        print(f"Le filepath de la recherche est :{filepath}")
-
+        # filename = secure_filename(row[0])
+        # print(f"Le filename de la recherche est :{filename}")
+        # filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        # print(f"Le filepath de la recherche est :{filepath}")
+        filepath=row
         # Si le fichier a été supprimé du système de fichiers
         if not os.path.exists(filepath):
             # Mettre à jour la base pour nullifier chemin_fichier
