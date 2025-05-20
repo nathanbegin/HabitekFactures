@@ -18,7 +18,7 @@ from decimal import Decimal, InvalidOperation
 import bcrypt # Pour le hachage des mots de passe
 import jwt # Pour les JSON Web Tokens
 from functools import wraps # Utile pour créer des décorateurs Flask
-
+import traceback
 # Initialisation de l'application Flask
 app = Flask(__name__)
 # Limite la taille des fichiers uploadés à 2 Go
@@ -669,13 +669,17 @@ def upload_facture():
         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'erreur de violation unique
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
+        print(f"DEBUG: UniqueViolation catch: Le numéro de facture {numero_facture} existe déjà.") # Debug précis
+        traceback.print_exc() # Ajoutez le traceback ici aussi pour ce cas spécifique
         return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
     except Exception as e:
         conn.rollback()
-         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
+        # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
         if file_path and os.path.exists(file_path):
-             os.remove(file_path)
-        print(f"Erreur de base de données: {e}")
+            os.remove(file_path)
+        print(f"Erreur de base de données (CAPTURE GÉNÉRIQUE): {e}")
+        # C'EST LA LIGNE CLÉ QUE NOUS VOULONS VÉRIFIER : assurez-vous qu'elle est là et que son output est capturé.
+        traceback.print_exc()
         return jsonify({"error": "Échec de la sauvegarde de la facture dans la base de données.", "details": str(e)}), 500
     finally:
         cur.close()
