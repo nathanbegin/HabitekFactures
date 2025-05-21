@@ -547,7 +547,7 @@ import React, { useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { formatCurrency } from '@/components/BudgetDashboard';
+import { formatCurrency } from './BudgetDashboard';
 
 const MONTREAL_TIMEZONE = 'America/Montreal';
 const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
