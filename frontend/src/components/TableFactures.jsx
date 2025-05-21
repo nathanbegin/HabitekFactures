@@ -547,6 +547,7 @@ import React, { useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { formatCurrency } from '@/components/BudgetDashboard';
 
 const MONTREAL_TIMEZONE = 'America/Montreal';
 const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
@@ -802,7 +803,7 @@ export default function TableFactures({
                 <td className="p-2 border">{facture.numero_facture}</td>
                 <td className="p-2 border">{formatDate(facture.date_facture)}</td>
                 <td className="p-2 border">{facture.fournisseur}</td>
-                <td className="p-2 border">{facture.montant.toFixed(2)}$</td>
+                <td className="p-2 border">{formatCurrency(facture.montant)}</td>
                 <td className="p-2 border">{facture.devise}</td>
                 <td className="p-2 border">{facture.statut}</td>
                 <td className="p-2 border">{facture.categorie}</td>
