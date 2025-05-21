@@ -177,7 +177,7 @@ function App() {
               <MainLayout
                  userToken={userToken}
                  userRole={userRole}
-                 // userId={userId} // Passer l'ID si stocké et nécessaire
+                 userId={userId} // Passer l'ID si stocké et nécessaire
                  handleLogout={handleLogout}
                  authorizedFetch={authorizedFetch} // Passer la fonction fetch sécurisée
                  clientCount={clientCount} // Passer le clientCount pour l'en-tête

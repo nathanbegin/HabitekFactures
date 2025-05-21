@@ -36,7 +36,7 @@ const getFinancialYear = (date = new Date()) => {
 // -----------------------------------
 
 // Renommez la fonction principale et acceptez les props nécessaires passées depuis App.jsx
-function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, clientCount /*, userId, ...*/ }) {
+function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, clientCount,userId }) {
   // -----------------------------------
   // Gestion des États (spécifiques à ce layout et ses enfants)
   // -----------------------------------
@@ -797,7 +797,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                       <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         <h2 className="text-lg font-semibold mb-4">Factures ajoutées</h2>
                         {/* Passer les factures, les fonctions de gestion et le rôle à TableFactures */}
-                        <TableFactures factures={factures} onDelete={deleteFacture} onUpdate={updateFacture} downloadFile={downloadFile} userRole={userRole} currentUserId={user_id} />
+                        <TableFactures factures={factures} onDelete={deleteFacture} onUpdate={updateFacture} downloadFile={downloadFile} userRole={userRole} currentUserId={userId} />
                       </div>
                     </>
                 } />
