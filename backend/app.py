@@ -592,8 +592,9 @@ def upload_facture():
                 import traceback # Ensure this is imported
                 traceback.print_exc()
             # --- END CRITICAL DEBUG LINE ---
-
-            socketio.emit('new_facture', new_facture)
+            new_facture_dict = dict(new_facture)
+            new_facture_dict['annee'] = date_facture[:4]  # extrait l'année en string à partir de 'YYYY-MM-DD'
+            socketio.emit('new_facture', new_facture_dict)
 
         # --- Fin de la récupération et émission SocketIO ---
 
