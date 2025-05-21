@@ -36,7 +36,7 @@ const getFinancialYear = (date = new Date()) => {
 // -----------------------------------
 
 // Renommez la fonction principale et acceptez les props nécessaires passées depuis App.jsx
-function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, clientCount,userId }) {
+function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, clientCount, userId }) {
   // -----------------------------------
   // Gestion des États (spécifiques à ce layout et ses enfants)
   // -----------------------------------

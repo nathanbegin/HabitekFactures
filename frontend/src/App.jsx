@@ -15,8 +15,11 @@ function App() {
 
   const savedToken = sessionStorage.getItem('habitek_auth_token');
   const savedRole  = sessionStorage.getItem('habitek_user_role');
+  const savedUserId = sessionStorage.getItem('habitek_user_id');
+
   const [userToken, setUserToken]   = useState(savedToken);
   const [userRole,    setUserRole]    = useState(savedRole);
+  const [userId, setUserId] = useState(savedUserId);
   const [isLoggedIn,  setIsLoggedIn]  = useState(!!savedToken);
   const [clientCount, setClientCount] = useState(0); // Déplacé ici pour être global
 
@@ -92,10 +95,11 @@ function App() {
     // Stocker l'état dans sessionStorage
     sessionStorage.setItem('habitek_auth_token', token);
     sessionStorage.setItem('habitek_user_role', userRole);
+    sessionStorage.setItem('habitek_user_id', userId);
      // Optionnel: sessionStorage.setItem('habitek_user_id', userId);
     setUserToken(token);
     setUserRole(userRole);
-    // Optionnel: setUserId(userId);
+    setUserId(userId);
     setIsLoggedIn(true);
     // Note: La redirection est gérée par LoginPage
   };
@@ -105,10 +109,10 @@ function App() {
     // Supprimer l'état de sessionStorage
     sessionStorage.removeItem('habitek_auth_token');
     sessionStorage.removeItem('habitek_user_role');
-    // Optionnel: sessionStorage.removeItem('habitek_user_id');
+    sessionStorage.removeItem('habitek_user_id');
     setUserToken(null);
     setUserRole(null);
-    // Optionnel: setUserId(null);
+    setUserId(null);
     setIsLoggedIn(false);
     // Note: La redirection est gérée par la Route Protégée (Navigate)
     // Les états des données (factures, budget) doivent être effacés dans MainLayout ou les composants concernés
