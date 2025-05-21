@@ -1061,12 +1061,11 @@ def update_facture(id):
         if updated_facture:
             # Convertir la ligne de résultat en dictionnaire
             updated_facture_dict = dict(updated_facture)
-            updated_facture_dict['annee'] = updated_facture_dict['date_facture'][:4]
-            
-            # Convertir les types non sérialisables en JSON
-            # serializable_facture = convert_to_json_serializable(updated_facture_dict)
-            # Émettre l'événement SocketIO
-            
+            date_obj = updated_facture_dict.get('date_facture')
+            if hasattr(date_obj, 'year'):
+                updated_facture_dict['annee'] = str(date_obj.year)
+            else:
+                updated_facture_dict['annee'] = str(date_obj)[:4]
             socketio.emit('update_facture', updated_facture_dict)
 
         # --- Fin de la récupération et émission SocketIO ---
