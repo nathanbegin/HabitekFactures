@@ -543,11 +543,315 @@
 
 
 
+// import React, { useState } from 'react';
+// import { formatInTimeZone } from 'date-fns-tz';
+// import { format } from 'date-fns';
+// import { fr } from 'date-fns/locale';
+// import { formatCurrency } from './BudgetDashboard';
+
+// const MONTREAL_TIMEZONE = 'America/Montreal';
+// const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
+
+// export default function TableFactures({
+//   factures,
+//   onDelete,
+//   onUpdate,
+//   downloadFile,
+//   userRole,
+//   currentUserId
+// }) {
+//   const [sortColumn, setSortColumn] = useState('date_soumission');
+//   const [sortDirection, setSortDirection] = useState('desc');
+
+//   // Pour l’édition inline
+//   const [editingFactureId, setEditingFactureId] = useState(null);
+//   const [editingData, setEditingData] = useState({});
+
+//   // Formatage des dates
+//   const formatDate = dateString => {
+//     if (!dateString) return 'N/A';
+//     try {
+//       const raw = new Date(dateString);
+//       return formatInTimeZone(raw, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+//     } catch {
+//       return 'Erreur';
+//     }
+//   };
+
+//   const formatDateTime = dateString => {
+//     if (!dateString) return 'N/A';
+//     try {
+//       const raw = new Date(dateString);
+//       return formatInTimeZone(raw, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+//     } catch {
+//       return 'Erreur';
+//     }
+//   };
+
+//   // Tri
+//   const handleHeaderClick = col => {
+//     if (col === sortColumn) {
+//       setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'));
+//     } else {
+//       setSortColumn(col);
+//       setSortDirection('asc');
+//     }
+//   };
+
+//   const compareValues = (a, b, col, dir) => {
+//     const A = a[col], B = b[col];
+//     if (A == null && B == null) return 0;
+//     if (A == null) return dir === 'asc' ? -1 : 1;
+//     if (B == null) return dir === 'asc' ? 1 : -1;
+//     let c = 0;
+//     if (col.includes('date')) {
+//       c = new Date(A) - new Date(B);
+//     } else if (typeof A === 'number' && typeof B === 'number') {
+//       c = A - B;
+//     } else {
+//       c = String(A).localeCompare(String(B));
+//     }
+//     return dir === 'asc' ? c : -c;
+//   };
+
+//   const sorted = [...factures].sort((a, b) =>
+//     compareValues(a, b, sortColumn, sortDirection)
+//   );
+
+//   // Conditions d'édition
+//   const canEdit = facture =>
+//     userRole === 'gestionnaire' ||
+//     (userRole === 'soumetteur' && facture.id_soumetteur === currentUserId);
+
+//   // Démarrage édition inline
+//   const handleEditClick = facture => {
+//     setEditingFactureId(facture.id);
+//     const rawDate = facture.date_facture?.split('T')[0] || '';
+//     setEditingData({
+//       numero_facture: facture.numero_facture || '',
+//       date_facture: rawDate,
+//       fournisseur: facture.fournisseur || '',
+//       montant: facture.montant != null ? facture.montant : '',
+//       devise: facture.devise || 'CAD',
+//       statut: facture.statut || 'Soumis',
+//       categorie: facture.categorie || '',
+//       ligne_budgetaire: facture.ligne_budgetaire || ''
+//     });
+//   };
+
+//   const handleEditChange = e => {
+//     const { name, value } = e.target;
+//     setEditingData(d => ({ ...d, [name]: value }));
+//   };
+
+//   const handleSave = id => {
+//     onUpdate(id, editingData);
+//     setEditingFactureId(null);
+//   };
+
+//   const handleCancel = () => {
+//     setEditingFactureId(null);
+//   };
+
+//   const renderSortArrow = col =>
+//     sortColumn === col ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : null;
+
+//   const renderHeader = (key, label) => (
+//     <th
+//       key={key}
+//       className={`p-2 border ${['id','numero_facture','date_facture','montant','statut'].includes(key) ? 'cursor-pointer' : ''}`}
+//       onClick={() => ['id','numero_facture','date_facture','montant','statut'].includes(key) && handleHeaderClick(key)}
+//     >
+//       {label}{renderSortArrow(key)}
+//     </th>
+//   );
+
+//   return (
+//     <table className="w-full text-left border-collapse hidden sm:table">
+//       <thead>
+//         <tr className="bg-gray-100">
+//           {renderHeader('id', '#')}
+//           {renderHeader('numero_facture', 'Numéro')}
+//           {renderHeader('date_facture', 'Date Facture')}
+//           {renderHeader('fournisseur', 'Fournisseur')}
+//           {renderHeader('montant', 'Montant')}
+//           {renderHeader('devise', 'Devise')}
+//           {renderHeader('statut', 'Statut')}
+//           {renderHeader('categorie', 'Catégorie')}
+//           {renderHeader('ligne_budgetaire', 'Ligne Budgétaire')}
+//           {renderHeader('soumetteur_username', 'Soumetteur')}
+//           {renderHeader('date_soumission', 'Date Soumission')}
+//           <th className="p-2 border">Fichier</th>
+//           <th className="p-2 border">Actions</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+//         {sorted.map(facture => (
+//           <tr key={facture.id} className="border-t">
+//             {editingFactureId === facture.id ? (
+//               <>
+//                 <td className="p-2 border">{facture.id}</td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="text"
+//                     name="numero_facture"
+//                     value={editingData.numero_facture}
+//                     onChange={handleEditChange}
+//                     className="w-full border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="date"
+//                     name="date_facture"
+//                     value={editingData.date_facture}
+//                     onChange={handleEditChange}
+//                     className="border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="text"
+//                     name="fournisseur"
+//                     value={editingData.fournisseur}
+//                     onChange={handleEditChange}
+//                     className="w-full border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="number"
+//                     step="0.01"
+//                     name="montant"
+//                     value={editingData.montant}
+//                     onChange={handleEditChange}
+//                     className="w-20 border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">
+//                   <select
+//                     name="devise"
+//                     value={editingData.devise}
+//                     onChange={handleEditChange}
+//                     className="border px-1 py-0.5"
+//                   >
+//                     <option>CAD</option>
+//                     <option>USD</option>
+//                     <option>EUR</option>
+//                   </select>
+//                 </td>
+//                 <td className="p-2 border">
+//                   <select
+//                     name="statut"
+//                     value={editingData.statut}
+//                     onChange={handleEditChange}
+//                     className="border px-1 py-0.5"
+//                   >
+//                     {allowedStatuses.map(s => (
+//                       <option key={s} value={s}>{s}</option>
+//                     ))}
+//                   </select>
+//                 </td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="text"
+//                     name="categorie"
+//                     value={editingData.categorie}
+//                     onChange={handleEditChange}
+//                     className="w-full border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">
+//                   <input
+//                     type="text"
+//                     name="ligne_budgetaire"
+//                     value={editingData.ligne_budgetaire}
+//                     onChange={handleEditChange}
+//                     className="w-full border px-1 py-0.5"
+//                   />
+//                 </td>
+//                 <td className="p-2 border">{facture.soumetteur_username}</td>
+//                 <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
+//                 <td className="p-2 border">
+//                   {facture.chemin_fichier ? (
+//                     <button
+//                       onClick={() => downloadFile(facture.id, facture.date_facture.split('T')[0])}
+//                       className="underline text-green-600"
+//                     >
+//                       Télécharger
+//                     </button>
+//                   ) : '—'}
+//                 </td>
+//                 <td className="p-2 border space-x-2">
+//                   <button
+//                     onClick={() => handleSave(facture.id)}
+//                     className="text-blue-600 hover:underline text-sm"
+//                   >
+//                     Enregistrer
+//                   </button>
+//                   <button
+//                     onClick={handleCancel}
+//                     className="text-gray-600 hover:underline text-sm"
+//                   >
+//                     Annuler
+//                   </button>
+//                 </td>
+//               </>
+//             ) : (
+//               <>
+//                 <td className="p-2 border">{facture.id}</td>
+//                 <td className="p-2 border">{facture.numero_facture}</td>
+//                 <td className="p-2 border">{formatDate(facture.date_facture)}</td>
+//                 <td className="p-2 border">{facture.fournisseur}</td>
+//                 <td className="p-2 border">{formatCurrency(facture.montant)}</td>
+//                 <td className="p-2 border">{facture.devise}</td>
+//                 <td className="p-2 border">{facture.statut}</td>
+//                 <td className="p-2 border">{facture.categorie}</td>
+//                 <td className="p-2 border">{facture.ligne_budgetaire}</td>
+//                 <td className="p-2 border">{facture.soumetteur_username}</td>
+//                 <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
+//                 <td className="p-2 border">
+//                   {facture.chemin_fichier ? (
+//                     <button
+//                       onClick={() => downloadFile(facture.id, facture.date_facture.split('T')[0])}
+//                       className="underline text-green-600"
+//                     >
+//                       {facture.chemin_fichier.split('/').pop()}
+//                     </button>
+//                   ) : '—'}
+//                 </td>
+//                 <td className="p-2 border space-x-2">
+//                   {canEdit(facture) && (
+//                     <button
+//                       onClick={() => handleEditClick(facture)}
+//                       className="text-orange-600 hover:underline text-sm"
+//                     >
+//                       Modifier
+//                     </button>
+//                   )}
+//                   {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+//                     <button
+//                       onClick={() => onDelete(facture.id)}
+//                       className="text-red-600 hover:underline text-sm"
+//                     >
+//                       Supprimer
+//                     </button>
+//                   )}
+//                 </td>
+//               </>
+//             )}
+//           </tr>
+//         ))}
+//       </tbody>
+//     </table>
+//   );
+// }
+// src/components/TableFactures.jsx
+
 import React, { useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { formatCurrency } from './BudgetDashboard';
 
 const MONTREAL_TIMEZONE = 'America/Montreal';
 const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
@@ -567,17 +871,18 @@ export default function TableFactures({
   const [editingFactureId, setEditingFactureId] = useState(null);
   const [editingData, setEditingData] = useState({});
 
-  // Formatage des dates
+  // Formate une date-only (YYYY-MM-DD) sans décalage de fuseau
   const formatDate = dateString => {
     if (!dateString) return 'N/A';
     try {
-      const raw = new Date(dateString);
-      return formatInTimeZone(raw, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+      const parsed = parse(dateString, 'yyyy-MM-dd', new Date());
+      return format(parsed, 'dd/MM/yyyy', { locale: fr });
     } catch {
       return 'Erreur';
     }
   };
 
+  // Formate un timestamp UTC vers fuseau de Montréal
   const formatDateTime = dateString => {
     if (!dateString) return 'N/A';
     try {
@@ -691,6 +996,8 @@ export default function TableFactures({
             {editingFactureId === facture.id ? (
               <>
                 <td className="p-2 border">{facture.id}</td>
+
+                {/* Numéro */}
                 <td className="p-2 border">
                   <input
                     type="text"
@@ -700,6 +1007,8 @@ export default function TableFactures({
                     className="w-full border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Date Facture */}
                 <td className="p-2 border">
                   <input
                     type="date"
@@ -709,6 +1018,8 @@ export default function TableFactures({
                     className="border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Fournisseur */}
                 <td className="p-2 border">
                   <input
                     type="text"
@@ -718,6 +1029,8 @@ export default function TableFactures({
                     className="w-full border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Montant */}
                 <td className="p-2 border">
                   <input
                     type="number"
@@ -728,6 +1041,8 @@ export default function TableFactures({
                     className="w-20 border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Devise */}
                 <td className="p-2 border">
                   <select
                     name="devise"
@@ -740,6 +1055,8 @@ export default function TableFactures({
                     <option>EUR</option>
                   </select>
                 </td>
+
+                {/* Statut */}
                 <td className="p-2 border">
                   <select
                     name="statut"
@@ -748,10 +1065,14 @@ export default function TableFactures({
                     className="border px-1 py-0.5"
                   >
                     {allowedStatuses.map(s => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
                   </select>
                 </td>
+
+                {/* Catégorie */}
                 <td className="p-2 border">
                   <input
                     type="text"
@@ -761,6 +1082,8 @@ export default function TableFactures({
                     className="w-full border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Ligne Budgétaire */}
                 <td className="p-2 border">
                   <input
                     type="text"
@@ -770,18 +1093,33 @@ export default function TableFactures({
                     className="w-full border px-1 py-0.5"
                   />
                 </td>
+
+                {/* Soumetteur */}
                 <td className="p-2 border">{facture.soumetteur_username}</td>
+
+                {/* Date Soumission */}
                 <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
+
+                {/* Fichier */}
                 <td className="p-2 border">
                   {facture.chemin_fichier ? (
                     <button
-                      onClick={() => downloadFile(facture.id, facture.date_facture.split('T')[0])}
+                      onClick={() =>
+                        downloadFile(
+                          facture.id,
+                          facture.date_facture.split('T')[0]
+                        )
+                      }
                       className="underline text-green-600"
                     >
                       Télécharger
                     </button>
-                  ) : '—'}
+                  ) : (
+                    '—'
+                  )}
                 </td>
+
+                {/* Actions */}
                 <td className="p-2 border space-x-2">
                   <button
                     onClick={() => handleSave(facture.id)}
@@ -803,7 +1141,8 @@ export default function TableFactures({
                 <td className="p-2 border">{facture.numero_facture}</td>
                 <td className="p-2 border">{formatDate(facture.date_facture)}</td>
                 <td className="p-2 border">{facture.fournisseur}</td>
-                <td className="p-2 border">{formatCurrency(facture.montant)}</td>
+                {/* Coercition en nombre avant toFixed */}
+                <td className="p-2 border">{Number(facture.montant).toFixed(2)}$</td>
                 <td className="p-2 border">{facture.devise}</td>
                 <td className="p-2 border">{facture.statut}</td>
                 <td className="p-2 border">{facture.categorie}</td>
@@ -813,12 +1152,19 @@ export default function TableFactures({
                 <td className="p-2 border">
                   {facture.chemin_fichier ? (
                     <button
-                      onClick={() => downloadFile(facture.id, facture.date_facture.split('T')[0])}
+                      onClick={() =>
+                        downloadFile(
+                          facture.id,
+                          facture.date_facture.split('T')[0]
+                        )
+                      }
                       className="underline text-green-600"
                     >
                       {facture.chemin_fichier.split('/').pop()}
                     </button>
-                  ) : '—'}
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td className="p-2 border space-x-2">
                   {canEdit(facture) && (
@@ -829,7 +1175,8 @@ export default function TableFactures({
                       Modifier
                     </button>
                   )}
-                  {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+                  {(userRole === 'gestionnaire' ||
+                    userRole === 'approbateur') && (
                     <button
                       onClick={() => onDelete(facture.id)}
                       className="text-red-600 hover:underline text-sm"
