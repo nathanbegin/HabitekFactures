@@ -975,7 +975,7 @@ def update_facture(id):
         if date_facture is not None:
             # Validation basique du format de la date (ajuster selon votre besoin)
             try:
-                datetime.datetime.strptime(date_facture, '%Y-%m-%d')
+                datetime.strptime(date_facture, '%Y-%m-%d')
                 updates.append("date_facture = %s")
                 values.append(date_facture)
             except ValueError:
