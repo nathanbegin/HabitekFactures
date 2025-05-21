@@ -912,7 +912,7 @@ def update_facture(id):
         return jsonify({"error": "Facture non trouvée"}), 404
     owner_id = row['id_soumetteur']
     # si ce n'est pas le créateur et pas un gestionnaire, on bloque
-        if g.user_id != owner_id and g.user_role != 'gestionnaire':        
+    if g.user_id != owner_id and g.user_role != 'gestionnaire':        
             return jsonify({"error": "Accès refusé: pas les droits de modification"}), 403
     # --------------------------------------------------------------------------
     try:
