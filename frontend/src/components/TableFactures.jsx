@@ -543,214 +543,307 @@
 
 
 
-
-
+// src/components/TableFactures.jsx
 import React, { useState } from 'react';
+import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { formatInTimeZone, toDate } from 'date-fns-tz';
 
 const MONTREAL_TIMEZONE = 'America/Montreal';
-const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
+const allowedStatuses = ['Soumis','Approuve','Rejete','Paye'];
 
-function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, currentUserId }) {
+export default function TableFactures({
+  factures,
+  onDelete,
+  onUpdate,
+  downloadFile,
+  userRole,
+  currentUserId
+}) {
   const [sortColumn, setSortColumn] = useState('date_soumission');
   const [sortDirection, setSortDirection] = useState('desc');
 
-  // Inline editing state
-  const [editingFacture, setEditingFacture] = useState(null);
-  const [editedData, setEditedData] = useState({});
+  // Pour l’édition inline
+  const [editingFactureId, setEditingFactureId] = useState(null);
+  const [editingData, setEditingData] = useState({});
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Date invalide';
-      return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-    } catch (error) {
-      console.error('Erreur formatage dateTime', error);
-      return 'Erreur';
-    }
-  };
-
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'N/A';
     try {
       const raw = new Date(dateString);
-      if (isNaN(raw.getTime())) return 'Date invalide';
-      return formatInTimeZone(toDate(raw), MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
-    } catch (e) {
-      console.error('Erreur formatage date', e);
+      return formatInTimeZone(raw, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+    } catch {
       return 'Erreur';
     }
   };
 
-  const handleHeaderClick = (col) => {
-    if (col === sortColumn) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    else {
+  const formatDateTime = dateString => {
+    if (!dateString) return 'N/A';
+    try {
+      const raw = new Date(dateString);
+      return formatInTimeZone(raw, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+    } catch {
+      return 'Erreur';
+    }
+  };
+
+  const handleHeaderClick = col => {
+    if (col === sortColumn) {
+      setSortDirection(d => d==='asc'?'desc':'asc');
+    } else {
       setSortColumn(col);
       setSortDirection('asc');
     }
   };
 
-  const compareValues = (a, b, column, direction) => {
-    const vA = a[column], vB = b[column];
-    if (vA == null && vB == null) return 0;
-    if (vA == null) return direction === 'asc' ? -1 : 1;
-    if (vB == null) return direction === 'asc' ? 1 : -1;
-    let cmp = 0;
-    if (/date|timestamp/.test(column)) {
-      const tA = new Date(vA).getTime(), tB = new Date(vB).getTime();
-      cmp = isNaN(tA) || isNaN(tB) ? String(vA).localeCompare(String(vB)) : tA - tB;
-    } else if (typeof vA === 'number' && typeof vB === 'number') {
-      cmp = vA - vB;
-    } else {
-      cmp = String(vA).toLowerCase().localeCompare(String(vB).toLowerCase());
-    }
-    return direction === 'asc' ? cmp : -cmp;
+  const compareValues = (a,b,col,dir) => {
+    const A=a[col], B=b[col];
+    if (A==null && B==null) return 0;
+    if (A==null) return dir==='asc'? -1:1;
+    if (B==null) return dir==='asc'? 1:-1;
+    let c=0;
+    if   (col.includes('date')) c=new Date(A)-new Date(B);
+    else if (typeof A==='number'&&typeof B==='number') c=A-B;
+    else c=String(A).localeCompare(String(B));
+    return dir==='asc'? c:-c;
   };
 
-  const sortedFactures = [...factures].sort((a, b) => compareValues(a, b, sortColumn, sortDirection));
+  const sorted = [...factures].sort((a,b) =>
+    compareValues(a,b,sortColumn,sortDirection)
+  );
 
-  // Inline edit handlers
-  const handleEditClick = (facture) => {
-    setEditingFacture(facture.id);
-    setEditedData({
-      numero_facture: facture.numero_facture,
-      date_facture:   facture.date_facture,
-      fournisseur:    facture.fournisseur,
-      description:    facture.description,
-      montant:        facture.montant,
-      devise:         facture.devise,
-      categorie:      facture.categorie,
-      ligne_budgetaire: facture.ligne_budgetaire,
-      statut:         facture.statut
+  // --- EDIT handlers ---
+  const canEdit = facture =>
+    userRole==='gestionnaire' ||
+    (userRole==='soumetteur' && facture.id_soumetteur===currentUserId);
+
+  const handleEditClick = facture => {
+    setEditingFactureId(facture.id);
+    // On initialise le form avec les valeurs actuelles
+    const rawDate = facture.date_facture?.split('T')[0] || '';
+    setEditingData({
+      numero_facture: facture.numero_facture||'',
+      date_facture: rawDate,
+      fournisseur: facture.fournisseur||'',
+      description: facture.description||'',
+      montant: facture.montant||'',
+      devise: facture.devise||'CAD',
+      categorie: facture.categorie||'',
+      ligne_budgetaire: facture.ligne_budgetaire||''
     });
   };
 
-  const handleFieldChange = (e) => {
+  const handleEditChange = e => {
     const { name, value } = e.target;
-    setEditedData(prev => ({ ...prev, [name]: value }));
+    setEditingData(d => ({ ...d, [name]: value }));
   };
 
-  const handleSave = async (id) => {
-    const success = await onUpdate(id, editedData);
-    if (success) {
-      setEditingFacture(null);
-      setEditedData({});
-    }
+  const handleSave = id => {
+    onUpdate(id, editingData);
+    setEditingFactureId(null);
   };
 
   const handleCancel = () => {
-    setEditingFacture(null);
-    setEditedData({});
+    setEditingFactureId(null);
   };
 
-  const handleDelete = (id) => {
-    if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
-      alert("Rôle insuffisant pour supprimer.");
-      return;
-    }
-    if (window.confirm('Supprimer cette facture ?')) onDelete(id);
-  };
+  const renderSortArrow = col =>
+    sortColumn===col ? (sortDirection==='asc'?' ↑':' ↓') : null;
 
-  const handleStatusChange = (id, statut) => {
-    if (!allowedStatuses.includes(statut)) return;
-    onUpdate(id, { statut });
-  };
-
-  const handleDownloadClick = (id, year) => downloadFile(id, year);
-
-  const renderSortArrow = (col) => sortColumn === col ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : null;
-
-  const sortableColumns = [
-    'id','numero_facture','date_facture','type','ubr','fournisseur',
-    'description','montant','devise','statut','categorie','ligne_budgetaire',
-    'soumetteur_username','date_soumission','created_by_username',
-    'last_modified_by_username','last_modified_timestamp'
-  ];
-
-  const renderTableHeader = (key, label) => (
+  const renderHeader = (key,label) => (
     <th
       key={key}
-      className={`p-2 border ${sortableColumns.includes(key)?'cursor-pointer hover:bg-gray-200':''}`}
-      onClick={sortableColumns.includes(key)?() => handleHeaderClick(key):undefined}
+      className={`p-2 border ${['id','numero_facture','date_facture','montant','statut'].includes(key)?'cursor-pointer':''}`}
+      onClick={()=>handleHeaderClick(key)}
     >
       {label}{renderSortArrow(key)}
     </th>
   );
 
   return (
-    <>    
-      <table className="w-full text-left border-collapse hidden sm:table">
-        <thead><tr className="bg-gray-100">
-          {renderTableHeader('id','#')}
-          {renderTableHeader('numero_facture','Numéro')}
-          {renderTableHeader('date_facture','Date Facture')}
-          {renderTableHeader('montant','Montant')}
-          {renderTableHeader('devise','Devise')}
-          {renderTableHeader('statut','Statut')}
-          {renderTableHeader('categorie','Catégorie')}
-          {renderTableHeader('ligne_budgetaire','Ligne Budgétaire')}
-          {renderTableHeader('soumetteur_username','Soumetteur')}
-          {renderTableHeader('date_soumission','Date Soumission')}
+    <table className="w-full text-left border-collapse hidden sm:table">
+      <thead>
+        <tr className="bg-gray-100">
+          {renderHeader('id','#')}
+          {renderHeader('numero_facture','Numéro')}
+          {renderHeader('date_facture','Date Facture')}
+          {renderHeader('fournisseur','Fournisseur')}
+          {renderHeader('montant','Montant')}
+          {renderHeader('devise','Devise')}
+          {renderHeader('statut','Statut')}
+          {renderHeader('categorie','Catégorie')}
+          {renderHeader('ligne_budgetaire','Ligne Budgétaire')}
+          {renderHeader('soumetteur_username','Soumetteur')}
+          {renderHeader('date_soumission','Date Soumission')}
           <th className="p-2 border">Fichier</th>
           <th className="p-2 border">Actions</th>
-        </tr></thead>
-        <tbody>
-          {sortedFactures.length>0 ? sortedFactures.map(f => (
-            <tr key={f.id} className="border-t">
-              <td className="p-2 border">{f.id}</td>
-              {editingFacture===f.id ? (
-                <>                  
-                  <td className="p-2 border"><input name="numero_facture" value={editedData.numero_facture} onChange={handleFieldChange} className="w-full"/></td>
-                  <td className="p-2 border"><input name="date_facture" type="date" value={editedData.date_facture} onChange={handleFieldChange} className="w-full"/></td>
-                  <td className="p-2 border"><input name="montant" type="number" step="0.01" value={editedData.montant} onChange={handleFieldChange} className="w-full"/></td>
-                  <td className="p-2 border"><select name="devise" value={editedData.devise} onChange={handleFieldChange} className="w-full"><option value="CAD">CAD</option><option value="USD">USD</option></select></td>
-                  <td className="p-2 border"><select name="statut" value={editedData.statut} onChange={handleFieldChange} className="w-full">{allowedStatuses.map(s=><option key={s} value={s}>{s}</option>)}</select></td>
-                  <td className="p-2 border"><input name="categorie" value={editedData.categorie} onChange={handleFieldChange} className="w-full"/></td>
-                  <td className="p-2 border"><input name="ligne_budgetaire" value={editedData.ligne_budgetaire} onChange={handleFieldChange} className="w-full"/></td>
-                  <td className="p-2 border">—</td>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map(facture => (
+          <tr key={facture.id} className="border-t">
+            {editingFactureId===facture.id
+              ? (
+                <>
+                  {/* Edition inline */}
+                  <td className="p-2 border">{facture.id}</td>
                   <td className="p-2 border">
-                    <button onClick={()=>handleSave(f.id)} className="text-green-600 mr-2">Enregistrer</button>
-                    <button onClick={handleCancel} className="text-gray-600">Annuler</button>
+                    <input
+                      type="text"
+                      name="numero_facture"
+                      value={editingData.numero_facture}
+                      onChange={handleEditChange}
+                      className="w-full border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">
+                    <input
+                      type="date"
+                      name="date_facture"
+                      value={editingData.date_facture}
+                      onChange={handleEditChange}
+                      className="border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">
+                    <input
+                      type="text"
+                      name="fournisseur"
+                      value={editingData.fournisseur}
+                      onChange={handleEditChange}
+                      className="w-full border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="montant"
+                      value={editingData.montant}
+                      onChange={handleEditChange}
+                      className="w-20 border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">
+                    <select
+                      name="devise"
+                      value={editingData.devise}
+                      onChange={handleEditChange}
+                      className="border px-1 py-0.5"
+                    >
+                      <option>CAD</option>
+                      <option>USD</option>
+                      <option>EUR</option>
+                    </select>
+                  </td>
+                  <td className="p-2 border">
+                    <select
+                      name="statut"
+                      value={editingData.statut}
+                      onChange={handleEditChange}
+                      className="border px-1 py-0.5"
+                    >
+                      {allowedStatuses.map(s=>(
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2 border">
+                    <input
+                      type="text"
+                      name="categorie"
+                      value={editingData.categorie}
+                      onChange={handleEditChange}
+                      className="w-full border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">
+                    <input
+                      type="text"
+                      name="ligne_budgetaire"
+                      value={editingData.ligne_budgetaire}
+                      onChange={handleEditChange}
+                      className="w-full border px-1 py-0.5"
+                    />
+                  </td>
+                  <td className="p-2 border">{facture.soumetteur_username}</td>
+                  <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
+                  <td className="p-2 border">
+                    {/* Pas d’upload inline */}
+                    {facture.chemin_fichier
+                      ? <button
+                          onClick={()=>downloadFile(facture.id, facture.date_facture.split('T')[0])}
+                          className="underline text-green-600"
+                        >
+                          Télécharger
+                        </button>
+                      : '—'}
+                  </td>
+                  <td className="p-2 border space-x-2">
+                    <button
+                      onClick={()=>handleSave(facture.id)}
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="text-gray-600 hover:underline text-sm"
+                    >
+                      Annuler
+                    </button>
                   </td>
                 </>
-              ) : (
-                <>                
-                  <td className="p-2 border">{f.numero_facture}</td>
-                  <td className="p-2 border">{formatDate(f.date_facture)}</td>
-                  <td className="p-2 border">{f.montant}$</td>
-                  <td className="p-2 border">{f.devise}</td>
-                  <td className="p-2 border">{f.statut}</td>
-                  <td className="p-2 border">{f.categorie}</td>
-                  <td className="p-2 border">{f.ligne_budgetaire}</td>
-                  <td className="p-2 border">{f.soumetteur_username}</td>
-                  <td className="p-2 border">{formatDateTime(f.date_soumission)}</td>
+              )
+              : (
+                <>
+                  {/* Lecture seule */}
+                  <td className="p-2 border">{facture.id}</td>
+                  <td className="p-2 border">{facture.numero_facture}</td>
+                  <td className="p-2 border">{formatDate(facture.date_facture)}</td>
+                  <td className="p-2 border">{facture.fournisseur}</td>
+                  <td className="p-2 border">{facture.montant.toFixed(2)}$</td>
+                  <td className="p-2 border">{facture.devise}</td>
+                  <td className="p-2 border">{facture.statut}</td>
+                  <td className="p-2 border">{facture.categorie}</td>
+                  <td className="p-2 border">{facture.ligne_budgetaire}</td>
+                  <td className="p-2 border">{facture.soumetteur_username}</td>
+                  <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
                   <td className="p-2 border">
-                    {f.chemin_fichier
-                      ? <button onClick={()=>handleDownloadClick(f.id,new Date(f.date_facture).getFullYear())} className="text-green-500 underline text-sm">{f.chemin_fichier.split('/').pop()}</button>
-                      : <span className="text-gray-500">—</span>
-                    }
+                    {facture.chemin_fichier
+                      ? <button
+                          onClick={()=>downloadFile(facture.id, facture.date_facture.split('T')[0])}
+                          className="underline text-green-600"
+                        >
+                          {facture.chemin_fichier.split('/').pop()}
+                        </button>
+                      : '—'}
                   </td>
-                  <td className="p-2 border">
-                    { (userRole==='gestionnaire'||f.id_soumetteur===currentUserId) &&
-                      <button onClick={()=>handleEditClick(f)} className="text-blue-600">Modifier</button>
-                    }
-                    {(userRole==='gestionnaire'||userRole==='approbateur') &&
-                      <button onClick={()=>handleDelete(f.id)} className="text-red-500 ml-2">Supprimer</button>
-                    }
+                  <td className="p-2 border space-x-2">
+                    {/* Modifier & Supprimer */}
+                    {canEdit(facture) && (
+                      <button
+                        onClick={()=>handleEditClick(facture)}
+                        className="text-orange-600 hover:underline text-sm"
+                      >
+                        Modifier
+                      </button>
+                    )}
+                    {(userRole==='gestionnaire' || userRole==='approbateur') && (
+                      <button
+                        onClick={()=>onDelete(facture.id)}
+                        className="text-red-600 hover:underline text-sm"
+                      >
+                        Supprimer
+                      </button>
+                    )}
                   </td>
                 </>
-              )}
-            </tr>
-          )) : (
-            <tr><td colSpan={11} className="p-2 border text-center text-gray-500">Aucune facture pour cette année.</td></tr>
-          )}
-        </tbody>
-      </table>
-    </>
+              )
+            }
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
-
-export default TableFactures;
