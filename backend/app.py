@@ -879,7 +879,7 @@ def delete_facture(id):
 
 @app.route('/api/factures/<int:id>', methods=['PUT'])
 @token_required
-@role_required(['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
+# @role_required(['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
 def update_facture(id):
     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
     data = request.form
@@ -905,6 +905,16 @@ def update_facture(id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+    # --- Contrôle d'accès : seul le créateur ou un gestionnaire peut modifier ---
+    cur.execute("SELECT id_soumetteur FROM factures WHERE id = %s", (id,))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "Facture non trouvée"}), 404
+    owner_id = row['id_soumetteur']
+    # si ce n'est pas le créateur et pas un gestionnaire, on bloque
+        if g.user_id != owner_id and g.user_role != 'gestionnaire':        
+            return jsonify({"error": "Accès refusé: pas les droits de modification"}), 403
+    # --------------------------------------------------------------------------
     try:
         # --- Début de la gestion du fichier lors de la mise à jour ---
         current_file_path = None
