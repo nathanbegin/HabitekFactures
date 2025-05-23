@@ -1535,7 +1535,7 @@ function BudgetDashboard({
                  <ul className="space-y-2">
                    {Object.keys(expenseTotals).length > 0 ? ( // Vérifier si expenseTotals n'est pas vide
                      Object.keys(expenseTotals).map((cat) => (
-                       <li key={ubr} className="flex justify-between">
+                       <li key={cat} className="flex justify-between">
                          <span className="text-gray-700">{cat} :</span>
                          <span
                            className={`font-bold ${
