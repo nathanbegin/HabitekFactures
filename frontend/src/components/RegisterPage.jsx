@@ -107,10 +107,11 @@
 //   );
 // }
 
-// export default RegisterPage;
-
-import React, { useState } from 'react';
+// export default RegisterPage;import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+
+// Assurez-vous que API_URL est défini ou importé
+const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 export default function RegisterPage() {
   const [step, setStep] = useState('pin');
@@ -118,8 +119,12 @@ export default function RegisterPage() {
   const [pinError, setPinError] = useState('');
 
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // Vérifier le NIP hard-codé
@@ -133,36 +138,54 @@ export default function RegisterPage() {
     }
   }
 
- // Envoi du formulaire d’inscription avec appel API
- async function handleRegister(e) {
-  e.preventDefault();
-  setFormError('');
-  setLoading(true);
-  try {
-    const response = await fetch(`${API_URL}/api/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Erreur lors de l\'inscription');
-    }
-    navigate('/login');
-  } catch (err) {
-    setFormError(err.message);
-  } finally {
-    setLoading(false);
-  }
-}
+  // Envoi du formulaire d’inscription avec appel API (ou simulation)
+  async function handleRegister(e) {
+    e.preventDefault();
+    console.log('handleRegister called', { username, email, password, confirmPassword });
+    setFormError('');
+    setFormSuccess('');
 
+    // Validation client
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setFormError('Email invalide.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFormError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Décommenter pour appel réel
+      // const response = await fetch(`${API_URL}/api/register`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ username, email, password }),
+      // });
+      // const data = await response.json();
+      // if (!response.ok) {
+      //   throw new Error(data.message || 'Erreur lors de l\'inscription');
+      // }
+
+      // Simulation de succès pour débogage
+      console.log('Inscription simulée réussie');
+      setFormSuccess('Inscription réussie ! Redirection en cours...');
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      console.error(err);
+      setFormError(err.message || 'Erreur inattendue');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Affiche la prompt NIP ou le formulaire
   if (step === 'pin') {
     return (
-      <div className="pin-gate-container p-4 max-w-sm mx-auto">
-        <h2 className="text-xl mb-2">Entrez le NIP pour accéder à l’inscription</h2>
-        <form onSubmit={handlePinSubmit}>
+      <div className="pin-gate-container p-6 max-w-sm mx-auto bg-white shadow rounded">
+        <h2 className="text-xl font-semibold mb-4">Entrez le NIP pour accéder à l’inscription</h2>
+        <form onSubmit={handlePinSubmit} className="space-y-3">
           <input
             type="password"
             inputMode="numeric"
@@ -170,12 +193,12 @@ export default function RegisterPage() {
             maxLength={4}
             value={pinInput}
             onChange={e => setPinInput(e.target.value)}
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full"
             placeholder="NIP à 4 chiffres"
             required
           />
-          {pinError && <p className="text-red-600 mb-2">{pinError}</p>}
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+          {pinError && <p className="text-red-600">{pinError}</p>}
+          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
             Valider
           </button>
         </form>
@@ -183,10 +206,10 @@ export default function RegisterPage() {
     );
   }
 
-  // === step === 'form' : afficher le formulaire existant ===
+  // === step === 'form' : afficher le formulaire d'inscription ===
   return (
-    <div className="register-container p-4 max-w-md mx-auto">
-      <h2 className="text-2xl mb-4">Créer un compte</h2>
+    <div className="register-container p-6 max-w-md mx-auto bg-white shadow rounded">
+      <h2 className="text-2xl font-semibold mb-4">Créer un compte</h2>
       <form onSubmit={handleRegister} className="space-y-4">
         <label className="block">
           Nom d’utilisateur
@@ -194,7 +217,20 @@ export default function RegisterPage() {
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
-            className="border p-2 w-full"
+            className="border p-2 w-full mt-1"
+            placeholder="Votre nom d’utilisateur"
+          />
+        </label>
+
+        <label className="block">
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            className="border p-2 w-full mt-1"
+            placeholder="exemple@domaine.com"
           />
         </label>
 
@@ -205,16 +241,40 @@ export default function RegisterPage() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="border p-2 w-full"
+            className="border p-2 w-full mt-1"
+            placeholder="••••••••"
+          />
+        </label>
+
+        <label className="block">
+          Confirmer le mot de passe
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            required
+            className="border p-2 w-full mt-1"
+            placeholder="••••••••"
           />
         </label>
 
         {formError && <p className="text-red-600">{formError}</p>}
+        {formSuccess && <p className="text-green-600">{formSuccess}</p>}
 
-        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
-          Créer un compte
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-2 rounded text-white ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
+          {loading ? 'Chargement...' : 'Créer un compte'}
         </button>
       </form>
+
+      <p className="text-center text-sm text-gray-600 mt-4">
+        Déjà un compte ?{' '}
+        <Link to="/login" className="text-blue-600 hover:underline">
+          Connectez-vous
+        </Link>
+      </p>
     </div>
   );
 }
