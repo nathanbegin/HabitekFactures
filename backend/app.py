@@ -427,6 +427,7 @@ def upload_facture():
     categorie = data.get('categorie')
     ligne_budgetaire = data.get('ligne_budgetaire')
     type_= data.get('type')
+    ubr = data.get('ubr')
 
 
     # --- Début de la gestion optionnelle du fichier ---
@@ -539,6 +540,7 @@ def upload_facture():
         print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
         print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
         print(f"DEBUG: type: Type={type(type_)}, Value='{type_}'")
+        print(f"DEBUG: type: Type={type(ubr)}, Value='{ubr}'")
         print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
         print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
         print(f"DEBUG: date_soumission_utc: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
@@ -550,13 +552,13 @@ def upload_facture():
             """
             INSERT INTO factures (
                 numero_facture, date_facture, fournisseur, description, montant, devise,
-                statut, type_facture, chemin_fichier, id_soumetteur, date_soumission,
+                statut, type_facture, ubr, chemin_fichier, id_soumetteur, date_soumission,
                 created_by, categorie, ligne_budgetaire
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
             """,
             (numero_facture, date_facture, fournisseur, description, montant, devise,
-             statut,type_, file_path, g.user_id, date_soumission_utc,
+             statut,type_, ubr, file_path, g.user_id, date_soumission_utc,
              g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
         )
         facture_id = cur.fetchone()[0]
@@ -568,7 +570,7 @@ def upload_facture():
             """
             SELECT
                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-                f.statut, f.type_facture, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
             FROM factures f
@@ -684,7 +686,7 @@ def get_factures():
             """
             SELECT
                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-                f.statut, f.type_facture, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
             FROM factures f
