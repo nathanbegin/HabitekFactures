@@ -1186,17 +1186,21 @@ function BudgetDashboard({
 
   // Calcule les totaux des dépenses par type de facture
 
-  const relevantFactures = localFactures;
-  console.log("BudgetDashboard - Calculating expenseTotals based on localFactures:", localFactures);
+  // const relevantFactures = localFactures;
+  // console.log("BudgetDashboard - Calculating expenseTotals based on localFactures:", localFactures);
   
-  const expenseTotals = relevantFactures.reduce((totals, facture) => {
-    if (!facture.type) return totals;
-    totals[facture.type] = (totals[facture.type] || 0) + facture.montant;
+  // const expenseTotals = relevantFactures.reduce((totals, facture) => {
+  //   if (!facture.type) return totals;
+  //   totals[facture.type] = (totals[facture.type] || 0) + facture.montant;
+  //   return totals;
+  // }, {});
+  // console.log("BudgetDashboard - Calculated expenseTotals:", expenseTotals);
+
+  const expenseTotals = localFactures.reduce((totals, facture) => {
+    if (!facture.categorie) return totals;
+    totals[facture.categorie] = (totals[facture.categorie] || 0) + facture.montant;
     return totals;
   }, {});
-  console.log("BudgetDashboard - Calculated expenseTotals:", expenseTotals);
-
-
 
 
 
@@ -1530,15 +1534,15 @@ function BudgetDashboard({
                  <h3 className="text-lg font-semibold mb-4">Répartition des Dépenses "Soumises" par UBR</h3>
                  <ul className="space-y-2">
                    {Object.keys(expenseTotals).length > 0 ? ( // Vérifier si expenseTotals n'est pas vide
-                     Object.keys(expenseTotals).map((ubr) => (
+                     Object.keys(expenseTotals).map((cat) => (
                        <li key={ubr} className="flex justify-between">
-                         <span className="text-gray-700">{ubr} :</span>
+                         <span className="text-gray-700">{cat} :</span>
                          <span
                            className={`font-bold ${
                              expenseTotals[ubr] < 0 ? 'text-red-600' : 'text-gray-800'
                            }`}
                          >
-                           {formatCurrency(expenseTotals[ubr])}
+                           {formatCurrency(expenseTotals[cat])}
                          </span>
                        </li>
                      ))
