@@ -107,16 +107,13 @@
 //   );
 // }
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 // Assurez-vous que API_URL est défini ou importé
 const API_URL = process.env.REACT_APP_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 export default function RegisterPage() {
-  React.useEffect(() => {
-    console.log('RegisterPage mounted, step=', step);
-  }, []);
   const [step, setStep] = useState('pin');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -130,6 +127,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Debugging useEffect
+  useEffect(() => {
+    console.log('RegisterPage mounted, step=', step);
+  }, [step]);
+
   // Vérifier le NIP hard-codé
   function handlePinSubmit(e) {
     e.preventDefault();
@@ -141,10 +143,10 @@ export default function RegisterPage() {
     }
   }
 
-  // Envoi du formulaire d’inscription avec appel API (ou simulation)
+  // Envoi du formulaire d’inscription avec appel API réel
   async function handleRegister(e) {
     e.preventDefault();
-    console.log('handleRegister called', { username, email, password, confirmPassword });
+    console.log('handleRegister triggered');
     setFormError('');
     setFormSuccess('');
 
@@ -160,7 +162,6 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Décommenter pour appel réel
       const response = await fetch(`${API_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,12 +172,11 @@ export default function RegisterPage() {
         throw new Error(data.message || 'Erreur lors de l\'inscription');
       }
 
-      // Simulation de succès pour débogage
-      console.log('Inscription simulée réussie');
+      // Succès: rediriger et afficher message
       setFormSuccess('Inscription réussie ! Redirection en cours...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      console.error(err);
+      console.error('Registration error:', err);
       setFormError(err.message || 'Erreur inattendue');
     } finally {
       setLoading(false);
@@ -266,6 +266,7 @@ export default function RegisterPage() {
 
         <button
           type="submit"
+          onClick={handleRegister}
           disabled={loading}
           className={`w-full py-2 rounded text-white ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
           {loading ? 'Chargement...' : 'Créer un compte'}
@@ -281,4 +282,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
