@@ -315,7 +315,7 @@ def init_db():
                     montant DECIMAL(10, 2) NOT NULL,
                     devise VARCHAR(10) NOT NULL,
                     statut VARCHAR(50) NOT NULL DEFAULT 'soumis', -- soumis, approuve, rejete, paye
-                    type VARCHAR(255),  
+                    type_facture VARCHAR(255),  
                     chemin_fichier VARCHAR(255),
                     id_soumetteur INTEGER REFERENCES users(id), -- Existing column
                     date_soumission TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Existing column
@@ -538,6 +538,7 @@ def upload_facture():
         print(f"DEBUG: montant: Type={type(montant)}, Value='{montant}'")
         print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
         print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
+        print(f"DEBUG: type: Type={type(type_)}, Value='{type_}'")
         print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
         print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
         print(f"DEBUG: date_soumission_utc: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
@@ -549,7 +550,7 @@ def upload_facture():
             """
             INSERT INTO factures (
                 numero_facture, date_facture, fournisseur, description, montant, devise,
-                statut, type, chemin_fichier, id_soumetteur, date_soumission,
+                statut, type_facture, chemin_fichier, id_soumetteur, date_soumission,
                 created_by, categorie, ligne_budgetaire
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
@@ -567,7 +568,7 @@ def upload_facture():
             """
             SELECT
                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-                f.statut, f.type, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.statut, f.type_facture, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
             FROM factures f
