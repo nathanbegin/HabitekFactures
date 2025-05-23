@@ -457,7 +457,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 <div className="mb-2"><span className="font-semibold">Numéro :</span> {facture.numero_facture}</div>
                 <div className="mb-2"><span className="font-semibold">Date Facture :</span> {formatDate(facture.date_facture)}</div>
                 <div className="mb-2">
-                  <span className="font-semibold">Type :</span> {facture.type || 'N/A'}
+                  <span className="font-semibold">Type :</span> {facture.type_facture || 'N/A'}
                 </div>
                 <div className="mb-2">
                   <span className="font-semibold">Fournisseur :</span> {facture.fournisseur || 'N/A'}
