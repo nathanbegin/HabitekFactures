@@ -1539,7 +1539,7 @@ function BudgetDashboard({
                          <span className="text-gray-700">{cat} :</span>
                          <span
                            className={`font-bold ${
-                             expenseTotals[ubr] < 0 ? 'text-red-600' : 'text-gray-800'
+                             expenseTotals[cat] < 0 ? 'text-red-600' : 'text-gray-800'
                            }`}
                          >
                            {formatCurrency(expenseTotals[cat])}
