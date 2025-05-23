@@ -551,7 +551,7 @@ def upload_facture():
                 numero_facture, date_facture, fournisseur, description, montant, devise,
                 statut, type, chemin_fichier, id_soumetteur, date_soumission,
                 created_by, categorie, ligne_budgetaire
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
             """,
             (numero_facture, date_facture, fournisseur, description, montant, devise,
