@@ -1531,7 +1531,7 @@ function BudgetDashboard({
                  )}
                </div>
                <div className="w-full md:w-1/2">
-                 <h3 className="text-lg font-semibold mb-4">Répartition des Dépenses "Soumises" par UBR</h3>
+                 <h3 className="text-lg font-semibold mb-4">Répartition des Dépenses par Catégorie</h3>
                  <ul className="space-y-2">
                    {Object.keys(expenseTotals).length > 0 ? ( // Vérifier si expenseTotals n'est pas vide
                      Object.keys(expenseTotals).map((cat) => (
