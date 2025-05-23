@@ -107,13 +107,16 @@
 //   );
 // }
 
-// export default RegisterPage;import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 // Assurez-vous que API_URL est défini ou importé
-const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz:4343';
+const API_URL = process.env.REACT_APP_API_URL || 'https://storage.nathanbegin.xyz:4343';
 
 export default function RegisterPage() {
+  React.useEffect(() => {
+    console.log('RegisterPage mounted, step=', step);
+  }, []);
   const [step, setStep] = useState('pin');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -278,3 +281,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+
