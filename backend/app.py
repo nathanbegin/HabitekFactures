@@ -409,12 +409,12 @@ def upload_facture():
         if not data:
             return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
 
-    # # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
-    # print(f"\n--- DEBUG POST /api/factures ---")
-    # print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
-    # print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
-    # print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
-    # # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+    # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+    print(f"\n--- DEBUG POST /api/factures ---")
+    print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
+    print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
+    print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
+    # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
 
     # Extraction des champs requis de la facture
     numero_facture = data.get('numero_facture')
