@@ -326,7 +326,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                       <td className="p-2 border">{facture.id}</td>
                        <td className="p-2 border">{facture.numero_facture}</td>
                        <td className="p-2 border">{formatDate(facture.date_facture)}</td>
-                      <td className="p-2 border">{facture.type || 'N/A'}</td> {/* Gérer les valeurs null */}
+                      <td className="p-2 border">{facture.type_facture || 'N/A'}</td> {/* Gérer les valeurs null */}
                       <td className="p-2 border">{facture.ubr || 'N/A'}</td> {/* Gérer les valeurs null */}
                       <td className="p-2 border">{facture.fournisseur || 'N/A'}</td>
                        <td className="p-2 border">{facture.description || 'N/A'}</td>
