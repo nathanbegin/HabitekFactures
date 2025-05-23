@@ -315,7 +315,8 @@ def init_db():
                     montant DECIMAL(10, 2) NOT NULL,
                     devise VARCHAR(10) NOT NULL,
                     statut VARCHAR(50) NOT NULL DEFAULT 'soumis', -- soumis, approuve, rejete, paye
-                    type_facture VARCHAR(255),  
+                    type_facture VARCHAR(255),
+                    ubr VARCHAR(255),  
                     chemin_fichier VARCHAR(255),
                     id_soumetteur INTEGER REFERENCES users(id), -- Existing column
                     date_soumission TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Existing column
