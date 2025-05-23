@@ -158,7 +158,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
          try {
            console.log(`WorkspaceFactures: Récupération des factures pour l'année financière ${year}`);
            // Utiliser authorizedFetch ici
-           const res = await authorizedFetch(`${API_URL}/api/factures?annee=${year}`);
+           const res = await authorizedFetch(`${API_URL}/api/factures?year=${year}`);
            if (!res.ok) {
              // authorizedFetch a déjà géré les 401/403 et les alertes
              const errorText = await res.text(); // Tente de lire pour plus de détails
@@ -485,7 +485,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
             console.warn('fetchBudget blocqué, rôle insuffisant:', userRole);
             return [];
         }
-        const res = await authorizedFetch(`${API_URL}/api/budget?annee=${year}`);
+        const res = await authorizedFetch(`${API_URL}/api/budget?financial_year=${year}`);
         if (!res.ok) {
             throw new Error(`fetchBudget HTTP ${res.status} – ${await res.text()}`);
         }
