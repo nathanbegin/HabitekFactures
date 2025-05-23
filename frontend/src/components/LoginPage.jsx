@@ -1,6 +1,6 @@
 // src/components/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 // Assurez-vous que le chemin d'accès au logo est correct par rapport à ce fichier.
 // Si 'src' est la racine de votre projet et ce fichier est dans 'src/components',
 // alors '..' remonte d'un dossier pour accéder à 'src'.
