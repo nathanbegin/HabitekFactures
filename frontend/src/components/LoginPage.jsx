@@ -23,17 +23,27 @@ function LoginPage({ onLoginSuccess }) {
 
   // Au montage, on ping le back-end
   useEffect(() => {
+    let isMounted = true
+  
     async function pingBackend() {
       try {
-        // appelle /api/users sans token
-        const res = await fetch(`${API_URL}/api/users`);
-        if (res) setBackendStatus('online');
+        const res = await fetch(`${API_URL}/api/users`)
+        if (isMounted) setBackendStatus('online')
       } catch {
-        setBackendStatus('offline');
+        if (isMounted) setBackendStatus('offline')
       }
     }
-    pingBackend();
-  }, []);
+  
+    // Première vérification immédiate
+    pingBackend()
+    // Puis toutes les 5 secondes
+    const interval = setInterval(pingBackend, 5000)
+  
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
