@@ -147,37 +147,70 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     // authorizedFetch, reçu en prop, gère l'ajout du token et la gestion des erreurs 401/403.
 
     // La fonction fetchFactures est définie et utilisée dans useEffect et potentiellement par des événements socket
+    // async function fetchFactures(year) {
+    //      console.log(`TRACE : User role ${userRole}`);
+    //      // Vérification de rôle UI (redondant avec backend mais pour UI rapide)
+    //      if (userRole !== 'soumetteur' && userRole !== 'gestionnaire' && userRole !== 'approbateur') {
+    //          console.warn("fetchFactures: Rôle UI insuffisant.");
+    //          setFactures([]); // Vider les factures si le rôle UI ne permet pas
+    //          return null;
+    //      }
+    //      try {
+    //        console.log(`WorkspaceFactures: Récupération des factures pour l'année financière ${year}`);
+    //        // Utiliser authorizedFetch ici
+    //        const res = await authorizedFetch(`${API_URL}/api/factures?year=${year}`);
+    //        if (!res.ok) {
+    //          // authorizedFetch a déjà géré les 401/403 et les alertes
+    //          const errorText = await res.text(); // Tente de lire pour plus de détails
+    //          throw new Error(`Erreur HTTP ! statut: ${res.status} - ${errorText}`);
+    //        }
+    //        const data = await res.json();
+    //        setFactures(data);
+    //        return data;
+    //      } catch (e) {
+    //        console.error('fetchFactures: Erreur lors de la récupération des factures :', e);
+    //         // authorizedFetch gère déjà les erreurs 401/403 et la déconnexion
+    //        if (!e.message.includes("Session expirée") && !e.message.includes("Accès refusé")) {
+    //            // Afficher l'alerte uniquement pour les erreurs non gérées par authorizedFetch
+    //            alert(`Erreur lors du chargement des factures : ${e.message}`);
+    //        }
+    //        setFactures([]); // S'assurer que la liste est vide en cas d'erreur
+    //        return null;
+    //      }
+    // }
+
     async function fetchFactures(year) {
-         console.log(`TRACE : User role ${userRole}`);
-         // Vérification de rôle UI (redondant avec backend mais pour UI rapide)
-         if (userRole !== 'soumetteur' && userRole !== 'gestionnaire' && userRole !== 'approbateur') {
-             console.warn("fetchFactures: Rôle UI insuffisant.");
-             setFactures([]); // Vider les factures si le rôle UI ne permet pas
-             return null;
-         }
-         try {
-           console.log(`WorkspaceFactures: Récupération des factures pour l'année financière ${year}`);
-           // Utiliser authorizedFetch ici
-           const res = await authorizedFetch(`${API_URL}/api/factures?year=${year}`);
-           if (!res.ok) {
-             // authorizedFetch a déjà géré les 401/403 et les alertes
-             const errorText = await res.text(); // Tente de lire pour plus de détails
-             throw new Error(`Erreur HTTP ! statut: ${res.status} - ${errorText}`);
-           }
-           const data = await res.json();
-           setFactures(data);
-           return data;
-         } catch (e) {
-           console.error('fetchFactures: Erreur lors de la récupération des factures :', e);
-            // authorizedFetch gère déjà les erreurs 401/403 et la déconnexion
-           if (!e.message.includes("Session expirée") && !e.message.includes("Accès refusé")) {
-               // Afficher l'alerte uniquement pour les erreurs non gérées par authorizedFetch
-               alert(`Erreur lors du chargement des factures : ${e.message}`);
-           }
-           setFactures([]); // S'assurer que la liste est vide en cas d'erreur
-           return null;
-         }
-    }
+      console.log(`MainLayout - fetchFactures called with year: ${year}`); // Pour débogage
+      // Vérification de rôle UI (redondant avec backend mais pour UI rapide)
+      if (userRole !== 'soumetteur' && userRole !== 'gestionnaire' && userRole !== 'approbateur') {
+          console.warn("fetchFactures: Rôle UI insuffisant.");
+          setFactures([]); // Vider les factures si le rôle UI ne permet pas
+          return null;
+      }
+      try {
+        // CORRECTION ICI: Changez 'annee' en 'year'
+        console.log('MainLayout - API call to: /api/factures?year=${year}');
+        const res = await authorizedFetch(`${API_URL}/api/factures?year=${year}`);
+        if (!res.ok) {
+          const errorText = await res.text(); 
+          throw new Error(`Erreur HTTP ! statut: ${res.status} - ${errorText}`);
+        }
+        const data = await res.json();
+        console.log(`MainLayout - Factures data received for year ${year}:`, data); // Pour débogage
+        setFactures(data); // Ceci met à jour l'état 'factures' dans MainLayout
+        return data; // Retourne les données pour que fetchFacturesForBudget puisse les utiliser
+      } catch (e) {
+        console.error('fetchFactures: Erreur lors de la récupération des factures :', e);
+        if (!e.message.includes("Session expirée") && !e.message.includes("Accès refusé")) {
+            alert(`Erreur lors du chargement des factures : ${e.message}`);
+        }
+        setFactures([]); 
+        return null;
+      }
+ }
+
+
+
 
     // addFacture, deleteFacture, updateFacture, exportFacturesCsv
     // Les définitions de ces fonctions sont copiées de l'ancien App.jsx

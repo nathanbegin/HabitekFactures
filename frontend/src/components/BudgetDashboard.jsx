@@ -1097,6 +1097,7 @@ function BudgetDashboard({
       // Charger les factures uniquement si l'utilisateur est gestionnaire ou approbateur
       
       // MODIFICATION ICI : Utiliser la prop fetchFacturesForBudget pour récupérer les factures
+    console.log("BudgetDashboard: Calling fetchFacturesForBudget for anneeFinanciere:", anneeFinanciere);
     if (fetchFacturesForBudget) {
         fetchFacturesForBudget().then((data) => {
           if (data) {
@@ -1184,13 +1185,16 @@ function BudgetDashboard({
 
 
   // Calcule les totaux des dépenses par type de facture
+
   const relevantFactures = localFactures;
+  console.log("BudgetDashboard - Calculating expenseTotals based on localFactures:", localFactures);
+  
   const expenseTotals = relevantFactures.reduce((totals, facture) => {
     if (!facture.type) return totals;
     totals[facture.type] = (totals[facture.type] || 0) + facture.montant;
     return totals;
   }, {});
-
+  console.log("BudgetDashboard - Calculated expenseTotals:", expenseTotals);
 
 
 
