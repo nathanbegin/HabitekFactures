@@ -684,7 +684,7 @@ def get_factures():
             """
             SELECT
                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-                f.statut, f._type_facture, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.statut, f.type_facture, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
             FROM factures f
