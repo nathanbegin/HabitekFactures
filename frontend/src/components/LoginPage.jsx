@@ -69,6 +69,8 @@ function LoginPage({ onLoginSuccess }) {
     }
   };
 
+ 
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-xl space-y-6">
@@ -120,6 +122,12 @@ function LoginPage({ onLoginSuccess }) {
           >
             Se connecter
           </button>
+          {/* Bouton S'inscrire */}
+          <div className="mt-4 text-center">
+            <Link to="/register" className="text-blue-600 hover:underline">
+              S'inscrire
+            </Link>
+          </div>
         </form>
 
         {error && <p className="mt-4 text-red-500 text-center text-sm">{error}</p>}
