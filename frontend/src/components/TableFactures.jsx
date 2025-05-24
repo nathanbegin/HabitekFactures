@@ -481,7 +481,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 )}
                 <div className="mb-4">
                   <span className="font-semibold">Fichier :</span>{' '}
-                  {facture.chemin_fichier ? (
+                  {facture.chemin_fichier ? ( 
                     // APPEL VIA PROP : Utiliser la fonction handleDownloadClick qui appelle la prop downloadFile
                     <button
                       onClick={() => handleDownloadClick(facture.id, facture.annee)} // Passer l'ID et l'année (si besoin)

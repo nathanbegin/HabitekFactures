@@ -711,6 +711,8 @@ def get_factures():
         # Convertir chaque ligne (DictRow) en dictionnaire et rendre JSON sérialisable
         factures_list = [convert_to_json_serializable(dict(row)) for row in factures]
 
+        print(factures_list)
+
         return jsonify(factures_list), 200 # Retourner la liste des factures
 
     except Exception as e:
