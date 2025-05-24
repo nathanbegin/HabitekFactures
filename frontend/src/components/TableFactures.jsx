@@ -84,7 +84,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       const date = toDate(rawDate);
       const formatted = formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
   
-      // console.log(`📅 formatDate : ${dateString} → ${formatted}`);
+      console.log(`📅 formatDate : ${dateString} → ${formatted}`);
       return formatted;
     } catch (error) {
       console.error("Erreur lors du formatage de la date :", dateString, error);
@@ -354,10 +354,10 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                       <td className="p-2 border">{facture.categorie || 'N/A'}</td>
                       <td className="p-2 border">{facture.ligne_budgetaire || 'N/A'}</td>
                        <td className="p-2 border">{facture.soumetteur_username || 'N/A'}</td>
-                       <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
+                       <td className="p-2 border">{facture.date_soumission}</td>
                        <td className="p-2 border">{facture.created_by_username || 'N/A'}</td>
                        <td className="p-2 border">{facture.last_modified_by_username || 'N/A'}</td>
-                       <td className="p-2 border">{facture.last_modified_timestamp ? formatDateTime(facture.last_modified_timestamp) : 'N/A'}</td>
+                       <td className="p-2 border">{facture.last_modified_timestamp ? facture.last_modified_timestamp : 'N/A'}</td>
                       <td className="p-2 border">
                         {facture.chemin_fichier ? (
                           // APPEL VIA PROP : Utiliser la fonction handleDownloadClick qui appelle la prop downloadFile
