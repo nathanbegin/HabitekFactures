@@ -27,7 +27,11 @@ import pytz
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
-            # Formate les objets datetime en chaîne ISO 8601
++            # Si datetime naïf, on l’assume en UTC
++            if obj.tzinfo is None:
++                obj = obj.replace(tzinfo=timezone.utc)
++            # On force une ISO 8601 en UTC avec 'Z'
++            return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
             return obj.isoformat()
         if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
             return obj.isoformat()
@@ -79,18 +83,18 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://minio:Habitek2025@lo
 
 
 
-# Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
-class CustomJSONEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            # Formate les objets datetime en chaîne ISO 8601
-            return obj.isoformat()
-        if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
-            return obj.isoformat()
-        if isinstance(obj, Decimal):
-            # Convertit les objets Decimal en chaîne (pour éviter la perte de précision)
-            return str(obj)
-        return super().default(obj) # Laisse l'encodeur par défaut gérer les autres types
+# # Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
+# class CustomJSONEncoder(JSONEncoder):
+#     def default(self, obj):
+#         if isinstance(obj, datetime):
+#             # Formate les objets datetime en chaîne ISO 8601
+#             return obj.isoformat()
+#         if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
+#             return obj.isoformat()
+#         if isinstance(obj, Decimal):
+#             # Convertit les objets Decimal en chaîne (pour éviter la perte de précision)
+#             return str(obj)
+#         return super().default(obj) # Laisse l'encodeur par défaut gérer les autres types
 
 
 # Fonctions pour gérer le hachage et la vérification des mots de passe
@@ -383,7 +387,11 @@ def convert_to_json_serializable(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, datetime):
-        return obj.isoformat()
++       # On considère que les datetime sans tzinfo sont UTC
++       if obj.tzinfo is None:
++           obj = obj.replace(tzinfo=timezone.utc)
++       # Toujours émettre en UTC avec 'Z'
++       return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
     return obj
 
 @app.route("/")
