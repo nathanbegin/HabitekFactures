@@ -291,6 +291,16 @@ def get_db_connection():
             host=url.hostname,
             port=url.port
         )
+        #############
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SET TIME ZONE 'UTC';")
+            # print("Fuseau horaire de la session de base de données configuré sur UTC.") # Optionnel pour le débogage
+        except psycopg2.Error as e:
+            print(f"Échec de la configuration du fuseau horaire de la session sur UTC : {e}")
+            # Gérer l'erreur : fermer la connexion et retourner None, ou lever une exception
+            conn.close()
+            return None
         return conn
     except psycopg2.Error as e:
         print(f"Erreur de connexion à PostgreSQL : {e}")
@@ -323,11 +333,11 @@ def init_db():
                     ubr VARCHAR(255),  
                     chemin_fichier VARCHAR(255),
                     id_soumetteur INTEGER REFERENCES users(id), -- Existing column
-                    date_soumission TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Existing column
+                    date_soumission TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- Existing column
                     -- New columns added below
                     created_by INTEGER REFERENCES users(id),
-                    last_modified_by INTEGER REFERENCES users(id),
-                    last_modified_timestamp TIMESTAMP,
+                    last_modified_by INTEGER REFERENCES  users(id),
+                    last_modified_timestamp TIMESTAMPTZ,
                     categorie VARCHAR(255), -- Adjust size as needed
                     ligne_budgetaire VARCHAR(255) -- Adjust size as needed
                 );
