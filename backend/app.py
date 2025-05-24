@@ -27,11 +27,11 @@ import pytz
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
-+            # Si datetime naïf, on l’assume en UTC
-+            if obj.tzinfo is None:
-+                obj = obj.replace(tzinfo=timezone.utc)
-+            # On force une ISO 8601 en UTC avec 'Z'
-+            return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+            # Si datetime naïf, on l’assume en UTC
+            if obj.tzinfo is None:
+                obj = obj.replace(tzinfo=timezone.utc)
+            # On force une ISO 8601 en UTC avec 'Z'
+            return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
             return obj.isoformat()
         if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
             return obj.isoformat()
@@ -387,11 +387,11 @@ def convert_to_json_serializable(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, datetime):
-+       # On considère que les datetime sans tzinfo sont UTC
-+       if obj.tzinfo is None:
-+           obj = obj.replace(tzinfo=timezone.utc)
-+       # Toujours émettre en UTC avec 'Z'
-+       return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+      # On considère que les datetime sans tzinfo sont UTC
+       if obj.tzinfo is None:
+           obj = obj.replace(tzinfo=timezone.utc)
+       # Toujours émettre en UTC avec 'Z'
+       return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
     return obj
 
 @app.route("/")
