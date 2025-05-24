@@ -474,10 +474,10 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 )}
                 <div className="mb-2"><span className="font-semibold">Catégorie :</span> {facture.categorie || 'N/A'}</div>
                 <div className="mb-2"><span className="font-semibold">Ligne Budgétaire :</span> {facture.ligne_budgetaire || 'N/A'}</div>
-                <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Soumise par :</span> {facture.soumetteur_username || 'N/A'} le {formatDateTime(facture.date_soumission)}</div>
+                <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Soumise par :</span> {facture.soumetteur_username || 'N/A'} le {facture.date_soumission}</div>
                 <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Créée par :</span> {facture.created_by_username || 'N/A'}</div>
                 {facture.last_modified_timestamp && (
-                  <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Dernière modif. par :</span> {facture.last_modified_by_username || 'N/A'} le {formatDateTime(facture.last_modified_timestamp)}</div>
+                  <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Dernière modif. par :</span> {facture.last_modified_by_username || 'N/A'} le {facture.last_modified_timestamp}</div>
                 )}
                 <div className="mb-4">
                   <span className="font-semibold">Fichier :</span>{' '}
