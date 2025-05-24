@@ -63,6 +63,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Date invalide';
+      console.log("date : ",date);
   
       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
     } catch (error) {
