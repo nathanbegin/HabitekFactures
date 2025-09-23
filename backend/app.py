@@ -996,20 +996,38 @@ def patch_facture(fid):
     if "numero_facture" in data:
         return jsonify({"error": "numero_facture est en lecture seule"}), 400
 
-    # Champs modifiables selon TA table
     allowed = {
         "date_facture", "fournisseur", "description", "montant", "devise",
         "statut", "type_facture", "ubr", "chemin_fichier",
-        "categorie", "ligne_budgetaire"
+        "categorie", "ligne_budgetaire",
+        "compte_depense_id"  # NEW: lier/délier un compte de dépense (colonne TEXT)
     }
 
-    # Validation simple : montant -> Decimal si présent
+    # --- Validations/normalisations ---
+    # Montant -> Decimal (si fourni)
     if "montant" in data:
         try:
-            Decimal(str(data["montant"]))
+            data["montant"] = Decimal(str(data["montant"]))
         except InvalidOperation:
             return jsonify({"error": "Format de montant invalide"}), 400
 
+    # Date (si fournie)
+    if "date_facture" in data:
+        try:
+            datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"error": "Format date_facture invalide (AAAA-MM-JJ)"}), 400
+
+    # NEW: compte_depense_id (TEXT) — accepter null/"" pour délier, sinon valider 'HABITEK###'
+    if "compte_depense_id" in data:
+        v = data["compte_depense_id"]
+        if v in (None, "", "null", "None"):
+            data["compte_depense_id"] = None
+        else:
+            if not re.match(r"^HABITEK\d{3,}$", str(v)):
+                return jsonify({"error": "compte_depense_id doit suivre le format HABITEK###"}), 400
+
+    # Construction dynamique du SET
     sets, vals = [], []
     for k, v in data.items():
         if k in allowed:
@@ -1019,7 +1037,7 @@ def patch_facture(fid):
     if not sets:
         return jsonify({"error": "Aucun champ modifiable"}), 400
 
-    # Audit auto
+    # Audit
     sets.append("last_modified_by = %s")
     vals.append(g.user_id)
     sets.append("last_modified_timestamp = (now() at time zone 'utc')")
@@ -1041,9 +1059,7 @@ def patch_facture(fid):
 
         conn.commit()
         updated = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-
-        # Emit temps réel (ton UI écoute déjà update_facture)
-        socketio.emit("update_facture", updated)
+        socketio.emit("update_facture", updated)  # UI écoute déjà
         return jsonify(updated), 200
 
     except Exception as e:
