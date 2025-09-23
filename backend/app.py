@@ -946,21 +946,29 @@ def get_file(id):
 
 
 
-@app.patch("/api/factures/<int:fid>")
+@app.route("/api/factures/<int:fid>", methods=["PATCH"])
 @token_required
 @role_required(['gestionnaire', 'approbateur'])
-def patch_facture(user, fid):
+def patch_facture(fid):
     data = request.get_json() or {}
     if not data:
         return jsonify({"error": "Aucune donnée"}), 400
     if "numero_facture" in data:
         return jsonify({"error": "numero_facture est en lecture seule"}), 400
 
-    # === À ADAPTER aux colonnes existantes ===
+    # Champs modifiables selon TA table
     allowed = {
-        "date", "fournisseur", "montant", "statut",
-        "categorie", "ligne_budgetaire", "ubr"
+        "date_facture", "fournisseur", "description", "montant", "devise",
+        "statut", "type_facture", "ubr", "chemin_fichier",
+        "categorie", "ligne_budgetaire"
     }
+
+    # Validation simple : montant -> Decimal si présent
+    if "montant" in data:
+        try:
+            Decimal(str(data["montant"]))
+        except InvalidOperation:
+            return jsonify({"error": "Format de montant invalide"}), 400
 
     sets, vals = [], []
     for k, v in data.items():
@@ -971,11 +979,14 @@ def patch_facture(user, fid):
     if not sets:
         return jsonify({"error": "Aucun champ modifiable"}), 400
 
+    # Audit auto
+    sets.append("last_modified_by = %s")
+    vals.append(g.user_id)
+    sets.append("last_modified_timestamp = (now() at time zone 'utc')")
+
     vals.append(fid)
 
     conn = get_db_connection()
-    if conn is None:
-        return jsonify({"error": "Erreur de connexion DB"}), 500
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute(f"""
@@ -990,11 +1001,15 @@ def patch_facture(user, fid):
 
         conn.commit()
         updated = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-        socketio.emit("update_facture", updated, broadcast=True)
+
+        # Emit temps réel (ton UI écoute déjà update_facture)
+        socketio.emit("update_facture", updated)
         return jsonify(updated), 200
+
     except Exception as e:
-        print("patch_facture error:", e)
-        return jsonify({"error": "Erreur lors de la mise à jour"}), 500
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify({"error": "Erreur lors de la mise à jour", "details": str(e)}), 500
     finally:
         cur.close(); conn.close()
 
