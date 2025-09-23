@@ -415,176 +415,313 @@ def home():
 
 
 
+# @app.route('/api/factures', methods=['POST'])
+# @token_required
+# @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
+# def upload_facture():
+#     # Récupérer les données JSON de la requête
+#     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
+#     # data = request.form.to_dict()
+#     data = request.form
+#     if not data:
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
+
+#     # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+#     print(f"\n--- DEBUG POST /api/factures ---")
+#     print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
+#     print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
+#     print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
+#     # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+
+#     # Extraction des champs requis de la facture
+#     numero_facture = data.get('numero_facture')
+#     date_facture = data.get('date_facture')
+#     fournisseur = data.get('fournisseur')
+#     description = data.get('description')
+#     montant = data.get('montant')
+#     devise = data.get('devise')
+#     statut = data.get('statut', 'soumis') # Statut par défaut 'soumis'
+#     categorie = data.get('categorie')
+#     ligne_budgetaire = data.get('ligne_budgetaire')
+#     type_= data.get('type')
+#     ubr = data.get('ubr')
+
+
+#     # --- Début de la gestion optionnelle du fichier ---
+#     file_path = None # Initialiser le chemin du fichier à None
+    
+#     file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
+
+    
+#     if (file and file.filename != ''):
+#         print(f"DEBUG: Condition 'file and file.filename != ''' est VRAIE.")
+#         filename = secure_filename(file.filename)
+#         upload_folder = app.config['UPLOAD_FOLDER']
+
+#         # --- DÉBOGAGE DU CHEMIN ET CRÉATION DE DOSSIER ---
+#         print(f"DEBUG: UPLOAD_FOLDER configuré: {upload_folder}")
+#         # Assurez-vous que le répertoire de téléversement existe
+#         os.makedirs(upload_folder, exist_ok=True) # Cette ligne crée le dossier s'il n'existe pas
+#         print(f"DEBUG: Le dossier de téléversement '{upload_folder}' a été vérifié/créé.")
+#         # --- FIN DÉBOGAGE DU CHEMIN ---
+
+#         file_path = os.path.join(upload_folder, filename)
+#         print(f"DEBUG: Chemin complet où le fichier sera sauvegardé: {file_path}")
+
+#         try:
+#             file.save(file_path)
+#             print(f"DEBUG: Fichier '{filename}' sauvegardé avec succès dans '{file_path}'")
+#         except Exception as e:
+#             print(f"DEBUG ERROR: Échec de la sauvegarde du fichier: {e}")
+#             traceback.print_exc() # Cela imprimera le traceback complet de l'erreur
+#             return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
+#     else:
+#         print("DEBUG: Condition 'file and file.filename != ''' est FAUSSE. Pas de fichier à sauvegarder.")
+#     # --- Fin de la gestion optionnelle du fichier ---
+
+
+#     # Vérifier si les champs requis (hors fichier) sont présents
+#     if not all([numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire]):
+#         # Le chemin_fichier n'est plus requis ici
+#         return jsonify({"error": "Champs requis manquants (numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire)"}), 400
+
+
+#     # Validation basique du format de la date (ajuster selon votre besoin)
+#     try:
+#         datetime.strptime(date_facture, '%Y-%m-%d')
+#     except ValueError:
+#         # Supprimer le fichier sauvegardé s'il y a une erreur de date après la sauvegarde
+#         if file_path and os.path.exists(file_path):
+#              os.remove(file_path)
+#         return jsonify({"error": "Format de date invalide. Utilisez AAAA-MM-JJ"}), 400
+
+#     # Convertir le montant en Decimal
+#     try:
+#         montant = Decimal(montant)
+#     except InvalidOperation:
+#          # Supprimer le fichier sauvegardé s'il y a une erreur de montant après la sauvegarde
+#         if file_path and os.path.exists(file_path):
+#              os.remove(file_path)
+#         return jsonify({"error": "Format de montant invalide"}), 400
+
+
+#     conn = get_db_connection()
+#     # cur = conn.cursor()
+#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         # Vérifier s'il existe déjà une facture avec le même numéro
+#         cur.execute("SELECT id FROM factures WHERE numero_facture = %s", (numero_facture,))
+#         if cur.fetchone():
+#             # Si le numéro de facture existe déjà, supprimer le fichier sauvegardé (s'il y en a un)
+#             if file_path and os.path.exists(file_path):
+#                 os.remove(file_path)
+#             return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
+
+#        # Date de soumission actuelle (assurée d'être en UTC)
+#         # Crée un datetime conscient du fuseau horaire de Montréal, puis le convertit en UTC
+#         now_aware_local = MONTREAL_TIMEZONE.localize(datetime.now(), is_dst=None)
+#         date_soumission_utc = now_aware_local.astimezone(pytz.utc)  
+    
+#         # Insérer la nouvelle facture dans la base de données
+#         # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire  
+#         # created_by est l'utilisateur actuellement authentifié (via g.user_id)
+#         # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
+#         print(f"\n--- DEBUG: Types des paramètres pour l'INSERT ---")
+#         print(f"DEBUG: numero_facture: Type={type(numero_facture)}, Value='{numero_facture}'")
+#         print(f"DEBUG: date_facture: Type={type(date_facture)}, Value='{date_facture}'")
+#         print(f"DEBUG: fournisseur: Type={type(fournisseur)}, Value='{fournisseur}'")
+#         print(f"DEBUG: description: Type={type(description)}, Value='{description}'")
+#         print(f"DEBUG: montant: Type={type(montant)}, Value='{montant}'")
+#         print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
+#         print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
+#         print(f"DEBUG: type: Type={type(type_)}, Value='{type_}'")
+#         print(f"DEBUG: type: Type={type(ubr)}, Value='{ubr}'")
+#         print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
+#         print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
+#         print(f"DEBUG: date_soumission_utc: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
+#         print(f"DEBUG: g.user_id (created_by): Type={type(g.user_id)}, Value='{g.user_id}'")
+#         print(f"DEBUG: categorie: Type={type(categorie)}, Value='{categorie}'")
+#         print(f"DEBUG: ligne_budgetaire: Type={type(ligne_budgetaire)}, Value='{ligne_budgetaire}'")
+#         print(f"--- FIN DEBUG: Types des paramètres ---")
+#         cur.execute(
+#             """
+#             INSERT INTO factures (
+#                 numero_facture, date_facture, fournisseur, description, montant, devise,
+#                 statut, type_facture, ubr, chemin_fichier, id_soumetteur, date_soumission,
+#                 created_by, categorie, ligne_budgetaire
+#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#             RETURNING id;
+#             """,
+#             (numero_facture, date_facture, fournisseur, description, montant, devise,
+#              statut,type_, ubr, file_path, g.user_id, date_soumission_utc,
+#              g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
+#         )
+#         facture_id = cur.fetchone()[0]
+#         conn.commit()
+
+#         # --- Récupérer la facture nouvellement créée pour l'émettre via SocketIO ---
+#         # Inclure les NOUVEAUX champs et les jointures pour les noms d'utilisateur associés
+#         cur.execute(
+#             """
+#             SELECT
+#                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+#                 f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+#                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+#                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+#             FROM factures f
+#             JOIN users u ON f.id_soumetteur = u.id
+#             LEFT JOIN users uc ON f.created_by = uc.id -- Joindre pour le nom d'utilisateur de created_by
+#             LEFT JOIN users um ON f.last_modified_by = um.id -- Joindre pour le nom d'utilisateur de last_modified_by
+#             WHERE f.id = %s
+#             """, (facture_id,)
+#         )
+#         new_facture = cur.fetchone()
+
+#         if new_facture:
+#              # Convertir la ligne de résultat en dictionnaire pour un accès plus facile
+#             new_facture_dict = dict(new_facture)
+#             # Convertir les types non sérialisables en JSON
+#             #serializable_facture = convert_to_json_serializable(new_facture_dict)
+#             # Émettre l'événement SocketIO
+#             # --- CRITICAL DEBUG LINE ---
+#             try:
+#                 # Explicitly use app.json_encoder to see what it produces
+#                 json_payload_to_emit = json.dumps(new_facture_dict, cls=app.json_encoder)
+#                 print(f"\n--- DEBUG BACKEND: JSON payload as processed by CustomJSONEncoder (BEFORE SocketIO emit) ---\n{json_payload_to_emit}\n--- END DEBUG ---")
+#             except Exception as e:
+#                 print(f"DEBUG BACKEND ERROR: CustomJSONEncoder test failed to serialize DictRow: {e}")
+#                 import traceback # Ensure this is imported
+#                 traceback.print_exc()
+#             # --- END CRITICAL DEBUG LINE ---
+#             new_facture_dict = dict(new_facture)
+#             new_facture_dict['annee'] = date_facture[:4]  # extrait l'année en string à partir de 'YYYY-MM-DD'
+#             socketio.emit('new_facture', new_facture_dict)
+
+#         # --- Fin de la récupération et émission SocketIO ---
+
+
+#         return jsonify({"message": "Facture créée avec succès (fichier joint optionnel)", "id": facture_id}), 201
+
+#     except psycopg2.errors.UniqueViolation:
+#         conn.rollback()
+#         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'erreur de violation unique
+#         if file_path and os.path.exists(file_path):
+#             os.remove(file_path)
+#         print(f"DEBUG: UniqueViolation catch: Le numéro de facture {numero_facture} existe déjà.") # Debug précis
+#         traceback.print_exc() # Ajoutez le traceback ici aussi pour ce cas spécifique
+#         return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
+#     except Exception as e:
+#         conn.rollback()
+#         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
+#         if file_path and os.path.exists(file_path):
+#             os.remove(file_path)
+#         print(f"Erreur de base de données (CAPTURE GÉNÉRIQUE): {e}")
+#         # C'EST LA LIGNE CLÉ QUE NOUS VOULONS VÉRIFIER : assurez-vous qu'elle est là et que son output est capturé.
+#         traceback.print_exc()
+#         return jsonify({"error": "Échec de la sauvegarde de la facture dans la base de données.", "details": str(e)}), 500
+#     finally:
+#         cur.close()
+#         conn.close()
+
 @app.route('/api/factures', methods=['POST'])
 @token_required
 @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
 def upload_facture():
-    # Récupérer les données JSON de la requête
-    # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
-    # data = request.form.to_dict()
-    data = request.form
+    # 1) Récup données
+    data = request.form if request.form else (request.get_json() or {})
     if not data:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
+        return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
 
-    # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
     print(f"\n--- DEBUG POST /api/factures ---")
-    print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
-    print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
-    print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
-    # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
+    print(f"DEBUG: Content-Type: {request.headers.get('Content-Type')}")
+    print(f"DEBUG: request.form: {request.form}")
+    print(f"DEBUG: request.files: {request.files}")
 
-    # Extraction des champs requis de la facture
-    numero_facture = data.get('numero_facture')
-    date_facture = data.get('date_facture')
-    fournisseur = data.get('fournisseur')
-    description = data.get('description')
-    montant = data.get('montant')
-    devise = data.get('devise')
-    statut = data.get('statut', 'soumis') # Statut par défaut 'soumis'
-    categorie = data.get('categorie')
+    # 2) Extraire (SANS numero_facture — read-only)
+    #    -> on lit la valeur mais on ne l'utilise plus
+    _numero_facture_client = data.get('numero_facture')  # ignoré
+    date_facture   = data.get('date_facture')
+    fournisseur    = data.get('fournisseur')
+    description    = data.get('description')
+    montant        = data.get('montant')
+    devise         = data.get('devise')
+    statut         = data.get('statut', 'soumis')
+    categorie      = data.get('categorie')
     ligne_budgetaire = data.get('ligne_budgetaire')
-    type_= data.get('type')
-    ubr = data.get('ubr')
+    type_          = data.get('type')
+    ubr            = data.get('ubr')
 
-
-    # --- Début de la gestion optionnelle du fichier ---
-    file_path = None # Initialiser le chemin du fichier à None
-    
-    file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
-
-     # --- DÉBUT DES LIGNES DE DÉBOGAGE POUR LE FICHIER ---
-    # print(f"DEBUG: Objet 'file' après request.files.get('fichier'): {file}")
-    # if file:
-    #     print(f"DEBUG: Nom du fichier détecté: {file.filename}")
-    #     print(f"DEBUG: Taille du fichier (content_length): {file.content_length} bytes")
-    # else:
-    #     print("DEBUG: Aucune clé 'fichier' trouvée dans request.files ou fichier est vide.")
-    # --- FIN DES LIGNES DE DÉBOGAGE POUR LE FICHIER ---
-
-    # Vérifier si un fichier a été joint et s'il a un nom de fichier valide
-    # if file and file.filename != '':
-    #     # Assurer que le nom de fichier est sécurisé
-    #     filename = secure_filename(file.filename)
-    #     # Créer le chemin complet pour sauvegarder le fichier
-    #     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-    #     # Sauvegarder le fichier sur le système de fichiers
-    #     try:
-    #         file.save(file_path)
-    #     except Exception as e:
-    #         print(f"Erreur lors de la sauvegarde du fichier: {e}")
-    #         return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
-
-    if (file and file.filename != ''):
-        print(f"DEBUG: Condition 'file and file.filename != ''' est VRAIE.")
+    # 3) Upload fichier (inchangé)
+    file_path = None
+    file = request.files.get('fichier')
+    if file and file.filename != '':
         filename = secure_filename(file.filename)
         upload_folder = app.config['UPLOAD_FOLDER']
-
-        # --- DÉBOGAGE DU CHEMIN ET CRÉATION DE DOSSIER ---
-        print(f"DEBUG: UPLOAD_FOLDER configuré: {upload_folder}")
-        # Assurez-vous que le répertoire de téléversement existe
-        os.makedirs(upload_folder, exist_ok=True) # Cette ligne crée le dossier s'il n'existe pas
-        print(f"DEBUG: Le dossier de téléversement '{upload_folder}' a été vérifié/créé.")
-        # --- FIN DÉBOGAGE DU CHEMIN ---
-
+        os.makedirs(upload_folder, exist_ok=True)
         file_path = os.path.join(upload_folder, filename)
-        print(f"DEBUG: Chemin complet où le fichier sera sauvegardé: {file_path}")
-
         try:
             file.save(file_path)
-            print(f"DEBUG: Fichier '{filename}' sauvegardé avec succès dans '{file_path}'")
         except Exception as e:
-            print(f"DEBUG ERROR: Échec de la sauvegarde du fichier: {e}")
-            traceback.print_exc() # Cela imprimera le traceback complet de l'erreur
+            traceback.print_exc()
             return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
-    else:
-        print("DEBUG: Condition 'file and file.filename != ''' est FAUSSE. Pas de fichier à sauvegarder.")
-    # --- Fin de la gestion optionnelle du fichier ---
 
+    # 4) Champs requis (NE PLUS inclure numero_facture)
+    if not all([date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire]):
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({"error": "Champs requis manquants (date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire)"}), 400
 
-    # Vérifier si les champs requis (hors fichier) sont présents
-    if not all([numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire]):
-        # Le chemin_fichier n'est plus requis ici
-        return jsonify({"error": "Champs requis manquants (numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire)"}), 400
-
-
-    # Validation basique du format de la date (ajuster selon votre besoin)
+    # 5) Validations
     try:
         datetime.strptime(date_facture, '%Y-%m-%d')
     except ValueError:
-        # Supprimer le fichier sauvegardé s'il y a une erreur de date après la sauvegarde
         if file_path and os.path.exists(file_path):
-             os.remove(file_path)
+            os.remove(file_path)
         return jsonify({"error": "Format de date invalide. Utilisez AAAA-MM-JJ"}), 400
 
-    # Convertir le montant en Decimal
     try:
         montant = Decimal(montant)
     except InvalidOperation:
-         # Supprimer le fichier sauvegardé s'il y a une erreur de montant après la sauvegarde
         if file_path and os.path.exists(file_path):
-             os.remove(file_path)
+            os.remove(file_path)
         return jsonify({"error": "Format de montant invalide"}), 400
 
-
     conn = get_db_connection()
-    # cur = conn.cursor()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        # Vérifier s'il existe déjà une facture avec le même numéro
-        cur.execute("SELECT id FROM factures WHERE numero_facture = %s", (numero_facture,))
-        if cur.fetchone():
-            # Si le numéro de facture existe déjà, supprimer le fichier sauvegardé (s'il y en a un)
-            if file_path and os.path.exists(file_path):
-                os.remove(file_path)
-            return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
+        # 6) (SUPPRIMÉ) Vérif d'unicité du numero_facture — la DB gère via séquence + UNIQUE
 
-       # Date de soumission actuelle (assurée d'être en UTC)
-        # Crée un datetime conscient du fuseau horaire de Montréal, puis le convertit en UTC
+        # 7) Timestamps cohérents (UTC)
         now_aware_local = MONTREAL_TIMEZONE.localize(datetime.now(), is_dst=None)
-        date_soumission_utc = now_aware_local.astimezone(pytz.utc)  
-    
-        # Insérer la nouvelle facture dans la base de données
-        # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire  
-        # created_by est l'utilisateur actuellement authentifié (via g.user_id)
-        # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
-        print(f"\n--- DEBUG: Types des paramètres pour l'INSERT ---")
-        print(f"DEBUG: numero_facture: Type={type(numero_facture)}, Value='{numero_facture}'")
-        print(f"DEBUG: date_facture: Type={type(date_facture)}, Value='{date_facture}'")
-        print(f"DEBUG: fournisseur: Type={type(fournisseur)}, Value='{fournisseur}'")
-        print(f"DEBUG: description: Type={type(description)}, Value='{description}'")
-        print(f"DEBUG: montant: Type={type(montant)}, Value='{montant}'")
-        print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
-        print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
-        print(f"DEBUG: type: Type={type(type_)}, Value='{type_}'")
-        print(f"DEBUG: type: Type={type(ubr)}, Value='{ubr}'")
-        print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
-        print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
-        print(f"DEBUG: date_soumission_utc: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
-        print(f"DEBUG: g.user_id (created_by): Type={type(g.user_id)}, Value='{g.user_id}'")
-        print(f"DEBUG: categorie: Type={type(categorie)}, Value='{categorie}'")
-        print(f"DEBUG: ligne_budgetaire: Type={type(ligne_budgetaire)}, Value='{ligne_budgetaire}'")
-        print(f"--- FIN DEBUG: Types des paramètres ---")
+        date_soumission_utc = now_aware_local.astimezone(pytz.utc)
+
+        print(f"\n--- DEBUG: Types pour INSERT (sans numero_facture) ---")
+        print(f"date_facture={date_facture} fournisseur={fournisseur} montant={montant} devise={devise}")
+        print(f"statut={statut} type={type_} ubr={ubr} file_path={file_path}")
+        print(f"id_soumetteur={g.user_id} date_soumission_utc={date_soumission_utc}")
+        print(f"categorie={categorie} ligne_budgetaire={ligne_budgetaire}")
+        print(f"--- FIN DEBUG ---")
+
+        # 8) INSERT SANS numero_facture (DEFAULT séquence en DB)
         cur.execute(
             """
             INSERT INTO factures (
-                numero_facture, date_facture, fournisseur, description, montant, devise,
+                date_facture, fournisseur, description, montant, devise,
                 statut, type_facture, ubr, chemin_fichier, id_soumetteur, date_soumission,
                 created_by, categorie, ligne_budgetaire
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
             """,
-            (numero_facture, date_facture, fournisseur, description, montant, devise,
-             statut,type_, ubr, file_path, g.user_id, date_soumission_utc,
-             g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
+            (date_facture, fournisseur, description, montant, devise,
+             statut, type_, ubr, file_path, g.user_id, date_soumission_utc,
+             g.user_id, categorie, ligne_budgetaire)
         )
         facture_id = cur.fetchone()[0]
         conn.commit()
 
-        # --- Récupérer la facture nouvellement créée pour l'émettre via SocketIO ---
-        # Inclure les NOUVEAUX champs et les jointures pour les noms d'utilisateur associés
+        # 9) Relecture + emit (inchangé)
         cur.execute(
             """
             SELECT
@@ -594,58 +731,46 @@ def upload_facture():
                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
             FROM factures f
             JOIN users u ON f.id_soumetteur = u.id
-            LEFT JOIN users uc ON f.created_by = uc.id -- Joindre pour le nom d'utilisateur de created_by
-            LEFT JOIN users um ON f.last_modified_by = um.id -- Joindre pour le nom d'utilisateur de last_modified_by
+            LEFT JOIN users uc ON f.created_by = uc.id
+            LEFT JOIN users um ON f.last_modified_by = um.id
             WHERE f.id = %s
             """, (facture_id,)
         )
         new_facture = cur.fetchone()
 
         if new_facture:
-             # Convertir la ligne de résultat en dictionnaire pour un accès plus facile
             new_facture_dict = dict(new_facture)
-            # Convertir les types non sérialisables en JSON
-            #serializable_facture = convert_to_json_serializable(new_facture_dict)
-            # Émettre l'événement SocketIO
-            # --- CRITICAL DEBUG LINE ---
             try:
-                # Explicitly use app.json_encoder to see what it produces
-                json_payload_to_emit = json.dumps(new_facture_dict, cls=app.json_encoder)
-                print(f"\n--- DEBUG BACKEND: JSON payload as processed by CustomJSONEncoder (BEFORE SocketIO emit) ---\n{json_payload_to_emit}\n--- END DEBUG ---")
-            except Exception as e:
-                print(f"DEBUG BACKEND ERROR: CustomJSONEncoder test failed to serialize DictRow: {e}")
-                import traceback # Ensure this is imported
+                json.dumps(new_facture_dict, cls=app.json_encoder)  # test sérialisation
+            except Exception:
                 traceback.print_exc()
-            # --- END CRITICAL DEBUG LINE ---
-            new_facture_dict = dict(new_facture)
-            new_facture_dict['annee'] = date_facture[:4]  # extrait l'année en string à partir de 'YYYY-MM-DD'
+
+            # Ajout 'annee' dérivée de date_facture (ex: "2025")
+            new_facture_dict['annee'] = (date_facture or '')[:4]
             socketio.emit('new_facture', new_facture_dict)
-
-        # --- Fin de la récupération et émission SocketIO ---
-
 
         return jsonify({"message": "Facture créée avec succès (fichier joint optionnel)", "id": facture_id}), 201
 
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
-        # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'erreur de violation unique
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
-        print(f"DEBUG: UniqueViolation catch: Le numéro de facture {numero_facture} existe déjà.") # Debug précis
-        traceback.print_exc() # Ajoutez le traceback ici aussi pour ce cas spécifique
-        return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
+        traceback.print_exc()
+        # Cette erreur ne devrait plus venir du numero_facture côté client,
+        # mais on la garde par prudence (autres contraintes uniques éventuelles).
+        return jsonify({"error": "Violation d’unicité détectée"}), 409
+
     except Exception as e:
         conn.rollback()
-        # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
-        print(f"Erreur de base de données (CAPTURE GÉNÉRIQUE): {e}")
-        # C'EST LA LIGNE CLÉ QUE NOUS VOULONS VÉRIFIER : assurez-vous qu'elle est là et que son output est capturé.
         traceback.print_exc()
         return jsonify({"error": "Échec de la sauvegarde de la facture dans la base de données.", "details": str(e)}), 500
+
     finally:
         cur.close()
         conn.close()
+
 
 
 
