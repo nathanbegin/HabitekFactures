@@ -774,91 +774,131 @@ def upload_facture():
 
 
 
-# @app.route("/api/factures", methods=["GET"])
+
+#OLD VERSION 2025-09-22
+# @app.route('/api/factures', methods=['GET'])
 # @token_required
 # @role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
 # def get_factures():
 #     """
 #     Récupère la liste des factures pour une année donnée.
 #     - Par défaut, utilise l'année en cours si aucune année n'est spécifiée.
-#     - Retourne les factures triées par ID (du plus récent au plus ancien).
+#     - Inclut les nouvelles colonnes et les noms d'utilisateur associés.
+#     - Retourne les factures triées par date_facture (du plus récent au plus ancien).
 #     Returns:
 #         JSON: Liste des factures ou message d'erreur.
 #     """
-#     annee = request.args.get("annee", str(datetime.now().year))
+#     # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
+#     year = request.args.get('year', type=int, default=datetime.now().year)
+
 #     conn = get_db_connection()
 #     if conn is None:
 #         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-#     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+#     # Utiliser DictCursor pour que les résultats soient accessibles par nom de colonne
+#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 #     try:
-#         cursor.execute("SELECT * FROM factures WHERE annee = %s ORDER BY id DESC", (annee,))
-#         rows = cursor.fetchall()
-#         # Convertir Decimal et datetime pour toutes les factures
-#         result = [{key: convert_to_json_serializable(value) for key, value in dict(row).items()} for row in rows]
-#         return jsonify(result)
-#     except psycopg2.Error as e:
-#         print(f"Erreur PostgreSQL lors de la récupération des factures : {e}")
-#         return jsonify({"error": "Erreur lors de l'accès aux factures."}), 500
+#         # --- Requête SELECT mise à jour pour inclure les nouvelles colonnes et les noms d'utilisateur ---
+#         cur.execute(
+#             """
+#             SELECT
+#                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+#                 f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+#                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+#                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+#             FROM factures f
+#             JOIN users u ON f.id_soumetteur = u.id           -- Joindre pour le nom d'utilisateur du soumetteur
+#             LEFT JOIN users uc ON f.created_by = uc.id        -- Joindre pour le nom d'utilisateur de created_by
+#             LEFT JOIN users um ON f.last_modified_by = um.id  -- Joindre pour le nom d'utilisateur de last_modified_by
+#             WHERE EXTRACT(YEAR FROM date_facture) = %s
+#             ORDER BY date_facture DESC -- Tri par date de facture
+#             """, (year,) # Filtrer par année
+#         )
+#         factures = cur.fetchall() # Récupérer toutes les lignes
+
+#         # Convertir chaque ligne (DictRow) en dictionnaire et rendre JSON sérialisable
+#         factures_list = [convert_to_json_serializable(dict(row)) for row in factures]
+
+#         print(factures_list)
+
+#         return jsonify(factures_list), 200 # Retourner la liste des factures
+
+#     except Exception as e:
+#         print(f"Erreur de base de données lors de la récupération des factures : {e}")
+#         return jsonify({"error": "Échec de la récupération des factures.", "details": str(e)}), 500
 #     finally:
-#         cursor.close()
+#         # Fermer le curseur et la connexion
+#         cur.close()
 #         conn.close()
 
 @app.route('/api/factures', methods=['GET'])
 @token_required
-@role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
+@role_required(['soumetteur', 'gestionnaire', 'approbateur'])
 def get_factures():
     """
-    Récupère la liste des factures pour une année donnée.
-    - Par défaut, utilise l'année en cours si aucune année n'est spécifiée.
-    - Inclut les nouvelles colonnes et les noms d'utilisateur associés.
-    - Retourne les factures triées par date_facture (du plus récent au plus ancien).
-    Returns:
-        JSON: Liste des factures ou message d'erreur.
+    Liste les factures pour une année donnée (year=YYYY).
+    - Filtre par plage de dates [YYYY-01-01, (YYYY+1)-01-01)
+    - Jointure optionnelle sur comptes_depenses si la table existe.
     """
-    # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
+    # 1) Param année (par défaut: année courante)
     year = request.args.get('year', type=int, default=datetime.now().year)
+    start = date(year, 1, 1)
+    end   = date(year + 1, 1, 1)
 
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
 
-    # Utiliser DictCursor pour que les résultats soient accessibles par nom de colonne
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        # --- Requête SELECT mise à jour pour inclure les nouvelles colonnes et les noms d'utilisateur ---
-        cur.execute(
-            """
+        # 2) Requête avec LEFT JOIN comptes_depenses (si table dispo)
+        sql_with_join = """
             SELECT
                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
                 f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
-                u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
+                u.username AS soumetteur_username, uc.username AS created_by_username, um.username AS last_modified_by_username,
+                cd.id AS compte_depense_id, cd.mode AS compte_depense_mode, cd.global_ubr AS compte_depense_global_ubr,
+                (cd.demandeur_prenom || ' ' || cd.demandeur_nom) AS compte_depense_label
             FROM factures f
-            JOIN users u ON f.id_soumetteur = u.id           -- Joindre pour le nom d'utilisateur du soumetteur
-            LEFT JOIN users uc ON f.created_by = uc.id        -- Joindre pour le nom d'utilisateur de created_by
-            LEFT JOIN users um ON f.last_modified_by = um.id  -- Joindre pour le nom d'utilisateur de last_modified_by
-            WHERE EXTRACT(YEAR FROM date_facture) = %s
-            ORDER BY date_facture DESC -- Tri par date de facture
-            """, (year,) # Filtrer par année
-        )
-        factures = cur.fetchall() # Récupérer toutes les lignes
+            JOIN users u  ON f.id_soumetteur     = u.id
+            LEFT JOIN users uc ON f.created_by   = uc.id
+            LEFT JOIN users um ON f.last_modified_by = um.id
+            LEFT JOIN comptes_depenses cd ON cd.id = f.compte_depense_id
+            WHERE f.date_facture >= %s AND f.date_facture < %s
+            ORDER BY f.date_facture DESC, f.id DESC
+        """
+        cur.execute(sql_with_join, (start, end))
+        rows = cur.fetchall()
 
-        # Convertir chaque ligne (DictRow) en dictionnaire et rendre JSON sérialisable
-        factures_list = [convert_to_json_serializable(dict(row)) for row in factures]
-
-        print(factures_list)
-
-        return jsonify(factures_list), 200 # Retourner la liste des factures
+    except errors.UndefinedTable:
+        # 3) Fallback sans la table comptes_depenses (avant sa création)
+        conn.rollback()
+        sql_no_join = """
+            SELECT
+                f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
+                f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
+                f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
+                u.username AS soumetteur_username, uc.username AS created_by_username, um.username AS last_modified_by_username
+            FROM factures f
+            JOIN users u  ON f.id_soumetteur     = u.id
+            LEFT JOIN users uc ON f.created_by   = uc.id
+            LEFT JOIN users um ON f.last_modified_by = um.id
+            WHERE f.date_facture >= %s AND f.date_facture < %s
+            ORDER BY f.date_facture DESC, f.id DESC
+        """
+        cur.execute(sql_no_join, (start, end))
+        rows = cur.fetchall()
 
     except Exception as e:
         print(f"Erreur de base de données lors de la récupération des factures : {e}")
         return jsonify({"error": "Échec de la récupération des factures.", "details": str(e)}), 500
     finally:
-        # Fermer le curseur et la connexion
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
 
-
+    # 4) Sérialisation
+    factures_list = [convert_to_json_serializable(dict(r)) for r in rows]
+    return jsonify(factures_list), 200
 
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 @token_required
