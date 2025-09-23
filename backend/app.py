@@ -2011,7 +2011,7 @@ def create_compte_depense():
         row = cur.fetchone()
         conn.commit()
         item = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-        socketio.emit("depense_compte_new", item, broadcast=True)
+        socketio.emit("depense_compte_new", item)
         return jsonify(item), 201
     except Exception as e:
         conn.rollback()
@@ -2168,7 +2168,7 @@ def patch_compte_depense(cid):
         
         conn.commit()
         item = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-        socketio.emit("depense_compte_update", item, broadcast=True)
+        socketio.emit("depense_compte_update", item)
         return jsonify(item), 200
     except Exception as e:
         conn.rollback()
@@ -2195,7 +2195,7 @@ def delete_compte_depense(cid):
             return jsonify({"error": "Compte introuvable"}), 404
         
         conn.commit()
-        socketio.emit("depense_compte_delete", {"id": cid}, broadcast=True)
+        socketio.emit("depense_compte_delete", {"id": cid})
         return jsonify({"deleted_id": cid}), 200
     except Exception as e:
         conn.rollback()
@@ -2234,7 +2234,7 @@ def attach_factures_to_compte(cid):
         conn.commit()
 
         for fid in changed:
-            socketio.emit("update_facture", {"id": fid}, broadcast=True)
+            socketio.emit("update_facture", {"id": fid})
         return jsonify({"attached": changed, "count": len(changed)}), 200
     except Exception as e:
         conn.rollback()
@@ -2265,7 +2265,7 @@ def detach_facture_from_compte(cid, fid):
             return jsonify({"error": "Aucune facture détachée (id inexistant ou non liée à ce compte)"}), 404
         
         conn.commit()
-        socketio.emit("update_facture", {"id": fid}, broadcast=True)
+        socketio.emit("update_facture", {"id": fid})
         return jsonify({"detached_id": fid}), 200
     except Exception as e:
         conn.rollback()
@@ -2302,7 +2302,7 @@ def apply_global_ubr(cid):
         conn.commit()
 
         for fid in changed:
-            socketio.emit("update_facture", {"id": fid}, broadcast=True)
+            socketio.emit("update_facture", {"id": fid})
         return jsonify({"updated_count": len(changed), "facture_ids": changed, "applied_ubr": row["global_ubr"]}), 200
     except Exception as e:
         conn.rollback()
