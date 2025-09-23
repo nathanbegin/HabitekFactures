@@ -942,6 +942,73 @@ def get_file(id):
     finally:
         cursor.close()
         conn.close()
+        
+
+
+
+@app.patch("/api/factures/<int:fid>")
+@token_required
+@role_required(['gestionnaire', 'approbateur'])
+def patch_facture(user, fid):
+    data = request.get_json() or {}
+    if not data:
+        return jsonify({"error": "Aucune donnée"}), 400
+    if "numero_facture" in data:
+        return jsonify({"error": "numero_facture est en lecture seule"}), 400
+
+    # === À ADAPTER aux colonnes existantes ===
+    allowed = {
+        "date", "fournisseur", "montant", "statut",
+        "categorie", "ligne_budgetaire", "ubr"
+    }
+
+    sets, vals = [], []
+    for k, v in data.items():
+        if k in allowed:
+            sets.append(f"{k} = %s")
+            vals.append(v)
+
+    if not sets:
+        return jsonify({"error": "Aucun champ modifiable"}), 400
+
+    vals.append(fid)
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion DB"}), 500
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute(f"""
+            UPDATE factures
+            SET {", ".join(sets)}
+            WHERE id = %s
+            RETURNING *;
+        """, vals)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Facture introuvable"}), 404
+
+        conn.commit()
+        updated = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
+        socketio.emit("update_facture", updated, broadcast=True)
+        return jsonify(updated), 200
+    except Exception as e:
+        print("patch_facture error:", e)
+        return jsonify({"error": "Erreur lors de la mise à jour"}), 500
+    finally:
+        cur.close(); conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 @token_required
