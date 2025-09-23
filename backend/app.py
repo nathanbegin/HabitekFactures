@@ -1976,313 +1976,313 @@ def delete_user(user_id):
 
 #### ENDPOINTS API POUR LA GESTION DES COMPTES DE DÉPENSES
 
-# --- 1) CRÉER UN COMPTE ---
-@app.route("/api/depense-comptes", methods=["POST"])
-@token_required
-@role_required(['gestionnaire'])
-def create_compte_depense():
-    data = request.get_json() or {}
-    mode = data.get("mode")
-    demandeur_prenom = data.get("demandeur_prenom")
-    demandeur_nom = data.get("demandeur_nom")
-    global_ubr = data.get("global_ubr")
-    date_soumis = data.get("date_soumis")  # optionnel YYYY-MM-DD
+# # --- 1) CRÉER UN COMPTE ---
+# @app.route("/api/depense-comptes", methods=["POST"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def create_compte_depense():
+#     data = request.get_json() or {}
+#     mode = data.get("mode")
+#     demandeur_prenom = data.get("demandeur_prenom")
+#     demandeur_nom = data.get("demandeur_nom")
+#     global_ubr = data.get("global_ubr")
+#     date_soumis = data.get("date_soumis")  # optionnel YYYY-MM-DD
 
-    if mode not in ("global_ubr", "distinct_ubr"):
-        return jsonify({"error":"mode invalide (global_ubr | distinct_ubr)"}), 400
-    if mode == "global_ubr" and not global_ubr:
-        return jsonify({"error":"global_ubr requis pour mode=global_ubr"}), 400
-    if not demandeur_prenom or not demandeur_nom:
-        return jsonify({"error":"demandeur_prenom et demandeur_nom requis"}), 400
-    if date_soumis:
-        try: datetime.strptime(date_soumis, "%Y-%m-%d")
-        except ValueError: return jsonify({"error":"date_soumis invalide (AAAA-MM-JJ)"}), 400
+#     if mode not in ("global_ubr", "distinct_ubr"):
+#         return jsonify({"error":"mode invalide (global_ubr | distinct_ubr)"}), 400
+#     if mode == "global_ubr" and not global_ubr:
+#         return jsonify({"error":"global_ubr requis pour mode=global_ubr"}), 400
+#     if not demandeur_prenom or not demandeur_nom:
+#         return jsonify({"error":"demandeur_prenom et demandeur_nom requis"}), 400
+#     if date_soumis:
+#         try: datetime.strptime(date_soumis, "%Y-%m-%d")
+#         except ValueError: return jsonify({"error":"date_soumis invalide (AAAA-MM-JJ)"}), 400
 
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute("""
-            INSERT INTO public.comptes_depenses (mode, global_ubr, demandeur_prenom, demandeur_nom, date_soumis)
-            VALUES (%s, %s, %s, %s, COALESCE(%s, CURRENT_DATE))
-            RETURNING *;
-        """, (mode, global_ubr, demandeur_prenom, demandeur_nom, date_soumis))
-        row = cur.fetchone(); conn.commit()
-        item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
-        socketio.emit("depense_compte_new", item, broadcast=True)
-        return jsonify(item), 201
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur création compte_depense","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
-# --- 2) LISTER LES COMPTES ---
-@app.route("/api/depense-comptes", methods=["GET"])
-@token_required
-@role_required(['gestionnaire'])
-def list_comptes_depenses():
-    q = request.args.get("q","").strip()
-    mode = request.args.get("mode","").strip()
-    dfrom = request.args.get("from","").strip()
-    dto   = request.args.get("to","").strip()
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute("""
+#             INSERT INTO public.comptes_depenses (mode, global_ubr, demandeur_prenom, demandeur_nom, date_soumis)
+#             VALUES (%s, %s, %s, %s, COALESCE(%s, CURRENT_DATE))
+#             RETURNING *;
+#         """, (mode, global_ubr, demandeur_prenom, demandeur_nom, date_soumis))
+#         row = cur.fetchone(); conn.commit()
+#         item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
+#         socketio.emit("depense_compte_new", item, broadcast=True)
+#         return jsonify(item), 201
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur création compte_depense","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
+# # --- 2) LISTER LES COMPTES ---
+# @app.route("/api/depense-comptes", methods=["GET"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def list_comptes_depenses():
+#     q = request.args.get("q","").strip()
+#     mode = request.args.get("mode","").strip()
+#     dfrom = request.args.get("from","").strip()
+#     dto   = request.args.get("to","").strip()
 
-    params, where = [], []
-    if q:
-        where.append("(cd.id ILIKE %s OR cd.demandeur_prenom ILIKE %s OR cd.demandeur_nom ILIKE %s)")
-        params += [f"%{q}%", f"%{q}%", f"%{q}%"]
-    if mode in ("global_ubr","distinct_ubr"):
-        where.append("cd.mode = %s"); params.append(mode)
-    if dfrom:
-        try: datetime.strptime(dfrom, "%Y-%m-%d")
-        except ValueError: return jsonify({"error":"from invalide (AAAA-MM-JJ)"}), 400
-        where.append("cd.date_soumis >= %s"); params.append(dfrom)
-    if dto:
-        try: datetime.strptime(dto, "%Y-%m-%d")
-        except ValueError: return jsonify({"error":"to invalide (AAAA-MM-JJ)"}), 400
-        where.append("cd.date_soumis <= %s"); params.append(dto)
+#     params, where = [], []
+#     if q:
+#         where.append("(cd.id ILIKE %s OR cd.demandeur_prenom ILIKE %s OR cd.demandeur_nom ILIKE %s)")
+#         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+#     if mode in ("global_ubr","distinct_ubr"):
+#         where.append("cd.mode = %s"); params.append(mode)
+#     if dfrom:
+#         try: datetime.strptime(dfrom, "%Y-%m-%d")
+#         except ValueError: return jsonify({"error":"from invalide (AAAA-MM-JJ)"}), 400
+#         where.append("cd.date_soumis >= %s"); params.append(dfrom)
+#     if dto:
+#         try: datetime.strptime(dto, "%Y-%m-%d")
+#         except ValueError: return jsonify({"error":"to invalide (AAAA-MM-JJ)"}), 400
+#         where.append("cd.date_soumis <= %s"); params.append(dto)
 
-    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute(f"""
-            SELECT cd.*,
-                   (SELECT COUNT(*) FROM public.factures f WHERE f.compte_depense_id = cd.id) AS factures_count
-            FROM public.comptes_depenses cd
-            {where_sql}
-            ORDER BY cd.created_at DESC, cd.id ASC;
-        """, tuple(params))
-        rows = cur.fetchall()
-        items = [{k: convert_to_json_serializable(v) for k,v in dict(r).items()} for r in rows]
-        return jsonify(items), 200
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error":"Erreur listage comptes","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
-
-
-# --- 3) DÉTAIL D’UN COMPTE ---
-@app.route("/api/depense-comptes/<string:cid>", methods=["GET"])
-@token_required
-@role_required(['gestionnaire'])
-def get_compte_depense(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute("SELECT * FROM public.comptes_depenses WHERE id = %s", (cid,))
-        row = cur.fetchone()
-        if not row: return jsonify({"error":"Compte introuvable"}), 404
-        cur.execute("""
-            SELECT f.id, f.numero_facture, f.date_facture, f.fournisseur, f.montant, f.devise, f.statut
-            FROM public.factures f
-            WHERE f.compte_depense_id = %s
-            ORDER BY f.date_facture DESC, f.id DESC
-        """, (cid,))
-        factures = cur.fetchall()
-        item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
-        item["factures"] = [{k: convert_to_json_serializable(v) for k,v in dict(fr).items()} for fr in factures]
-        return jsonify(item), 200
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error":"Erreur lecture compte","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
+#     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute(f"""
+#             SELECT cd.*,
+#                    (SELECT COUNT(*) FROM public.factures f WHERE f.compte_depense_id = cd.id) AS factures_count
+#             FROM public.comptes_depenses cd
+#             {where_sql}
+#             ORDER BY cd.created_at DESC, cd.id ASC;
+#         """, tuple(params))
+#         rows = cur.fetchall()
+#         items = [{k: convert_to_json_serializable(v) for k,v in dict(r).items()} for r in rows]
+#         return jsonify(items), 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return jsonify({"error":"Erreur listage comptes","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
 
 
-
-# --- 4) MODIFIER UN COMPTE ---
-@app.route("/api/depense-comptes/<string:cid>", methods=["PATCH"])
-@token_required
-@role_required(['gestionnaire'])
-def patch_compte_depense(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    data = request.get_json() or {}
-    if not data: return jsonify({"error":"Aucune donnée"}), 400
-
-    allowed = {"mode","global_ubr","demandeur_prenom","demandeur_nom","date_soumis"}
-    if "mode" in data and data["mode"] not in ("global_ubr","distinct_ubr"):
-        return jsonify({"error":"mode invalide"}), 400
-    if "date_soumis" in data:
-        try: datetime.strptime(str(data["date_soumis"]), "%Y-%m-%d")
-        except ValueError: return jsonify({"error":"date_soumis invalide (AAAA-MM-JJ)"}), 400
-
-    sets, vals = [], []
-    for k,v in data.items():
-        if k in allowed:
-            sets.append(f"{k} = %s"); vals.append(v)
-    if not sets: return jsonify({"error":"Aucun champ modifiable"}), 400
-
-    if ("mode" in data and data["mode"] == "global_ubr") and (not data.get("global_ubr")):
-        return jsonify({"error":"global_ubr requis lorsque mode=global_ubr"}), 400
-
-    sets.append("updated_at = now() at time zone 'utc'")
-    vals.append(cid)
-
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute(f"UPDATE public.comptes_depenses SET {', '.join(sets)} WHERE id = %s RETURNING *;", vals)
-        row = cur.fetchone()
-        if not row: return jsonify({"error":"Compte introuvable"}), 404
-        conn.commit()
-        item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
-        socketio.emit("depense_compte_update", item, broadcast=True)
-        return jsonify(item), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur mise à jour compte","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
+# # --- 3) DÉTAIL D’UN COMPTE ---
+# @app.route("/api/depense-comptes/<string:cid>", methods=["GET"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def get_compte_depense(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute("SELECT * FROM public.comptes_depenses WHERE id = %s", (cid,))
+#         row = cur.fetchone()
+#         if not row: return jsonify({"error":"Compte introuvable"}), 404
+#         cur.execute("""
+#             SELECT f.id, f.numero_facture, f.date_facture, f.fournisseur, f.montant, f.devise, f.statut
+#             FROM public.factures f
+#             WHERE f.compte_depense_id = %s
+#             ORDER BY f.date_facture DESC, f.id DESC
+#         """, (cid,))
+#         factures = cur.fetchall()
+#         item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
+#         item["factures"] = [{k: convert_to_json_serializable(v) for k,v in dict(fr).items()} for fr in factures]
+#         return jsonify(item), 200
+#     except Exception as e:
+#         traceback.print_exc()
+#         return jsonify({"error":"Erreur lecture compte","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
 
 
-# --- 5) SUPPRIMER UN COMPTE ---
-@app.route("/api/depense-comptes/<string:cid>", methods=["DELETE"])
-@token_required
-@role_required(['gestionnaire'])
-def delete_compte_depense(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    conn = get_db_connection(); cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM public.comptes_depenses WHERE id = %s RETURNING %s;", (cid, cid))
-        gone = cur.fetchone()
-        if not gone: return jsonify({"error":"Compte introuvable"}), 404
-        conn.commit()
-        socketio.emit("depense_compte_delete", {"id": cid}, broadcast=True)
-        return jsonify({"deleted_id": cid}), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur suppression compte","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
 
-# --- 6) ATTACHER PLUSIEURS FACTURES ---
-@app.route("/api/depense-comptes/<string:cid>/factures", methods=["POST"])
-@token_required
-@role_required(['gestionnaire'])
-def attach_factures_to_compte(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    data = request.get_json() or {}
-    ids = data.get("facture_ids") or []
-    if not isinstance(ids, list) or not ids:
-        return jsonify({"error":"facture_ids doit être une liste non vide"}), 400
+# # --- 4) MODIFIER UN COMPTE ---
+# @app.route("/api/depense-comptes/<string:cid>", methods=["PATCH"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def patch_compte_depense(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     data = request.get_json() or {}
+#     if not data: return jsonify({"error":"Aucune donnée"}), 400
 
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute("SELECT 1 FROM public.comptes_depenses WHERE id = %s", (cid,))
-        if not cur.fetchone(): return jsonify({"error":"Compte introuvable"}), 404
+#     allowed = {"mode","global_ubr","demandeur_prenom","demandeur_nom","date_soumis"}
+#     if "mode" in data and data["mode"] not in ("global_ubr","distinct_ubr"):
+#         return jsonify({"error":"mode invalide"}), 400
+#     if "date_soumis" in data:
+#         try: datetime.strptime(str(data["date_soumis"]), "%Y-%m-%d")
+#         except ValueError: return jsonify({"error":"date_soumis invalide (AAAA-MM-JJ)"}), 400
 
-        cur.execute("""
-            UPDATE public.factures
-            SET compte_depense_id = %s
-            WHERE id = ANY(%s)
-            RETURNING id;
-        """, (cid, ids))
-        changed = [r[0] for r in cur.fetchall()]
-        conn.commit()
+#     sets, vals = [], []
+#     for k,v in data.items():
+#         if k in allowed:
+#             sets.append(f"{k} = %s"); vals.append(v)
+#     if not sets: return jsonify({"error":"Aucun champ modifiable"}), 400
 
-        for fid in changed:
-            socketio.emit("update_facture", {"id": fid}, broadcast=True)
-        return jsonify({"attached": changed, "count": len(changed)}), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur d’attache des factures","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
+#     if ("mode" in data and data["mode"] == "global_ubr") and (not data.get("global_ubr")):
+#         return jsonify({"error":"global_ubr requis lorsque mode=global_ubr"}), 400
 
-# --- 6) ATTACHER PLUSIEURS FACTURES ---
-@app.route("/api/depense-comptes/<string:cid>/factures", methods=["POST"])
-@token_required
-@role_required(['gestionnaire'])
-def attach_factures_to_compte(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    data = request.get_json() or {}
-    ids = data.get("facture_ids") or []
-    if not isinstance(ids, list) or not ids:
-        return jsonify({"error":"facture_ids doit être une liste non vide"}), 400
+#     sets.append("updated_at = now() at time zone 'utc'")
+#     vals.append(cid)
 
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute("SELECT 1 FROM public.comptes_depenses WHERE id = %s", (cid,))
-        if not cur.fetchone(): return jsonify({"error":"Compte introuvable"}), 404
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute(f"UPDATE public.comptes_depenses SET {', '.join(sets)} WHERE id = %s RETURNING *;", vals)
+#         row = cur.fetchone()
+#         if not row: return jsonify({"error":"Compte introuvable"}), 404
+#         conn.commit()
+#         item = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
+#         socketio.emit("depense_compte_update", item, broadcast=True)
+#         return jsonify(item), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur mise à jour compte","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
 
-        cur.execute("""
-            UPDATE public.factures
-            SET compte_depense_id = %s
-            WHERE id = ANY(%s)
-            RETURNING id;
-        """, (cid, ids))
-        changed = [r[0] for r in cur.fetchall()]
-        conn.commit()
 
-        for fid in changed:
-            socketio.emit("update_facture", {"id": fid}, broadcast=True)
-        return jsonify({"attached": changed, "count": len(changed)}), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur d’attache des factures","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
-# --- 7) DÉTACHER UNE FACTURE ---
-@app.route("/api/depense-comptes/<string:cid>/factures/<int:fid>", methods=["DELETE"])
-@token_required
-@role_required(['gestionnaire'])
-def detach_facture_from_compte(cid, fid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    conn = get_db_connection(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            UPDATE public.factures
-            SET compte_depense_id = NULL
-            WHERE id = %s AND compte_depense_id = %s
-            RETURNING id;
-        """, (fid, cid))
-        row = cur.fetchone()
-        if not row:
-            return jsonify({"error":"Aucune facture détachée (id inexistant ou non liée à ce compte)"}), 404
-        conn.commit()
-        socketio.emit("update_facture", {"id": fid}, broadcast=True)
-        return jsonify({"detached_id": fid}), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur de détache","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
+# # --- 5) SUPPRIMER UN COMPTE ---
+# @app.route("/api/depense-comptes/<string:cid>", methods=["DELETE"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def delete_compte_depense(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     conn = get_db_connection(); cur = conn.cursor()
+#     try:
+#         cur.execute("DELETE FROM public.comptes_depenses WHERE id = %s RETURNING %s;", (cid, cid))
+#         gone = cur.fetchone()
+#         if not gone: return jsonify({"error":"Compte introuvable"}), 404
+#         conn.commit()
+#         socketio.emit("depense_compte_delete", {"id": cid}, broadcast=True)
+#         return jsonify({"deleted_id": cid}), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur suppression compte","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
 
-# --- 8) APPLIQUER L’UBR GLOBAL ---
-@app.route("/api/depense-comptes/<string:cid>/appliquer-global-ubr", methods=["POST"])
-@token_required
-@role_required(['gestionnaire'])
-def apply_global_ubr(cid):
-    if not re.match(r"^HABITEK\d{3,}$", cid):
-        return jsonify({"error":"id invalide (HABITEK###)"}), 400
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    try:
-        cur.execute("SELECT mode, global_ubr FROM public.comptes_depenses WHERE id = %s", (cid,))
-        row = cur.fetchone()
-        if not row: return jsonify({"error":"Compte introuvable"}), 404
-        if row["mode"] != "global_ubr" or not row["global_ubr"]:
-            return jsonify({"error":"Ce compte n'est pas en mode global_ubr ou global_ubr manquant"}), 400
+# # --- 6) ATTACHER PLUSIEURS FACTURES ---
+# @app.route("/api/depense-comptes/<string:cid>/factures", methods=["POST"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def attach_factures_to_compte(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     data = request.get_json() or {}
+#     ids = data.get("facture_ids") or []
+#     if not isinstance(ids, list) or not ids:
+#         return jsonify({"error":"facture_ids doit être une liste non vide"}), 400
 
-        cur.execute("""
-            UPDATE public.factures
-            SET ubr = %s
-            WHERE compte_depense_id = %s
-            RETURNING id;
-        """, (row["global_ubr"], cid))
-        changed = [r[0] for r in cur.fetchall()]
-        conn.commit()
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute("SELECT 1 FROM public.comptes_depenses WHERE id = %s", (cid,))
+#         if not cur.fetchone(): return jsonify({"error":"Compte introuvable"}), 404
 
-        for fid in changed:
-            socketio.emit("update_facture", {"id": fid}, broadcast=True)
-        return jsonify({"updated_count": len(changed), "facture_ids": changed, "applied_ubr": row["global_ubr"]}), 200
-    except Exception as e:
-        conn.rollback(); traceback.print_exc()
-        return jsonify({"error":"Erreur application UBR global","details":str(e)}), 500
-    finally:
-        cur.close(); conn.close()
+#         cur.execute("""
+#             UPDATE public.factures
+#             SET compte_depense_id = %s
+#             WHERE id = ANY(%s)
+#             RETURNING id;
+#         """, (cid, ids))
+#         changed = [r[0] for r in cur.fetchall()]
+#         conn.commit()
+
+#         for fid in changed:
+#             socketio.emit("update_facture", {"id": fid}, broadcast=True)
+#         return jsonify({"attached": changed, "count": len(changed)}), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur d’attache des factures","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
+
+# # --- 6) ATTACHER PLUSIEURS FACTURES ---
+# @app.route("/api/depense-comptes/<string:cid>/factures", methods=["POST"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def attach_factures_to_compte(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     data = request.get_json() or {}
+#     ids = data.get("facture_ids") or []
+#     if not isinstance(ids, list) or not ids:
+#         return jsonify({"error":"facture_ids doit être une liste non vide"}), 400
+
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute("SELECT 1 FROM public.comptes_depenses WHERE id = %s", (cid,))
+#         if not cur.fetchone(): return jsonify({"error":"Compte introuvable"}), 404
+
+#         cur.execute("""
+#             UPDATE public.factures
+#             SET compte_depense_id = %s
+#             WHERE id = ANY(%s)
+#             RETURNING id;
+#         """, (cid, ids))
+#         changed = [r[0] for r in cur.fetchall()]
+#         conn.commit()
+
+#         for fid in changed:
+#             socketio.emit("update_facture", {"id": fid}, broadcast=True)
+#         return jsonify({"attached": changed, "count": len(changed)}), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur d’attache des factures","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
+# # --- 7) DÉTACHER UNE FACTURE ---
+# @app.route("/api/depense-comptes/<string:cid>/factures/<int:fid>", methods=["DELETE"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def detach_facture_from_compte(cid, fid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     conn = get_db_connection(); cur = conn.cursor()
+#     try:
+#         cur.execute("""
+#             UPDATE public.factures
+#             SET compte_depense_id = NULL
+#             WHERE id = %s AND compte_depense_id = %s
+#             RETURNING id;
+#         """, (fid, cid))
+#         row = cur.fetchone()
+#         if not row:
+#             return jsonify({"error":"Aucune facture détachée (id inexistant ou non liée à ce compte)"}), 404
+#         conn.commit()
+#         socketio.emit("update_facture", {"id": fid}, broadcast=True)
+#         return jsonify({"detached_id": fid}), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur de détache","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
+
+# # --- 8) APPLIQUER L’UBR GLOBAL ---
+# @app.route("/api/depense-comptes/<string:cid>/appliquer-global-ubr", methods=["POST"])
+# @token_required
+# @role_required(['gestionnaire'])
+# def apply_global_ubr(cid):
+#     if not re.match(r"^HABITEK\d{3,}$", cid):
+#         return jsonify({"error":"id invalide (HABITEK###)"}), 400
+#     conn = get_db_connection(); cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     try:
+#         cur.execute("SELECT mode, global_ubr FROM public.comptes_depenses WHERE id = %s", (cid,))
+#         row = cur.fetchone()
+#         if not row: return jsonify({"error":"Compte introuvable"}), 404
+#         if row["mode"] != "global_ubr" or not row["global_ubr"]:
+#             return jsonify({"error":"Ce compte n'est pas en mode global_ubr ou global_ubr manquant"}), 400
+
+#         cur.execute("""
+#             UPDATE public.factures
+#             SET ubr = %s
+#             WHERE compte_depense_id = %s
+#             RETURNING id;
+#         """, (row["global_ubr"], cid))
+#         changed = [r[0] for r in cur.fetchall()]
+#         conn.commit()
+
+#         for fid in changed:
+#             socketio.emit("update_facture", {"id": fid}, broadcast=True)
+#         return jsonify({"updated_count": len(changed), "facture_ids": changed, "applied_ubr": row["global_ubr"]}), 200
+#     except Exception as e:
+#         conn.rollback(); traceback.print_exc()
+#         return jsonify({"error":"Erreur application UBR global","details":str(e)}), 500
+#     finally:
+#         cur.close(); conn.close()
 
 
 
