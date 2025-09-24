@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-export default function DepenseComptesPage({ authorizedFetch, socket, userRole }) {
+export default function DepenseComptesPage({ authorizedFetch, socket, userRole, API_URL }) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
@@ -32,7 +32,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
       if (from) params.set("from", from);
       if (to) params.set("to", to);
 
-      const res = await authorizedFetch(`/api/depense-comptes?${params.toString()}`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes?${params.toString()}`, {
         method: "GET",
       });
       const data = await res.json();
@@ -47,7 +47,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
   const fetchDetail = async (id) => {
     if (!id) return;
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${id}`, { method: "GET" });
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${id}`, { method: "GET" });
       if (res.ok) {
         const data = await res.json();
         setDetail(data);
@@ -64,7 +64,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
         alert("global_ubr est requis en mode global_ubr");
         return;
       }
-      const res = await authorizedFetch(`/api/depense-comptes`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
@@ -91,7 +91,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
   const onDelete = async (id) => {
     if (!window.confirm(`Supprimer le compte ${id} ?`)) return;
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${id}`, { method: "DELETE" });
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         alert(`Erreur suppression: ${err.error || res.status}`);
@@ -110,7 +110,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
   const onPatch = async (patch) => {
     if (!detail) return;
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${detail.id}`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${detail.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
@@ -141,7 +141,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
       return;
     }
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${detail.id}/factures`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${detail.id}/factures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ facture_ids: ids }),
@@ -161,7 +161,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
   const onDetach = async (fid) => {
     if (!detail) return;
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${detail.id}/factures/${fid}`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${detail.id}/factures/${fid}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -183,7 +183,7 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole }
     }
     if (!window.confirm(`Appliquer l'UBR global (${detail.global_ubr}) à toutes les factures liées ?`)) return;
     try {
-      const res = await authorizedFetch(`/api/depense-comptes/${detail.id}/appliquer-global-ubr`, {
+      const res = await authorizedFetch(`${API_URL}/api/depense-comptes/${detail.id}/appliquer-global-ubr`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));

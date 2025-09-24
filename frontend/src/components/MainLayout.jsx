@@ -891,6 +891,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                   authorizedFetch={authorizedFetch}
                   socket={socket}
                   userRole={userRole}
+                  API_URL={API_URL}
                 />
               }
             />
