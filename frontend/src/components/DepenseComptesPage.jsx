@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL }) {
   const [loading, setLoading] = useState(false);
@@ -8,6 +10,9 @@ export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     mode: "distinct_ubr",
@@ -16,6 +21,16 @@ export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL 
     demandeur_nom: "",
     date_soumis: "",
   });
+    // Ouvrir automatiquement un compte si ?id=HABITEK### est présent dans l’URL
+    useEffect(() => {
+    const cid = searchParams.get("id");
+    if (cid && /^HABITEK\d{3,}$/.test(cid)) {
+        setSelectedId(cid);
+        // on charge le détail sans attendre le listing
+        fetchDetail(cid);
+    }
+    // si pas d'id → ne rien faire
+    }, [searchParams]);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -83,6 +98,9 @@ export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL 
         date_soumis: "",
       });
       await fetchList();
+      setSelectedId(data.id);
+      setDetail(data);
+      navigate(`/dashboard/depense-comptes?id=${encodeURIComponent(data.id)}`, { replace: true });
     } catch (e) {
       console.error("create error", e);
     }
@@ -303,7 +321,23 @@ export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL 
         <div className="mt-6 border rounded p-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold">Détail — {detail.id}</h2>
-            <button className="text-sm underline" onClick={() => { setSelectedId(null); setDetail(null); }}>Fermer</button>
+            
+            <button
+            className="text-sm underline"
+            onClick={() => {
+                setSelectedId(null);
+                setDetail(null);
+                // retirer ?id= de l’URL
+                navigate("/dashboard/depense-comptes", { replace: true });
+            }}
+            >
+            Fermer
+            </button>
+
+
+
+
+
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <div><b>Mode:</b> {detail.mode}</div>
