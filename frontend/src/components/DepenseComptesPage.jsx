@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-export default function DepenseComptesPage({ authorizedFetch, socket, userRole, API_URL }) {
+export default function DepenseComptesPage({ authorizedFetch, userRole, API_URL }) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
@@ -200,27 +200,27 @@ export default function DepenseComptesPage({ authorizedFetch, socket, userRole, 
   };
 
   // sockets: garder la liste en phase
-  useEffect(() => {
-    if (!socket) return;
-    const onNew = (item) => setItems((prev) => [item, ...prev]);
-    const onUpd = (item) => setItems((prev) => {
-      const i = prev.findIndex((x) => x.id === item.id);
-      if (i === -1) return prev;
-      const copy = prev.slice();
-      copy[i] = { ...copy[i], ...item };
-      return copy;
-    });
-    const onDel = ({ id }) => setItems((prev) => prev.filter((x) => x.id !== id));
+//   useEffect(() => {
+//     if (!socket) return;
+//     const onNew = (item) => setItems((prev) => [item, ...prev]);
+//     const onUpd = (item) => setItems((prev) => {
+//       const i = prev.findIndex((x) => x.id === item.id);
+//       if (i === -1) return prev;
+//       const copy = prev.slice();
+//       copy[i] = { ...copy[i], ...item };
+//       return copy;
+//     });
+//     const onDel = ({ id }) => setItems((prev) => prev.filter((x) => x.id !== id));
 
-    socket.on("depense_compte_new", onNew);
-    socket.on("depense_compte_update", onUpd);
-    socket.on("depense_compte_delete", onDel);
-    return () => {
-      socket.off("depense_compte_new", onNew);
-      socket.off("depense_compte_update", onUpd);
-      socket.off("depense_compte_delete", onDel);
-    };
-  }, [socket]);
+//     socket.on("depense_compte_new", onNew);
+//     socket.on("depense_compte_update", onUpd);
+//     socket.on("depense_compte_delete", onDel);
+//     return () => {
+//       socket.off("depense_compte_new", onNew);
+//       socket.off("depense_compte_update", onUpd);
+//       socket.off("depense_compte_delete", onDel);
+//     };
+//   }, [socket]);
 
   useEffect(() => {
     fetchList();

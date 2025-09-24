@@ -889,7 +889,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
               element={
                 <DepenseComptesPage
                   authorizedFetch={authorizedFetch}
-                  socket={socket}
+                  // socket={socket}
                   userRole={userRole}
                   API_URL={API_URL}
                 />
