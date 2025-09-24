@@ -12,6 +12,7 @@ import React, { useState } from 'react'; // Importez useState
 import { format } from 'date-fns'; // Importez la fonction format de date-fns
 import { fr } from 'date-fns/locale'; // Importez la locale française
 import { formatInTimeZone, toDate} from 'date-fns-tz';
+import { useNavigate } from 'react-router-dom';
 
 // -----------------------------------
 // Composant TableFactures
@@ -41,9 +42,12 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
   // État pour l’édition in-line
   const [editingFacture, setEditingFacture] = useState(null);
 
+  const navigate = useNavigate();
 
-
-
+  const goToCompte = (cid) => {
+    if (!cid) return;
+    navigate(`/dashboard/depense-comptes?id=${encodeURIComponent(cid)}`);
+  };
 
   // -----------------------------------
   // Fonctions Utilitaires
@@ -266,7 +270,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
    const sortableColumns = [
        'id', 'numero_facture', 'date_facture', 'type', 'ubr', 'fournisseur',
        'description', 'montant', 'devise', 'statut', 'categorie', 'ligne_budgetaire',
-       'soumetteur_username', 'date_soumission', 'created_by_username',
+       'compte_depense_id', 'soumetteur_username', 'date_soumission', 'created_by_username',
        'last_modified_by_username', 'last_modified_timestamp'
    ];
 
@@ -307,6 +311,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 {renderTableHeader('statut', 'Statut')}
                 {renderTableHeader('categorie', 'Catégorie')}
                 {renderTableHeader('ligne_budgetaire', 'Ligne Budgétaire')}
+                {renderTableHeader('compte_depense_id', 'Compte dépense')}
                 {renderTableHeader('soumetteur_username', 'Soumetteur')}
                 {renderTableHeader('date_soumission', 'Date Soumission')}
                 {renderTableHeader('created_by_username', 'Créé par')}
@@ -353,6 +358,18 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
 
                       <td className="p-2 border">{facture.categorie || 'N/A'}</td>
                       <td className="p-2 border">{facture.ligne_budgetaire || 'N/A'}</td>
+                      <td className="p-2 border">{facture.compte_depense_id ? (
+                          <button
+                            onClick={() => goToCompte(facture.compte_depense_id)}
+                            title="Ouvrir le compte de dépense"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          >
+                            {facture.compte_depense_id}
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                        <td className="p-2 border">{facture.soumetteur_username || 'N/A'}</td>
                        <td className="p-2 border">{formatDateTime(facture.date_soumission)}</td>
                        <td className="p-2 border">{facture.created_by_username || 'N/A'}</td>
@@ -409,7 +426,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                   ))
               ) : (
                   <tr>
-                      <td colSpan={userRole === 'gestionnaire' || userRole === 'approbateur' ? 18 : 17} className="p-2 border text-center text-gray-500">
+                      <td colSpan={userRole === 'gestionnaire' || userRole === 'approbateur' ? 20 : 19} className="p-2 border text-center text-gray-500">
                           Aucune facture ajoutée pour cette année.
                       </td>
                   </tr>
@@ -474,6 +491,21 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 )}
                 <div className="mb-2"><span className="font-semibold">Catégorie :</span> {facture.categorie || 'N/A'}</div>
                 <div className="mb-2"><span className="font-semibold">Ligne Budgétaire :</span> {facture.ligne_budgetaire || 'N/A'}</div>
+                <div className="mb-2">
+                  <span className="font-semibold">Comptes dépenses :</span>{' '}
+                  {facture.compte_depense_id ? (
+                    <button
+                      onClick={() => goToCompte(facture.compte_depense_id)}
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700"
+                    >
+                      {facture.compte_depense_id}
+                    </button>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+
+
                 <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Soumise par :</span> {facture.soumetteur_username || 'N/A'} le {formatDateTime(facture.date_soumission)}</div>
                 <div className="mb-2 text-sm text-gray-600"><span className="font-semibold">Créée par :</span> {facture.created_by_username || 'N/A'}</div>
                 {facture.last_modified_timestamp && (
