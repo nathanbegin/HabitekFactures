@@ -33,40 +33,40 @@ const getFinancialYear = (date = new Date()) => {
 };
 
 
-// --- Drawer (formulaire) : état d’ouverture + largeur persistée ---
-const [formDrawerOpen, setFormDrawerOpen] = useState(true);
-const [drawerWidth, setDrawerWidth] = useState(() => {
-  const saved = Number(localStorage.getItem('factureDrawer.width'));
-  return Number.isFinite(saved) && saved >= 320 && saved <= 720 ? saved : 420; // px
-});
+// // --- Drawer (formulaire) : état d’ouverture + largeur persistée ---
+// const [formDrawerOpen, setFormDrawerOpen] = useState(true);
+// const [drawerWidth, setDrawerWidth] = useState(() => {
+//   const saved = Number(localStorage.getItem('factureDrawer.width'));
+//   return Number.isFinite(saved) && saved >= 320 && saved <= 720 ? saved : 420; // px
+// });
 
-// Persistance de la largeur
-useEffect(() => {
-  localStorage.setItem('factureDrawer.width', String(drawerWidth));
-}, [drawerWidth]);
+// // Persistance de la largeur
+// useEffect(() => {
+//   localStorage.setItem('factureDrawer.width', String(drawerWidth));
+// }, [drawerWidth]);
 
-// Redimensionnement (drag) : on calcule la largeur = (window.innerWidth - e.clientX)
-const onStartResize = (e) => {
-  // on ne permet le resize que sur desktop
-  if (!canUseDrawer) return;
-  if (window.innerWidth < 1024) return;
-  e.preventDefault();
-  const onMove = (ev) => {
-    const px = Math.max(320, Math.min(720, window.innerWidth - ev.clientX));
-    setDrawerWidth(px);
-  };
-  const onUp = () => {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-  };
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-};
-const canUseDrawer = userRole === 'soumetteur' || userRole === 'gestionnaire';
+// // Redimensionnement (drag) : on calcule la largeur = (window.innerWidth - e.clientX)
+// const onStartResize = (e) => {
+//   // on ne permet le resize que sur desktop
+//   if (!canUseDrawer) return;
+//   if (window.innerWidth < 1024) return;
+//   e.preventDefault();
+//   const onMove = (ev) => {
+//     const px = Math.max(320, Math.min(720, window.innerWidth - ev.clientX));
+//     setDrawerWidth(px);
+//   };
+//   const onUp = () => {
+//     window.removeEventListener('mousemove', onMove);
+//     window.removeEventListener('mouseup', onUp);
+//   };
+//   window.addEventListener('mousemove', onMove);
+//   window.addEventListener('mouseup', onUp);
+// };
+// const canUseDrawer = userRole === 'soumetteur' || userRole === 'gestionnaire';
 
-useEffect(() => {
-  if (!canUseDrawer) setFormDrawerOpen(false);
-}, [canUseDrawer]);
+// useEffect(() => {
+//   if (!canUseDrawer) setFormDrawerOpen(false);
+// }, [canUseDrawer]);
 
 
 // -----------------------------------
@@ -179,7 +179,42 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
 
   }, [anneeFinanciere, location.pathname, userRole /*, fetchBudget si vous l'utilisez ici pour socket updates*/]); // Dépendances
 
+  // Autorisation d’utiliser le drawer (selon le rôle)
+const canUseDrawer = userRole === 'soumetteur' || userRole === 'gestionnaire';
 
+// État d’ouverture + largeur persistée
+const [formDrawerOpen, setFormDrawerOpen] = useState(canUseDrawer);
+const [drawerWidth, setDrawerWidth] = useState(() => {
+  const saved = Number(localStorage.getItem('factureDrawer.width'));
+  return Number.isFinite(saved) && saved >= 320 && saved <= 720 ? saved : 420; // px
+});
+
+// Persistance de la largeur
+useEffect(() => {
+  localStorage.setItem('factureDrawer.width', String(drawerWidth));
+}, [drawerWidth]);
+
+// Fermer automatiquement si l’utilisateur n’a pas le droit
+useEffect(() => {
+  if (!canUseDrawer) setFormDrawerOpen(false);
+}, [canUseDrawer]);
+
+// Redimensionnement (drag)
+const onStartResize = (e) => {
+  if (!canUseDrawer) return;            // sécurité rôle
+  if (window.innerWidth < 1024) return; // desktop only
+  e.preventDefault();
+  const onMove = (ev) => {
+    const px = Math.max(320, Math.min(720, window.innerWidth - ev.clientX));
+    setDrawerWidth(px);
+  };
+  const onUp = () => {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+};
   // --- Fonctions API (utilisent authorizedFetch passé en prop) ---
   // Ces fonctions appellent le backend et sont passées aux composants enfants.
   // authorizedFetch, reçu en prop, gère l'ajout du token et la gestion des erreurs 401/403.
@@ -880,7 +915,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                     currentUserId={userId}
                     onDelete={deleteFacture}
                     onUpdate={(id, patch) => updateFacture(id, patch)}
-                    downloadFile={(id, annee) => downloadFactureFile(id, annee)}
+                    downloadFile={downloadFile}
                   />
                 </div>
 
