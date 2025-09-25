@@ -1425,14 +1425,16 @@ export default function MainLayout({
                       </div>
 
                       {/* Tableau des factures */}
-                      <TableFactures
-                        factures={factures}
-                        userRole={userRole}
-                        currentUserId={userId}
-                        onDelete={deleteFacture}
-                        onUpdate={(id, patch) => updateFacture(id, patch)}
-                        downloadFile={(id, annee) => downloadFactureFile(id, annee)}
-                      />
+                      <div className="overflow-x-auto">
+                        <TableFactures
+                          factures={factures}
+                          userRole={userRole}
+                          currentUserId={userId}
+                          onDelete={deleteFacture}
+                          onUpdate={(id, patch) => updateFacture(id, patch)}
+                          downloadFile={(id, annee) => downloadFactureFile(id, annee)}
+                        />
+                      </div>
                     </div>
                   }
                 />
