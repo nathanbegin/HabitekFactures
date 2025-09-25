@@ -189,6 +189,10 @@ const [drawerWidth, setDrawerWidth] = useState(() => {
   return Number.isFinite(saved) && saved >= 320 && saved <= 720 ? saved : 420; // px
 });
 
+// NEW: Modal mobile
+const [formModalOpen, setFormModalOpen] = useState(false);
+
+
 // Persistance de la largeur
 useEffect(() => {
   localStorage.setItem('factureDrawer.width', String(drawerWidth));
@@ -196,7 +200,10 @@ useEffect(() => {
 
 // Fermer automatiquement si l’utilisateur n’a pas le droit
 useEffect(() => {
-  if (!canUseDrawer) setFormDrawerOpen(false);
+  if (!canUseDrawer) {
+    setFormDrawerOpen(false);  // ferme le drawer
+    setFormModalOpen(false);   // et le modal
+  }
 }, [canUseDrawer]);
 
 // Redimensionnement (drag)
@@ -906,6 +913,18 @@ const onStartResize = (e) => {
                         </button>
                       </div>
                     )}
+                    {/* NEW: Bouton mobile (ouvre le modal) */}
+                    {canUseDrawer && (
+                      <div className="lg:hidden">
+                        <button
+                          onClick={() => setFormModalOpen(true)}
+                          className="px-3 py-1.5 border rounded bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          Ajouter une facture
+                        </button>
+                      </div>
+                    )}
+
                   </div>
 
                   {/* ERREUR CORRIGÉE : La table des factures est maintenant placée APRÈS la barre d'actions, et non à l'intérieur. */}
@@ -951,6 +970,44 @@ const onStartResize = (e) => {
                       />
                     </div>
                   </aside>
+                )}
+
+                {/* NEW: Modal mobile (pop-up) */}
+                {canUseDrawer && formModalOpen && (
+                  <div className="fixed inset-0 z-50 lg:hidden">
+                    {/* Backdrop */}
+                    <div
+                      className="absolute inset-0 bg-black/40"
+                      onClick={() => setFormModalOpen(false)}
+                      aria-hidden="true"
+                    />
+                    {/* Boîte du modal */}
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      className="relative mx-auto mt-20 w-[92%] max-w-md rounded-xl bg-white shadow-xl"
+                    >
+                      <div className="px-4 py-3 border-b flex items-center justify-between">
+                        <div className="font-medium">Ajouter une facture</div>
+                        <button
+                          onClick={() => setFormModalOpen(false)}
+                          className="text-sm text-gray-600 hover:text-gray-900"
+                          aria-label="Fermer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="p-4 max-h-[70vh] overflow-auto">
+                        {/* On réutilise exactement le même formulaire */}
+                        <FormFacture
+                          onSubmit={addFacture}
+                          annee={anneeFinanciere}
+                          setAnnee={setAnneeFinanciere}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             }
