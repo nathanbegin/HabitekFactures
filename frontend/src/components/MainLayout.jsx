@@ -1088,7 +1088,8 @@ import TableFactures from "./TableFactures";
 import BudgetDashboard from "./BudgetDashboard";
 import DepenseComptesPage from "./DepenseComptesPage.jsx";
 // import UserManagement from './UserManagement'; // si tu l’utilises
-import logo from "./Logo Habitek_WEB_Transparent-06.png";
+import logo from "../Logo Habitek_WEB_Transparent-06.png";
+
 
 // API
 const API_URL = import.meta.env.VITE_API_URL || "https://storage.nathanbegin.xyz:4343";
