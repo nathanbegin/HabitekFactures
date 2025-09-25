@@ -644,14 +644,503 @@
 // Tri par colonnes, téléchargement de fichiers, suppression, changement de statut.
 // Colonnes affichées configurables (persistées dans localStorage).
 
+// import React, { useState, useEffect } from 'react';
+// import { format } from 'date-fns';
+// import { fr } from 'date-fns/locale';
+// import { formatInTimeZone, toDate } from 'date-fns-tz';
+// import { useNavigate } from 'react-router-dom';
+
+// // === Registre des colonnes du tableau Factures ===
+// // ➜ Ajuste au besoin. Le rendu “spécifique” (dates/Statut/badges) est géré dans renderCell/renderCellMobile.
+// const ALL_COLUMNS = [
+//   { key: 'id',                       label: 'ID',                     sortable: true,  render: f => f.id },
+//   { key: 'numero_facture',           label: '# Facture',              sortable: true,  render: f => f.numero_facture || '—' },
+//   { key: 'date_facture',             label: 'Date Facture',           sortable: true,  render: f => f.date_facture },
+//   { key: 'type_facture',             label: 'Type',                   sortable: true,  render: f => f.type_facture || 'N/A' },
+//   { key: 'ubr',                      label: 'UBR',                    sortable: true,  render: f => f.ubr || 'N/A' },
+//   { key: 'fournisseur',              label: 'Fournisseur',            sortable: true,  render: f => f.fournisseur || 'N/A' },
+//   { key: 'description',              label: 'Description',            sortable: true,  render: f => f.description || 'N/A' },
+//   { key: 'montant',                  label: 'Montant',                sortable: true,  render: f => f.montant },
+//   { key: 'devise',                   label: 'Devise',                 sortable: true,  render: f => f.devise || 'N/A' },
+//   { key: 'statut',                   label: 'Statut',                 sortable: true,  render: f => f.statut || 'N/A' },
+//   { key: 'categorie',                label: 'Catégorie',              sortable: true,  render: f => f.categorie || 'N/A' },
+//   { key: 'ligne_budgetaire',         label: 'Ligne Budgétaire',       sortable: true,  render: f => f.ligne_budgetaire || 'N/A' },
+//   { key: 'compte_depense_id',        label: 'Compte dépense',         sortable: true,  render: f => f.compte_depense_id ? f.compte_depense_id : '—' },
+//   { key: 'soumetteur_username',      label: 'Soumetteur',             sortable: true,  render: f => f.soumetteur_username || 'N/A' },
+//   { key: 'date_soumission',          label: 'Date Soumission',        sortable: true,  render: f => f.date_soumission || 'N/A' },
+//   { key: 'created_by_username',      label: 'Créé par',               sortable: true,  render: f => f.created_by_username || 'N/A' },
+//   { key: 'last_modified_by_username',label: 'Modifié par',            sortable: true,  render: f => f.last_modified_by_username || 'N/A' },
+//   { key: 'last_modified_timestamp',  label: 'Dernière modification',  sortable: true,  render: f => f.last_modified_timestamp || null },
+// ];
+
+// // -----------------------------------
+// // Composant TableFactures
+// // -----------------------------------
+
+// function TableFactures({ factures, onDelete, onUpdate, onEdit, downloadFile, userRole, currentUserId }) {
+//   // -----------------------------------
+//   // États
+//   // -----------------------------------
+//   const [sortColumn, setSortColumn] = useState('date_soumission');
+//   const [sortDirection, setSortDirection] = useState('desc');
+//   const [editingFacture, setEditingFacture] = useState(null);
+
+//   const navigate = useNavigate();
+//   const goToCompte = (cid) => {
+//     if (!cid) return;
+//     navigate(`/dashboard/depense-comptes?id=${encodeURIComponent(cid)}`);
+//   };
+
+//   const MONTREAL_TIMEZONE = 'America/Montreal';
+
+//   // Colonnes visibles par défaut
+//   const DEFAULT_VISIBLE = [
+//     'numero_facture','date_facture','fournisseur','montant','statut',
+//     'categorie','ligne_budgetaire','compte_depense_id','soumetteur_username'
+//   ];
+
+//   // VisibleColumns ← Set pour lookup rapide
+//   const [visibleCols, setVisibleCols] = useState(() => {
+//     try {
+//       const saved = JSON.parse(localStorage.getItem('factures.visibleCols'));
+//       return new Set(Array.isArray(saved) ? saved : DEFAULT_VISIBLE);
+//     } catch {
+//       return new Set(DEFAULT_VISIBLE);
+//     }
+//   });
+
+//   // Sauvegarde des colonnes visibles
+//   useEffect(() => {
+//     localStorage.setItem('factures.visibleCols', JSON.stringify([...visibleCols]));
+//   }, [visibleCols]);
+
+//   // Sélecteur de colonnes
+//   const [showColumnPicker, setShowColumnPicker] = useState(false);
+//   const toggleColumn = (key) => {
+//     setVisibleCols(prev => {
+//       const next = new Set(prev);
+//       if (next.has(key)) next.delete(key); else next.add(key);
+//       return next;
+//     });
+//   };
+
+//   // -----------------------------------
+//   // Utils formatage
+//   // -----------------------------------
+//   const formatDateTime = (dateString) => {
+//     if (!dateString) return 'N/A';
+//     try {
+//       const date = new Date(dateString);
+//       if (isNaN(date.getTime())) return 'Date invalide';
+//       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
+//     } catch (error) {
+//       console.error("Erreur formatDateTime :", dateString, error);
+//       return 'Erreur formatage';
+//     }
+//   };
+
+//   const formatDate = (dateString) => {
+//     if (!dateString) return 'N/A';
+//     try {
+//       const rawDate = new Date(dateString);
+//       if (isNaN(rawDate.getTime())) return 'Date invalide';
+//       const date = toDate(rawDate);
+//       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
+//     } catch (error) {
+//       console.error("Erreur formatDate :", dateString, error);
+//       return 'Erreur formatage';
+//     }
+//   };
+
+//   // -----------------------------------
+//   // Tri
+//   // -----------------------------------
+//   const handleHeaderClick = (column) => {
+//     if (column === sortColumn) {
+//       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+//     } else {
+//       setSortColumn(column);
+//       setSortDirection('asc');
+//     }
+//   };
+
+//   const compareValues = (a, b, column, direction) => {
+//     const valueA = a[column];
+//     const valueB = b[column];
+
+//     if (valueA == null && valueB == null) return 0;
+//     if (valueA == null) return direction === 'asc' ? -1 : 1;
+//     if (valueB == null) return direction === 'asc' ? 1 : -1;
+
+//     let comparison = 0;
+
+//     if (column.includes('date') || column.includes('timestamp')) {
+//       try {
+//         const dateA = new Date(valueA);
+//         const dateB = new Date(valueB);
+//         comparison = dateA.getTime() - dateB.getTime();
+//         if (isNaN(comparison)) {
+//           comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+//         }
+//       } catch (e) {
+//         comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+//       }
+//     } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+//       comparison = valueA - valueB;
+//     } else if (typeof valueA === 'string' && typeof valueB === 'string') {
+//       comparison = valueA.toLowerCase().localeCompare(valueB.toLowerCase());
+//     } else {
+//       comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+//     }
+//     return direction === 'asc' ? comparison : -comparison;
+//   };
+
+//   const sortedFactures = [...factures].sort((a, b) =>
+//     compareValues(a, b, sortColumn, sortDirection)
+//   );
+
+//   // -----------------------------------
+//   // Actions (via props)
+//   // -----------------------------------
+//   const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
+
+//   const handleStatusChange = (factureId, newStatut) => {
+//     if (!allowedStatuses.includes(newStatut)) {
+//       alert("Statut invalide.");
+//       return;
+//     }
+//     onUpdate(factureId, { statut: newStatut });
+//   };
+
+//   const handleDownloadClick = (factureId, anneeFacture) => {
+//     downloadFile(factureId, anneeFacture);
+//   };
+
+//   const handleDelete = (id) => {
+//     if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
+//       alert("Vous n'avez pas le rôle nécessaire pour supprimer une facture.");
+//       return;
+//     }
+//     if (window.confirm('Êtes-vous sûr(e) de vouloir supprimer cette facture ? Cette action est irréversible.')) {
+//       onDelete(id);
+//     }
+//   };
+
+//   // -----------------------------------
+//   // Rendu / Helpers
+//   // -----------------------------------
+//   const renderSortArrow = (column) => {
+//     if (sortColumn === column) {
+//       return sortDirection === 'asc' ? ' ↑' : ' ↓';
+//     }
+//     return null;
+//   };
+
+//   const sortableColumns = new Set(ALL_COLUMNS.filter(c => c.sortable).map(c => c.key));
+
+//   const renderTableHeader = (columnKey, headerText) => (
+//     <th
+//       key={columnKey}
+//       className={`p-2 border ${sortableColumns.has(columnKey) ? 'cursor-pointer hover:bg-gray-200' : ''}`}
+//       onClick={sortableColumns.has(columnKey) ? () => handleHeaderClick(columnKey) : undefined}
+//     >
+//       {headerText} {renderSortArrow(columnKey)}
+//     </th>
+//   );
+
+//   // Rendu Desktop cellule
+//   const renderCell = (facture, key) => {
+//     switch (key) {
+//       case 'id': return facture.id;
+//       case 'numero_facture': return facture.numero_facture || '—';
+//       case 'date_facture': return formatDate(facture.date_facture);
+//       case 'type_facture': return facture.type_facture || 'N/A';
+//       case 'ubr': return facture.ubr || 'N/A';
+//       case 'fournisseur': return facture.fournisseur || 'N/A';
+//       case 'description': return facture.description || 'N/A';
+//       case 'montant': return `${facture.montant}$`;
+//       case 'devise': return facture.devise || 'N/A';
+
+//       case 'statut':
+//         return (userRole === 'gestionnaire' || userRole === 'approbateur') ? (
+//           <select
+//             value={facture.statut}
+//             onChange={(e) => handleStatusChange(facture.id, e.target.value)}
+//             className="text-sm border rounded px-1 py-0.5"
+//           >
+//             {allowedStatuses.map((status) => (
+//               <option key={status} value={status}>{status}</option>
+//             ))}
+//           </select>
+//         ) : (facture.statut || 'N/A');
+
+//       case 'categorie': return facture.categorie || 'N/A';
+//       case 'ligne_budgetaire': return facture.ligne_budgetaire || 'N/A';
+
+//       case 'compte_depense_id':
+//         return facture.compte_depense_id ? (
+//           <button
+//             onClick={() => goToCompte(facture.compte_depense_id)}
+//             title="Ouvrir le compte de dépense"
+//             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
+//           >
+//             {facture.compte_depense_id}
+//           </button>
+//         ) : <span className="text-gray-400">—</span>;
+
+//       case 'soumetteur_username': return facture.soumetteur_username || 'N/A';
+//       case 'date_soumission': return formatDateTime(facture.date_soumission);
+//       case 'created_by_username': return facture.created_by_username || 'N/A';
+//       case 'last_modified_by_username': return facture.last_modified_by_username || 'N/A';
+//       case 'last_modified_timestamp':
+//         return facture.last_modified_timestamp ? formatDateTime(facture.last_modified_timestamp) : 'N/A';
+
+//       default:
+//         return facture[key] ?? 'N/A';
+//     }
+//   };
+
+//   // Rendu Mobile cellule (texte + formatages)
+//   const renderCellMobile = (facture, key) => {
+//     switch (key) {
+//       case 'date_facture': return formatDate(facture.date_facture);
+//       case 'montant': return `${facture.montant}$ ${facture.devise || ''}`;
+//       case 'date_soumission': return formatDateTime(facture.date_soumission);
+//       case 'last_modified_timestamp': return facture.last_modified_timestamp ? formatDateTime(facture.last_modified_timestamp) : 'N/A';
+//       case 'compte_depense_id':
+//         return facture.compte_depense_id ? (
+//           <button
+//             onClick={() => goToCompte(facture.compte_depense_id)}
+//             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700"
+//           >
+//             {facture.compte_depense_id}
+//           </button>
+//         ) : '—';
+//       default:
+//         // Repli : mêmes valeurs que desktop
+//         return renderCell(facture, key);
+//     }
+//   };
+
+//   return (
+//     <>
+//       {/* Sélecteur de colonnes */}
+//       <div className="flex justify-end mb-2">
+//         <button className="border px-3 py-2" onClick={() => setShowColumnPicker(v => !v)}>
+//           Colonnes
+//         </button>
+//       </div>
+
+//       {showColumnPicker && (
+//         <div className="mb-3 p-3 border rounded bg-white shadow max-w-2xl">
+//           <div className="flex items-center justify-between mb-2">
+//             <b>Colonnes visibles</b>
+//             <div className="flex gap-3">
+//               <button type="button" className="text-sm underline"
+//                 onClick={() => setVisibleCols(new Set(ALL_COLUMNS.map(c => c.key)))}>
+//                 Tout
+//               </button>
+//               <button type="button" className="text-sm underline"
+//                 onClick={() => setVisibleCols(new Set(DEFAULT_VISIBLE))}>
+//                 Défaut
+//               </button>
+//               <button type="button" className="text-sm underline"
+//                 onClick={() => setVisibleCols(new Set())}>
+//                 Aucun
+//               </button>
+//             </div>
+//           </div>
+//           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2">
+//             {ALL_COLUMNS.map(col => (
+//               <label key={col.key} className="flex items-center gap-2">
+//                 <input
+//                   type="checkbox"
+//                   checked={visibleCols.has(col.key)}
+//                   onChange={() => toggleColumn(col.key)}
+//                 />
+//                 <span>{col.label}</span>
+//               </label>
+//             ))}
+//           </div>
+//         </div>
+//       )}
+
+//       {/* Tableau desktop */}
+//       {userRole && ['soumetteur', 'gestionnaire', 'approbateur'].includes(userRole) && (
+//         <table className="w-full text-left border-collapse hidden sm:table">
+//           <thead>
+//             <tr className="bg-gray-100">
+//               {ALL_COLUMNS.filter(c => visibleCols.has(c.key)).map(c =>
+//                 renderTableHeader(c.key, c.label)
+//               )}
+//               <th className="p-2 border">Fichier</th>
+//               {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+//                 <th className="p-2 border">Actions</th>
+//               )}
+//             </tr>
+//           </thead>
+//           <tbody>
+//             {sortedFactures.length > 0 ? (
+//               sortedFactures.map((facture) => (
+//                 <tr key={facture.id} className="border-t">
+//                   {ALL_COLUMNS.filter(c => visibleCols.has(c.key)).map(c => (
+//                     <td key={c.key} className="p-2 border">
+//                       {renderCell(facture, c.key)}
+//                     </td>
+//                   ))}
+
+//                   {/* Fichier (fixe) */}
+//                   <td className="p-2 border">
+//                     {facture.chemin_fichier ? (
+//                       <button
+//                         onClick={() => handleDownloadClick(facture.id, new Date(facture.date_facture).getFullYear())}
+//                         className="text-green-500 underline hover:text-green-700 text-sm"
+//                       >
+//                         {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
+//                       </button>
+//                     ) : (
+//                       <span className="text-gray-500">—</span>
+//                     )}
+//                   </td>
+
+//                   {/* Actions (fixe) */}
+//                   {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+//                   <td className="p-2 border whitespace-nowrap">
+//                     {/* AJOUT : Bouton Modifier */}
+//                     <button
+//                       onClick={() => onEdit(facture)}
+//                       className="text-blue-600 hover:underline text-sm mr-3"
+//                       title="Modifier cette facture"
+//                     >
+//                       Modifier
+//                     </button>
+//                     <button
+//                       onClick={() => onDelete(facture.id)}
+//                       className="text-red-600 hover:underline text-sm"
+//                       title="Supprimer cette facture"
+//                     >
+//                       Supprimer
+//                     </button>
+//                   </td>
+//                 )}
+//                 </tr>
+//               ))
+//             ) : (
+//               <tr>
+//                 <td
+//                   className="p-2 border text-center text-gray-500"
+//                   colSpan={
+//                     ALL_COLUMNS.filter(c => visibleCols.has(c.key)).length
+//                     + 1 /* Fichier */
+//                     + ((userRole === 'gestionnaire' || userRole === 'approbateur') ? 1 : 0) /* Actions */
+//                   }
+//                 >
+//                   Aucune facture ajoutée pour cette année.
+//                 </td>
+//               </tr>
+//             )}
+//           </tbody>
+//         </table>
+//       )}
+
+//       {/* Vue mobile */}
+//       {userRole && ['soumetteur', 'gestionnaire', 'approbateur'].includes(userRole) && (
+//         <div className="sm:hidden">
+//           {sortedFactures.length > 0 ? (
+//             sortedFactures.map((facture) => (
+//               <div key={facture.id} className="bg-white p-4 mb-4 rounded-lg shadow border">
+//                 <div className="flex justify-between items-center mb-2">
+//                   <span className="text-sm font-semibold text-gray-600">Facture #{facture.id}</span>
+
+//                   {(userRole === 'gestionnaire' || userRole === 'approbateur') ? (
+//                     <select
+//                       value={facture.statut}
+//                       onChange={(e) => handleStatusChange(facture.id, e.target.value)}
+//                       className="text-xs rounded border px-2 py-1 bg-white text-gray-800"
+//                     >
+//                       {allowedStatuses.map((status) => (
+//                         <option key={status} value={status}>
+//                           {status}
+//                         </option>
+//                       ))}
+//                     </select>
+//                   ) : (
+//                     <span
+//                       className={`px-2 py-1 text-xs font-semibold rounded-full ${
+//                         facture.statut === 'Soumis'   ? 'bg-blue-100 text-blue-800'   :
+//                         facture.statut === 'Approuve' ? 'bg-green-100 text-green-800' :
+//                         facture.statut === 'Rejete'   ? 'bg-red-100 text-red-800'     :
+//                         facture.statut === 'Paye'     ? 'bg-purple-100 text-purple-800':
+//                                                          'bg-gray-100 text-gray-800'
+//                       }`}
+//                     >
+//                       {facture.statut}
+//                     </span>
+//                   )}
+//                 </div>
+
+//                 {/* Champs dynamiques selon visibleCols (on évite de dupliquer "statut" ici) */}
+//                 {ALL_COLUMNS.filter(c => visibleCols.has(c.key) && c.key !== 'statut').map(c => (
+//                   <div key={c.key} className="mb-2">
+//                     <span className="font-semibold">{c.label} :</span>{' '}
+//                     {renderCellMobile(facture, c.key)}
+//                   </div>
+//                 ))}
+
+//                 {/* Fichier (fixe) */}
+//                 <div className="mb-4">
+//                   <span className="font-semibold">Fichier :</span>{' '}
+//                   {facture.chemin_fichier ? (
+//                     <button
+//                       onClick={() => handleDownloadClick(facture.id, facture.annee)}
+//                       className="text-green-500 underline hover:text-green-700 text-sm"
+//                     >
+//                       {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
+//                     </button>
+//                   ) : (
+//                     <span className="text-gray-500 text-sm">—</span>
+//                   )}
+//                 </div>
+
+//                 {/* MODIFIÉ : Section Actions (mobile) */}
+//                 {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
+//                   <div className="flex justify-end space-x-4 border-t pt-3 mt-3">
+//                     {/* AJOUT : Bouton Modifier (mobile) */}
+//                     <button
+//                       onClick={() => onEdit(facture)}
+//                       className="text-blue-600 font-semibold hover:underline text-sm"
+//                     >
+//                       Modifier
+//                     </button>
+//                     <button
+//                       onClick={() => onDelete(facture.id)}
+//                       className="text-red-600 font-semibold hover:underline text-sm"
+//                     >
+//                       Supprimer
+//                     </button>
+//                   </div>
+//                 )}
+//               </div>
+//             ))
+//           ) : (
+//             <p className="text-center text-gray-500">Aucune facture ajoutée pour cette année.</p>
+//           )}
+//         </div>
+//       )}
+//     </>
+//   );
+// }
+
+// export default TableFactures;
+// src/components/TableFactures.jsx
+// Tableau/carte des factures : tri, colonnes configurables, actions (Modifier/Supprimer), téléchargement fichier.
+
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { useNavigate } from 'react-router-dom';
 
-// === Registre des colonnes du tableau Factures ===
-// ➜ Ajuste au besoin. Le rendu “spécifique” (dates/Statut/badges) est géré dans renderCell/renderCellMobile.
+// === Registre des colonnes affichables ===
 const ALL_COLUMNS = [
   { key: 'id',                       label: 'ID',                     sortable: true,  render: f => f.id },
   { key: 'numero_facture',           label: '# Facture',              sortable: true,  render: f => f.numero_facture || '—' },
@@ -673,17 +1162,18 @@ const ALL_COLUMNS = [
   { key: 'last_modified_timestamp',  label: 'Dernière modification',  sortable: true,  render: f => f.last_modified_timestamp || null },
 ];
 
-// -----------------------------------
-// Composant TableFactures
-// -----------------------------------
-
-function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, currentUserId }) {
-  // -----------------------------------
-  // États
-  // -----------------------------------
+function TableFactures({
+  factures,
+  onDelete,
+  onUpdate,
+  downloadFile,
+  userRole,
+  currentUserId,
+  onEdit, // <- callback d’édition
+}) {
+  // Tri
   const [sortColumn, setSortColumn] = useState('date_soumission');
   const [sortDirection, setSortDirection] = useState('desc');
-  const [editingFacture, setEditingFacture] = useState(null);
 
   const navigate = useNavigate();
   const goToCompte = (cid) => {
@@ -691,15 +1181,11 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
     navigate(`/dashboard/depense-comptes?id=${encodeURIComponent(cid)}`);
   };
 
-  const MONTREAL_TIMEZONE = 'America/Montreal';
-
-  // Colonnes visibles par défaut
+  // Colonnes visibles (persistées)
   const DEFAULT_VISIBLE = [
     'numero_facture','date_facture','fournisseur','montant','statut',
     'categorie','ligne_budgetaire','compte_depense_id','soumetteur_username'
   ];
-
-  // VisibleColumns ← Set pour lookup rapide
   const [visibleCols, setVisibleCols] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('factures.visibleCols'));
@@ -708,13 +1194,10 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       return new Set(DEFAULT_VISIBLE);
     }
   });
-
-  // Sauvegarde des colonnes visibles
   useEffect(() => {
     localStorage.setItem('factures.visibleCols', JSON.stringify([...visibleCols]));
   }, [visibleCols]);
 
-  // Sélecteur de colonnes
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const toggleColumn = (key) => {
     setVisibleCols(prev => {
@@ -724,21 +1207,18 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
     });
   };
 
-  // -----------------------------------
-  // Utils formatage
-  // -----------------------------------
+  // Utils
+  const MONTREAL_TIMEZONE = 'America/Montreal';
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Date invalide';
       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy HH:mm', { locale: fr });
-    } catch (error) {
-      console.error("Erreur formatDateTime :", dateString, error);
+    } catch {
       return 'Erreur formatage';
     }
   };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
@@ -746,15 +1226,12 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       if (isNaN(rawDate.getTime())) return 'Date invalide';
       const date = toDate(rawDate);
       return formatInTimeZone(date, MONTREAL_TIMEZONE, 'dd/MM/yyyy', { locale: fr });
-    } catch (error) {
-      console.error("Erreur formatDate :", dateString, error);
+    } catch {
       return 'Erreur formatage';
     }
   };
 
-  // -----------------------------------
   // Tri
-  // -----------------------------------
   const handleHeaderClick = (column) => {
     if (column === sortColumn) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -763,47 +1240,36 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       setSortDirection('asc');
     }
   };
-
   const compareValues = (a, b, column, direction) => {
     const valueA = a[column];
     const valueB = b[column];
-
     if (valueA == null && valueB == null) return 0;
     if (valueA == null) return direction === 'asc' ? -1 : 1;
     if (valueB == null) return direction === 'asc' ? 1 : -1;
 
-    let comparison = 0;
-
+    let cmp = 0;
     if (column.includes('date') || column.includes('timestamp')) {
       try {
-        const dateA = new Date(valueA);
-        const dateB = new Date(valueB);
-        comparison = dateA.getTime() - dateB.getTime();
-        if (isNaN(comparison)) {
-          comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
-        }
-      } catch (e) {
-        comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+        const da = new Date(valueA).getTime();
+        const db = new Date(valueB).getTime();
+        cmp = da - db;
+        if (isNaN(cmp)) cmp = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+      } catch {
+        cmp = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
       }
     } else if (typeof valueA === 'number' && typeof valueB === 'number') {
-      comparison = valueA - valueB;
+      cmp = valueA - valueB;
     } else if (typeof valueA === 'string' && typeof valueB === 'string') {
-      comparison = valueA.toLowerCase().localeCompare(valueB.toLowerCase());
+      cmp = valueA.toLowerCase().localeCompare(valueB.toLowerCase());
     } else {
-      comparison = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
+      cmp = String(valueA).toLowerCase().localeCompare(String(valueB).toLowerCase());
     }
-    return direction === 'asc' ? comparison : -comparison;
+    return direction === 'asc' ? cmp : -cmp;
   };
+  const sortedFactures = [...factures].sort((a, b) => compareValues(a, b, sortColumn, sortDirection));
 
-  const sortedFactures = [...factures].sort((a, b) =>
-    compareValues(a, b, sortColumn, sortDirection)
-  );
-
-  // -----------------------------------
-  // Actions (via props)
-  // -----------------------------------
+  // Actions
   const allowedStatuses = ['Soumis', 'Approuve', 'Rejete', 'Paye'];
-
   const handleStatusChange = (factureId, newStatut) => {
     if (!allowedStatuses.includes(newStatut)) {
       alert("Statut invalide.");
@@ -811,11 +1277,9 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
     }
     onUpdate(factureId, { statut: newStatut });
   };
-
   const handleDownloadClick = (factureId, anneeFacture) => {
     downloadFile(factureId, anneeFacture);
   };
-
   const handleDelete = (id) => {
     if (userRole !== 'gestionnaire' && userRole !== 'approbateur') {
       alert("Vous n'avez pas le rôle nécessaire pour supprimer une facture.");
@@ -825,17 +1289,14 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       onDelete(id);
     }
   };
-
-  // -----------------------------------
-  // Rendu / Helpers
-  // -----------------------------------
-  const renderSortArrow = (column) => {
-    if (sortColumn === column) {
-      return sortDirection === 'asc' ? ' ↑' : ' ↓';
-    }
-    return null;
+  const canEditFacture = (facture) => {
+    if (userRole === 'gestionnaire' || userRole === 'approbateur') return true;
+    if (userRole === 'soumetteur' && facture?.id_soumetteur === currentUserId) return true;
+    return false;
   };
 
+  // Rendu
+  const renderSortArrow = (column) => (sortColumn === column ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : null);
   const sortableColumns = new Set(ALL_COLUMNS.filter(c => c.sortable).map(c => c.key));
 
   const renderTableHeader = (columnKey, headerText) => (
@@ -848,7 +1309,6 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
     </th>
   );
 
-  // Rendu Desktop cellule
   const renderCell = (facture, key) => {
     switch (key) {
       case 'id': return facture.id;
@@ -856,8 +1316,8 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       case 'date_facture': return formatDate(facture.date_facture);
       case 'type_facture': return facture.type_facture || 'N/A';
       case 'ubr': return facture.ubr || 'N/A';
-      case 'fournisseur': return facture.fournisseur || 'N/A';
-      case 'description': return facture.description || 'N/A';
+      case 'fournisseur': return <span className="break-words">{facture.fournisseur || 'N/A'}</span>;
+      case 'description': return <span className="break-words">{facture.description || 'N/A'}</span>;
       case 'montant': return `${facture.montant}$`;
       case 'devise': return facture.devise || 'N/A';
 
@@ -892,15 +1352,11 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
       case 'date_soumission': return formatDateTime(facture.date_soumission);
       case 'created_by_username': return facture.created_by_username || 'N/A';
       case 'last_modified_by_username': return facture.last_modified_by_username || 'N/A';
-      case 'last_modified_timestamp':
-        return facture.last_modified_timestamp ? formatDateTime(facture.last_modified_timestamp) : 'N/A';
-
-      default:
-        return facture[key] ?? 'N/A';
+      case 'last_modified_timestamp': return facture.last_modified_timestamp ? formatDateTime(facture.last_modified_timestamp) : 'N/A';
+      default: return facture[key] ?? 'N/A';
     }
   };
 
-  // Rendu Mobile cellule (texte + formatages)
   const renderCellMobile = (facture, key) => {
     switch (key) {
       case 'date_facture': return formatDate(facture.date_facture);
@@ -917,7 +1373,6 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
           </button>
         ) : '—';
       default:
-        // Repli : mêmes valeurs que desktop
         return renderCell(facture, key);
     }
   };
@@ -977,6 +1432,9 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
               {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
                 <th className="p-2 border">Actions</th>
               )}
+              {(userRole === 'soumetteur') && (
+                <th className="p-2 border">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -994,9 +1452,10 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                     {facture.chemin_fichier ? (
                       <button
                         onClick={() => handleDownloadClick(facture.id, new Date(facture.date_facture).getFullYear())}
-                        className="text-green-500 underline hover:text-green-700 text-sm"
+                        className="text-green-500 underline hover:text-green-700 text-sm inline-block max-w-[40ch] truncate align-top"
+                        title={facture.chemin_fichier.split('/').pop()}
                       >
-                        {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
+                        {facture.chemin_fichier.split('/').pop()}
                       </button>
                     ) : (
                       <span className="text-gray-500">—</span>
@@ -1004,16 +1463,24 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                   </td>
 
                   {/* Actions (fixe) */}
-                  {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                    <td className="p-2 border">
+                  <td className="p-2 border whitespace-nowrap">
+                    {canEditFacture(facture) && (
+                      <button
+                        onClick={() => onEdit?.(facture)}
+                        className="text-blue-600 hover:text-blue-800 text-sm mr-3"
+                      >
+                        Modifier
+                      </button>
+                    )}
+                    {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
                       <button
                         onClick={() => handleDelete(facture.id)}
-                        className="text-red-500 mr-2 hover:text-red-700 text-sm"
+                        className="text-red-500 hover:text-red-700 text-sm"
                       >
                         Supprimer
                       </button>
-                    </td>
-                  )}
+                    )}
+                  </td>
                 </tr>
               ))
             ) : (
@@ -1023,7 +1490,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                   colSpan={
                     ALL_COLUMNS.filter(c => visibleCols.has(c.key)).length
                     + 1 /* Fichier */
-                    + ((userRole === 'gestionnaire' || userRole === 'approbateur') ? 1 : 0) /* Actions */
+                    + 1 /* Actions */
                   }
                 >
                   Aucune facture ajoutée pour cette année.
@@ -1034,15 +1501,14 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
         </table>
       )}
 
-      {/* Vue mobile */}
+      {/* Vue mobile (cartes) */}
       {userRole && ['soumetteur', 'gestionnaire', 'approbateur'].includes(userRole) && (
         <div className="sm:hidden">
           {sortedFactures.length > 0 ? (
             sortedFactures.map((facture) => (
-              <div key={facture.id} className="bg-white p-4 mb-4 rounded-lg shadow border">
+              <div key={facture.id} className="bg-white p-4 mb-4 rounded-lg shadow border overflow-hidden">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-gray-600">Facture #{facture.id}</span>
-
                   {(userRole === 'gestionnaire' || userRole === 'approbateur') ? (
                     <select
                       value={facture.statut}
@@ -1050,9 +1516,7 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                       className="text-xs rounded border px-2 py-1 bg-white text-gray-800"
                     >
                       {allowedStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
+                        <option key={status} value={status}>{status}</option>
                       ))}
                     </select>
                   ) : (
@@ -1071,38 +1535,49 @@ function TableFactures({ factures, onDelete, onUpdate, downloadFile, userRole, c
                 </div>
 
                 {/* Champs dynamiques selon visibleCols (on évite de dupliquer "statut" ici) */}
-                {ALL_COLUMNS.filter(c => visibleCols.has(c.key) && c.key !== 'statut').map(c => (
-                  <div key={c.key} className="mb-2">
-                    <span className="font-semibold">{c.label} :</span>{' '}
-                    {renderCellMobile(facture, c.key)}
-                  </div>
-                ))}
+                {ALL_COLUMNS
+                  .filter(c => visibleCols.has(c.key) && c.key !== 'statut')
+                  .map(c => (
+                    <div key={c.key} className="mb-2">
+                      <span className="font-semibold">{c.label} :</span>{' '}
+                      {renderCellMobile(facture, c.key)}
+                    </div>
+                  ))}
 
-                {/* Fichier (fixe) */}
-                <div className="mb-4">
+                {/* Fichier */}
+                <div className="mb-3">
                   <span className="font-semibold">Fichier :</span>{' '}
                   {facture.chemin_fichier ? (
                     <button
                       onClick={() => handleDownloadClick(facture.id, facture.annee)}
-                      className="text-green-500 underline hover:text-green-700 text-sm"
+                      className="text-green-500 underline hover:text-green-700 text-sm inline-block max-w-[70vw] truncate align-top"
+                      title={facture.chemin_fichier.split('/').pop()}
                     >
-                      {facture.chemin_fichier ? facture.chemin_fichier.split('/').pop() : 'Télécharger'}
+                      {facture.chemin_fichier.split('/').pop()}
                     </button>
                   ) : (
                     <span className="text-gray-500 text-sm">—</span>
                   )}
                 </div>
 
-                {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
-                  <div className="flex justify-end space-x-2">
+                <div className="flex justify-end space-x-2">
+                  {canEditFacture(facture) && (
+                    <button
+                      onClick={() => onEdit?.(facture)}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                  {(userRole === 'gestionnaire' || userRole === 'approbateur') && (
                     <button
                       onClick={() => handleDelete(facture.id)}
                       className="text-red-500 hover:text-red-700 text-sm"
                     >
                       Supprimer
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))
           ) : (

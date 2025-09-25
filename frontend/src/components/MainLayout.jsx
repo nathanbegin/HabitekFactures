@@ -1158,6 +1158,9 @@ export default function MainLayout({
   // Modal mobile
   const [formModalOpen, setFormModalOpen] = useState(false);
 
+  // AJOUT : État pour la facture en cours de modification
+  const [editingFacture, setEditingFacture] = useState(null);
+
   // ------------------------------
   // Fetch factures à l’arrivée sur la vue
   // ------------------------------
@@ -1272,6 +1275,28 @@ export default function MainLayout({
       await fetchFactures(anneeFinanciere);
     } catch (e) {
       console.error("updateFacture error:", e);
+    }
+  }
+
+  // AJOUT : Nouvelle fonction pour soumettre le formulaire de modification
+  async function submitUpdateFacture(formData) {
+    if (!editingFacture) return;
+    const id = editingFacture.id;
+    try {
+      // La route PATCH a été modifiée pour accepter FormData
+      const res = await authorizedFetch(`${API_URL}/api/factures/${id}`, {
+        method: "PATCH",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP Error ${res.status}`);
+      }
+      await fetchFactures(anneeFinanciere); // Rafraîchir
+      setEditingFacture(null); // Fermer le modal
+    } catch (e) {
+      console.error("submitUpdateFacture error:", e);
+      alert(`Erreur de modification: ${e.message}`);
     }
   }
 
@@ -1432,6 +1457,7 @@ export default function MainLayout({
                           currentUserId={userId}
                           onDelete={deleteFacture}
                           onUpdate={(id, patch) => updateFacture(id, patch)}
+                          onEdit={(facture) => setEditingFacture(facture)} // AJOUT : prop pour ouvrir le modal d'édition
                           downloadFile={(id, annee) => downloadFactureFile(id, annee)}
                         />
                       </div>
@@ -1538,6 +1564,37 @@ export default function MainLayout({
                 </div>
               )}
               <FormFacture onSubmit={addFacture} annee={anneeFinanciere} setAnnee={setAnneeFinanciere} />
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* AJOUT : Modal pour la MODIFICATION de facture */}
+      {editingFacture && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-lg rounded-lg shadow-xl">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h2 className="font-medium text-lg">
+                Modifier la facture #{editingFacture.numero_facture}
+              </h2>
+              <button
+                onClick={() => setEditingFacture(null)}
+                className="text-gray-600 hover:text-gray-900"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 max-h-[80vh] overflow-y-auto">
+              {/* Le formulaire est réutilisé en mode édition */}
+              <FormFacture
+                onSubmit={submitUpdateFacture}
+                initialData={editingFacture}
+                isEditMode={true}
+                annee={anneeFinanciere}
+                setAnnee={setAnneeFinanciere}
+              />
             </div>
           </div>
         </div>
