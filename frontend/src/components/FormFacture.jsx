@@ -703,7 +703,7 @@ const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024;
  * @returns {JSX.Element} Formulaire JSX pour l'ajout/modification de factures.
  */
 // Ajout de initialData aux props si vous comptez utiliser ce formulaire pour la modification
-function FormFacture({ onSubmit, annee, setAnnee, initialData }) {
+function FormFacture({ onSubmit, annee, isEditMode = false, setAnnee, initialData }) {
   // -----------------------------------
   // Gestion des États
   // -----------------------------------
