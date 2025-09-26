@@ -1340,32 +1340,80 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     }
   }
 
-  // -------- PATCH multipart pour l’édition (modal) --------
+  // // -------- PATCH multipart pour l’édition (modal) --------
+  // async function submitUpdateFacture(formData) {
+  //   if (!editingFacture?.id) return;
+  //   setEditSubmitting(true);
+  //   try {
+  //     const res = await authorizedFetch(`${API_URL}/api/factures/${editingFacture.id}`, {
+  //       method: 'PATCH',
+  //       body: formData,
+  //     });
+  //     const ok = res.ok;
+  //     const data = await res.json().catch(() => ({}));
+  //     if (!ok) {
+  //       alert(`Erreur modification: ${data.error || res.status}`);
+  //       return;
+  //     }
+  //     if (location.pathname.endsWith('/manage-invoices')) {
+  //       await fetchFactures(anneeFinanciere);
+  //     }
+  //     setEditingFacture(null);
+  //   } catch (e) {
+  //     console.error("submitUpdateFacture error:", e);
+  //     alert("Erreur lors de la mise à jour de la facture.");
+  //   } finally {
+  //     setEditSubmitting(false);
+  //   }
+  // }
+
+  // -------- PATCH JSON pour l’édition (modal) --------
   async function submitUpdateFacture(formData) {
     if (!editingFacture?.id) return;
     setEditSubmitting(true);
+    
+    // On met l'ID dans l'URL (REST) et on s'assure d'envoyer l'objet seul
+    const factureId = editingFacture.id; 
+    
+    // Si formData est un objet JSON (recommandé pour PATCH)
+    const dataToSend = formData; 
+    
+    // S'il reste l'ID dans l'objet, retirez-le ici pour être propre :
+    delete dataToSend.id; 
+
     try {
-      const res = await authorizedFetch(`${API_URL}/api/factures/${editingFacture.id}`, {
-        method: 'PATCH',
-        body: formData,
-      });
-      const ok = res.ok;
-      const data = await res.json().catch(() => ({}));
-      if (!ok) {
-        alert(`Erreur modification: ${data.error || res.status}`);
-        return;
-      }
-      if (location.pathname.endsWith('/manage-invoices')) {
-        await fetchFactures(anneeFinanciere);
-      }
-      setEditingFacture(null);
+        const res = await authorizedFetch(`${API_URL}/api/factures/${factureId}`, {
+            method: 'PATCH',
+            // -----------------------------------------------------
+            // 🔑 ÉTAPE 1: AJOUTER L'EN-TÊTE 'Content-Type'
+            headers: {
+                'Content-Type': 'application/json', // C'est l'élément clé manquant
+            },
+            // 🔑 ÉTAPE 2: CONVERTIR L'OBJET EN STRING JSON
+            body: JSON.stringify(dataToSend), 
+            // -----------------------------------------------------
+        });
+        
+        const ok = res.ok;
+        const data = await res.json().catch(() => ({}));
+        
+        if (!ok) {
+            alert(`Erreur modification: ${data.error || res.status}`);
+            return;
+        }
+        
+        if (location.pathname.endsWith('/manage-invoices')) {
+            await fetchFactures(anneeFinanciere);
+        }
+        setEditingFacture(null);
     } catch (e) {
-      console.error("submitUpdateFacture error:", e);
-      alert("Erreur lors de la mise à jour de la facture.");
+        console.error("submitUpdateFacture error:", e);
+        alert("Erreur lors de la mise à jour de la facture.");
     } finally {
-      setEditSubmitting(false);
+        setEditSubmitting(false);
     }
-  }
+}
+
 
   // ---------------- API: Budget (STUBS pour corriger l’erreur) ----------------
   // Ces fonctions sont définies pour éviter l'erreur "fetchBudget is not defined".

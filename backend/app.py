@@ -1194,8 +1194,8 @@ def patch_facture(fid):
 
     if not data and not file and not remove_file:
         return jsonify({"error": "Aucune donnée de mise à jour fournie"}), 400
-    # if "numero_facture" in data:
-    #     return jsonify({"error": "Le champ numero_facture ne peut pas être modifié."}), 400
+    if "numero_facture" in data:
+        return jsonify({"error": "Le champ numero_facture ne peut pas être modifié."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
