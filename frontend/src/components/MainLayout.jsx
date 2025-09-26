@@ -1104,7 +1104,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://storage.nathanbegin.xyz
 /** Année financière (1er mai → 30 avril) */
 const getFinancialYear = (date = new Date()) => {
   const year = date.getFullYear();
-  return date.getMonth() >= 4 ? String(year) : String(year - 1);
+  return date.getMonth() >= 4 ? String(year) : String(year - 1); 
 };
 
 function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, clientCount, userId }) {
