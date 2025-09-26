@@ -1069,14 +1069,128 @@ def get_file(id):
 #         return jsonify({"error": "Erreur lors de la mise à jour", "details": str(e)}), 500
 #     finally:
 #         cur.close(); conn.close()
+# @app.route("/api/factures/<int:fid>", methods=["PATCH"])
+# @token_required
+# @role_required(['gestionnaire', 'approbateur'])
+# def patch_facture(fid):
+#     # La requête vient d'un FormData, on utilise request.form et request.files
+#     data = request.form.to_dict()
+#     file = request.files.get('fichier')
+#     remove_file = data.pop('remove_file', 'false').lower() == 'true'
+
+#     if not data and not file and not remove_file:
+#         return jsonify({"error": "Aucune donnée de mise à jour fournie"}), 400
+#     if "numero_facture" in data:
+#         return jsonify({"error": "Le champ numero_facture ne peut pas être modifié."}), 400
+
+#     conn = get_db_connection()
+#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     new_file_path_on_disk = None # Pour cleanup en cas d'erreur
+
+#     try:
+#         # 1. Récupérer l'état actuel de la facture
+#         cur.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (fid,))
+#         facture_existante = cur.fetchone()
+#         if not facture_existante:
+#             return jsonify({"error": "Facture introuvable"}), 404
+#         current_file_path = facture_existante['chemin_fichier']
+
+#         # 2. Gérer la logique du fichier
+#         # Cas A: Un nouveau fichier est téléversé
+#         if file and file.filename:
+#             filename = secure_filename(file.filename)
+#             upload_folder = app.config['UPLOAD_FOLDER']
+#             os.makedirs(upload_folder, exist_ok=True)
+#             new_file_path_on_disk = os.path.join(upload_folder, filename)
+#             file.save(new_file_path_on_disk)
+#             # On met à jour le chemin dans les données à sauvegarder
+#             data['chemin_fichier'] = new_file_path_on_disk
+#             # Si un ancien fichier existait et qu'il est différent, on le supprime
+#             if current_file_path and os.path.exists(current_file_path) and current_file_path != new_file_path_on_disk:
+#                 os.remove(current_file_path)
+#         # Cas B: Demande explicite de suppression du fichier
+#         elif remove_file:
+#             if current_file_path and os.path.exists(current_file_path):
+#                 os.remove(current_file_path)
+#             # On met le chemin à NULL dans la base de données
+#             data['chemin_fichier'] = None
+
+#         # 3. Validation des champs
+#         allowed = {
+#             "date_facture", "fournisseur", "description", "montant", "devise",
+#             "statut", "type_facture", "ubr", "chemin_fichier",
+#             "categorie", "ligne_budgetaire", "compte_depense_id"
+#         }
+#         if "montant" in data and data["montant"]:
+#             try: data["montant"] = Decimal(str(data["montant"]))
+#             except InvalidOperation: return jsonify({"error": "Format de montant invalide"}), 400
+#         if "date_facture" in data and data["date_facture"]:
+#             try: datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
+#             except ValueError: return jsonify({"error": "Format date_facture invalide (AAAA-MM-JJ)"}), 400
+        
+#         # 4. Construction dynamique de la requête SQL
+#         sets, vals = [], []
+#         for k, v in data.items():
+#             if k in allowed:
+#                 sets.append(f"{k} = %s")
+#                 vals.append(v)
+        
+#         if not sets:
+#             return jsonify({"message": "Aucun champ à modifier n'a été fourni"}), 200
+
+#         # 5. Ajout des champs d'audit
+#         sets.append("last_modified_by = %s")
+#         vals.append(g.user_id)
+#         sets.append("last_modified_timestamp = (now() at time zone 'utc')")
+#         vals.append(fid)
+
+#         # 6. Exécution de la mise à jour
+#         cur.execute(f"UPDATE factures SET {', '.join(sets)} WHERE id = %s RETURNING *;", vals)
+#         updated_row = cur.fetchone()
+#         if not updated_row:
+#             return jsonify({"error": "La mise à jour a échoué"}), 500
+
+#         conn.commit()
+
+#         # 7. Émission Socket.IO et réponse
+#         updated_facture_dict = {k: convert_to_json_serializable(v) for k, v in dict(updated_row).items()}
+#         socketio.emit("update_facture", updated_facture_dict)
+#         return jsonify(updated_facture_dict), 200
+
+#     except Exception as e:
+#         conn.rollback()
+#         # Si une erreur survient après avoir sauvegardé un nouveau fichier, on le supprime
+#         if new_file_path_on_disk and os.path.exists(new_file_path_on_disk):
+#             os.remove(new_file_path_on_disk)
+#         traceback.print_exc()
+#         return jsonify({"error": "Erreur interne lors de la mise à jour", "details": str(e)}), 500
+#     finally:
+#         cur.close()
+#         conn.close()
+
 @app.route("/api/factures/<int:fid>", methods=["PATCH"])
 @token_required
 @role_required(['gestionnaire', 'approbateur'])
 def patch_facture(fid):
-    # La requête vient d'un FormData, on utilise request.form et request.files
-    data = request.form.to_dict()
-    file = request.files.get('fichier')
-    remove_file = data.pop('remove_file', 'false').lower() == 'true'
+    # --- DÉBUT DE LA CORRECTION ---
+    # Détecter le type de contenu pour extraire les données correctement
+    content_type = request.headers.get('Content-Type', '').lower()
+    
+    data = {}
+    file = None
+    remove_file = False
+
+    if 'multipart/form-data' in content_type:
+        # Cas 1 : La requête est un formulaire, potentiellement avec un fichier
+        data = request.form.to_dict()
+        file = request.files.get('fichier')
+        remove_file = data.pop('remove_file', 'false').lower() == 'true'
+    elif 'application/json' in content_type:
+        # Cas 2 : La requête est du JSON pur (pas de fichier)
+        data = request.get_json() or {}
+        # remove_file peut aussi être envoyé en JSON
+        remove_file = data.pop('remove_file', False)
+    # --- FIN DE LA CORRECTION ---
 
     if not data and not file and not remove_file:
         return jsonify({"error": "Aucune donnée de mise à jour fournie"}), 400
@@ -1135,6 +1249,13 @@ def patch_facture(fid):
                 sets.append(f"{k} = %s")
                 vals.append(v)
         
+        # Si la seule action était de supprimer un fichier (remove_file=true),
+        # il faut s'assurer que le champ chemin_fichier est bien dans la requête
+        if remove_file and 'chemin_fichier = %s' not in sets:
+             sets.append('chemin_fichier = %s')
+             vals.append(None)
+
+
         if not sets:
             return jsonify({"message": "Aucun champ à modifier n'a été fourni"}), 200
 
@@ -1167,8 +1288,6 @@ def patch_facture(fid):
     finally:
         cur.close()
         conn.close()
-
-
 
 
 
