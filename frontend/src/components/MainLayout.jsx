@@ -1134,7 +1134,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
   const currentSubView = location.pathname.split('/').pop();
 
 
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // ⬅️ L'état doit être ici
 
   // ------------- Effets / Sockets -------------
   useEffect(() => {
@@ -1881,8 +1881,10 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                         annee={anneeFinanciere}
                         setAnnee={setAnneeFinanciere}
                         downloadFile={downloadFile}
-                        onFileReplace={replaceFactureFile}
-                        setIsUploading={setIsUploading}
+                        // ✅ Props pour le remplacement de fichier
+                          onFileReplace={replaceFactureFile}
+                          isUploading={isUploading}        // Le boolean pour désactiver
+                          setIsUploading={setIsUploading}  // Le setter
                       />
                     </div>
                   </aside>
@@ -1905,8 +1907,10 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
                           downloadFile={downloadFile}
+                          // ✅ Props pour le remplacement de fichier
                           onFileReplace={replaceFactureFile}
-                          setIsUploading={setIsUploading}
+                          isUploading={isUploading}        // Le boolean pour désactiver
+                          setIsUploading={setIsUploading}  // Le setter
                         />
                       </div>
                     </div>
@@ -1934,8 +1938,10 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
                           downloadFile={downloadFile}
+                          // ✅ Props pour le remplacement de fichier
                           onFileReplace={replaceFactureFile}
-                          setIsUploading={setIsUploading}
+                          isUploading={isUploading}        // Le boolean pour désactiver
+                          setIsUploading={setIsUploading}  // Le setter
                         />
                         {editSubmitting && (
                           <div className="mt-3 text-sm text-gray-600">Mise à jour en cours…</div>

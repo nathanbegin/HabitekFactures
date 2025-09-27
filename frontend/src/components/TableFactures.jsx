@@ -1550,6 +1550,7 @@ function TableFactures({
                   {facture.chemin_fichier ? (
                     <button
                       onClick={() => handleDownloadClick(facture.id, facture.annee)}
+                      
                       className="text-green-500 underline hover:text-green-700 text-sm inline-block max-w-[70vw] truncate align-top"
                       title={facture.chemin_fichier.split('/').pop()}
                     >

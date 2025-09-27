@@ -18,8 +18,9 @@ export default function FormFacture({
   annee,
   setAnnee,
   downloadFile,
-  onFileReplace, // La fonction d'upload à appeler depuis le parent
-  setIsUploading, // La fonction de l'état isUploading du parent
+  onFileReplace,     // La fonction pour remplacer (du parent)
+  isUploading,       // L'état de chargement (du parent, pour désactiver le bouton)
+  setIsUploading,    // Le setter de l'état de chargement (du parent)
 }) {
   // Helper pour normaliser la date → 'YYYY-MM-DD'
   const toInputDate = (isoOrSql) => {
@@ -50,7 +51,7 @@ export default function FormFacture({
   const [ligneBudgetaire, setLigneBudgetaire] = useState('');
 
   const [fichierRemplacement, setFichierRemplacement] = useState(null); // ⬅️ NOUVEL ÉTAT
-  const [isUploading, setIsUploading] = useState(false); // Pour désactiver le bouton
+  
 
   // Création uniquement : fichier
   const [fichier, setFichier] = useState(null);
@@ -60,6 +61,8 @@ export default function FormFacture({
     if (!initialData?.chemin_fichier) return '';
     const parts = String(initialData.chemin_fichier).split('/');
     return parts[parts.length - 1] || '';
+
+
   }, [initialData]);
 
   // Pré-remplissage en édition
@@ -304,36 +307,41 @@ export default function FormFacture({
 
           {/* ---------------------------------------------------- */}
           {/* ✅ NOUVEAU BLOC : Remplacement de la Pièce Jointe */}
-          {/* ---------------------------------------------------- */}
-          <div className="mt-4 border p-4 rounded bg-white shadow-sm">
+        <div className="mt-4 border p-4 rounded bg-white shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Remplacer la pièce jointe (optionnel)
+            Remplacer la pièce jointe (optionnel)
             </label>
             <input
-              type="file"
-              onChange={(e) => setFichierRemplacement(e.target.files?.[0] ?? null)}
-              className="mt-1 w-full text-sm"
+            type="file"
+            onChange={(e) => setFichierRemplacement(e.target.files?.[0] ?? null)}
+            className="mt-1 w-full text-sm"
+            // L'attribut 'key' force l'input à se vider si le fichier est nullifié
+            key={fichierRemplacement || ''} 
             />
             
             <button
-              type="button" // Important : ne doit pas soumettre le formulaire principal
-              onClick={() => {
-                  if (fichierRemplacement && onFileReplace) {
-                      onFileReplace(initialData.id, fichierRemplacement);
-                      // Reset du champ après soumission (gérée par le parent)
-                  }
-              }}
-              disabled={!fichierRemplacement || isUploading}
-              className={`mt-3 w-full p-2 rounded text-white text-sm font-medium transition-colors ${
-                  !fichierRemplacement || isUploading 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-              }`}
+            type="button" 
+            onClick={async () => {
+                if (fichierRemplacement && onFileReplace) {
+                    // 1. On appelle la fonction du parent pour l'upload (qui se chargera de mettre isUploading à true/false)
+                    await onFileReplace(initialData.id, fichierRemplacement);
+                    
+                    // 2. On réinitialise l'état local du fichier pour vider le champ
+                    setFichierRemplacement(null); 
+                }
+            }}
+            // 3. On utilise la prop isUploading pour désactiver le bouton
+            disabled={!fichierRemplacement || isUploading} 
+            className={`mt-3 w-full p-2 rounded text-white text-sm font-medium transition-colors ${
+                !fichierRemplacement || isUploading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
             >
-              {isUploading ? 'Téléchargement...' : 'Remplacer le fichier'}
+            {isUploading ? 'Téléchargement...' : 'Remplacer le fichier'} 
             </button>
             {fichierRemplacement && <p className="mt-2 text-xs text-indigo-600">Fichier prêt à être envoyé : {fichierRemplacement.name}</p>}
-          </div>
+        </div>
 
         </div>
       )}
