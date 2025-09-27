@@ -18,6 +18,8 @@ export default function FormFacture({
   annee,
   setAnnee,
   downloadFile,
+  onFileReplace, // La fonction d'upload à appeler depuis le parent
+  setIsUploading, // La fonction de l'état isUploading du parent
 }) {
   // Helper pour normaliser la date → 'YYYY-MM-DD'
   const toInputDate = (isoOrSql) => {
@@ -46,6 +48,9 @@ export default function FormFacture({
   const [statut, setStatut] = useState(STATUT_OPTIONS[0]);
   const [categorie, setCategorie] = useState('');
   const [ligneBudgetaire, setLigneBudgetaire] = useState('');
+
+  const [fichierRemplacement, setFichierRemplacement] = useState(null); // ⬅️ NOUVEL ÉTAT
+  const [isUploading, setIsUploading] = useState(false); // Pour désactiver le bouton
 
   // Création uniquement : fichier
   const [fichier, setFichier] = useState(null);
@@ -276,43 +281,60 @@ export default function FormFacture({
       ) : (
         <div>
           <label className="block text-sm font-medium text-gray-700">Pièce jointe actuelle</label>
-          <div className="mt-1 w-full border rounded p-2 bg-gray-50 text-sm">
+          <div className="mt-1 w-full border rounded p-2 bg-gray-50 text-sm flex justify-between items-center">
             {currentFilename ? (
+                // L'élément cliquable pour le téléchargement (déjà implémenté)
                 <a
-                    href="#" // Utiliser un lien factice
+                    href="#"
                     onClick={(e) => {
-                        e.preventDefault(); // Empêche le défilement de la page
-
-                        // 1. Récupérer les données nécessaires
+                        e.preventDefault();
                         const factureId = initialData?.id;
-                        const dateFacture = initialData?.date_facture; 
-                        
-                        // 2. Calculer l'année à partir de la date_facture (comme dans TableFactures.jsx)
-                        // Utiliser la prop 'annee' en dernier recours
-                        const anneeFacture = dateFacture 
-                            ? new Date(dateFacture).getFullYear() 
-                            : annee; 
-                        
-                        // 3. TRACAGE
-                        console.log(`[FormFacture] Tentative de téléchargement pour: ID=${factureId}, Année=${anneeFacture}, Fichier=${currentFilename}`);
-                        
-                        // 4. Appel de la fonction de téléchargement (vérifie si la prop existe)
-                        if (downloadFile) {
-                            downloadFile(factureId, anneeFacture); 
-                        } else {
-                            console.error("[FormFacture] Erreur: La fonction downloadFile n'est pas passée en prop.");
-                        }
+                        const anneeFacture = initialData?.date_facture ? new Date(initialData.date_facture).getFullYear() : annee; 
+                        downloadFile(factureId, anneeFacture); 
                     }}
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
-                    title="Cliquez pour télécharger le fichier"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer truncate mr-4"
+                    title={`Télécharger : ${currentFilename}`}
                 >
                     {currentFilename} 
                 </a>
             ) : (
-                '— (Aucun fichier)'
+                <span className="text-gray-500">— (Aucun fichier)</span>
             )}
           </div>
-          {/* ... */}
+
+          {/* ---------------------------------------------------- */}
+          {/* ✅ NOUVEAU BLOC : Remplacement de la Pièce Jointe */}
+          {/* ---------------------------------------------------- */}
+          <div className="mt-4 border p-4 rounded bg-white shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Remplacer la pièce jointe (optionnel)
+            </label>
+            <input
+              type="file"
+              onChange={(e) => setFichierRemplacement(e.target.files?.[0] ?? null)}
+              className="mt-1 w-full text-sm"
+            />
+            
+            <button
+              type="button" // Important : ne doit pas soumettre le formulaire principal
+              onClick={() => {
+                  if (fichierRemplacement && onFileReplace) {
+                      onFileReplace(initialData.id, fichierRemplacement);
+                      // Reset du champ après soumission (gérée par le parent)
+                  }
+              }}
+              disabled={!fichierRemplacement || isUploading}
+              className={`mt-3 w-full p-2 rounded text-white text-sm font-medium transition-colors ${
+                  !fichierRemplacement || isUploading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {isUploading ? 'Téléchargement...' : 'Remplacer le fichier'}
+            </button>
+            {fichierRemplacement && <p className="mt-2 text-xs text-indigo-600">Fichier prêt à être envoyé : {fichierRemplacement.name}</p>}
+          </div>
+
         </div>
       )}
 
