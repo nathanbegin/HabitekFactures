@@ -17,6 +17,7 @@ export default function FormFacture({
   // props éventuelles utilisées en création
   annee,
   setAnnee,
+  downloadFile,
 }) {
   // Helper pour normaliser la date → 'YYYY-MM-DD'
   const toInputDate = (isoOrSql) => {
@@ -276,7 +277,25 @@ export default function FormFacture({
         <div>
           <label className="block text-sm font-medium text-gray-700">Pièce jointe actuelle</label>
           <div className="mt-1 w-full border rounded p-2 bg-gray-50 text-sm">
-            {currentFilename || '—'}
+            {currentFilename ? (
+                // -----------------------------------------------------------------
+                // Le lien cliquable
+                // -----------------------------------------------------------------
+                <a
+                    href="#" // Utiliser un lien factice
+                    onClick={(e) => {
+                        e.preventDefault(); // Empêche le défilement de la page
+                        // Appel de la fonction de téléchargement avec l'ID et l'année
+                        downloadFile(initialData.id, annee); 
+                    }}
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
+                    title="Cliquez pour télécharger le fichier"
+                >
+                    {currentFilename} 
+                </a>
+            ) : (
+                '— (Aucun fichier)'
+            )}
           </div>
           {/* Si tu ajoutes plus tard un endpoint dédié pour changer la PJ,
               on pourra ajouter un input file ici et appeler cet endpoint séparément. */}

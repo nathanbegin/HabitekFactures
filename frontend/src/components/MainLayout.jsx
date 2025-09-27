@@ -1832,6 +1832,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                         onSubmit={addFacture}
                         annee={anneeFinanciere}
                         setAnnee={setAnneeFinanciere}
+                        downloadFile={downloadFile}
                       />
                     </div>
                   </aside>
