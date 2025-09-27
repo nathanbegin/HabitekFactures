@@ -1518,6 +1518,9 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
 
   // ---------------- Download fichier ----------------
   const downloadFile = async (factureId, annee) => {
+ // 💥 TRACAGE AJOUTÉ ICI pour confirmer la réception
+    console.log(`[downloadFile - API Call] Reçu: ID=${factureId}, Année=${annee}`);
+
     try {
       const response = await authorizedFetch(`${API_URL}/api/factures/${factureId}/fichier?annee=${annee}`);
       if (!response.ok) {

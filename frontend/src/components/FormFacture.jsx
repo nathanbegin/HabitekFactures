@@ -278,15 +278,30 @@ export default function FormFacture({
           <label className="block text-sm font-medium text-gray-700">Pièce jointe actuelle</label>
           <div className="mt-1 w-full border rounded p-2 bg-gray-50 text-sm">
             {currentFilename ? (
-                // -----------------------------------------------------------------
-                // Le lien cliquable
-                // -----------------------------------------------------------------
                 <a
                     href="#" // Utiliser un lien factice
                     onClick={(e) => {
                         e.preventDefault(); // Empêche le défilement de la page
-                        // Appel de la fonction de téléchargement avec l'ID et l'année
-                        downloadFile(initialData.numero_facture, initialData.annee); 
+
+                        // 1. Récupérer les données nécessaires
+                        const factureId = initialData?.id;
+                        const dateFacture = initialData?.date_facture; 
+                        
+                        // 2. Calculer l'année à partir de la date_facture (comme dans TableFactures.jsx)
+                        // Utiliser la prop 'annee' en dernier recours
+                        const anneeFacture = dateFacture 
+                            ? new Date(dateFacture).getFullYear() 
+                            : annee; 
+                        
+                        // 3. TRACAGE
+                        console.log(`[FormFacture] Tentative de téléchargement pour: ID=${factureId}, Année=${anneeFacture}, Fichier=${currentFilename}`);
+                        
+                        // 4. Appel de la fonction de téléchargement (vérifie si la prop existe)
+                        if (downloadFile) {
+                            downloadFile(factureId, anneeFacture); 
+                        } else {
+                            console.error("[FormFacture] Erreur: La fonction downloadFile n'est pas passée en prop.");
+                        }
                     }}
                     className="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
                     title="Cliquez pour télécharger le fichier"
@@ -297,8 +312,7 @@ export default function FormFacture({
                 '— (Aucun fichier)'
             )}
           </div>
-          {/* Si tu ajoutes plus tard un endpoint dédié pour changer la PJ,
-              on pourra ajouter un input file ici et appeler cet endpoint séparément. */}
+          {/* ... */}
         </div>
       )}
 
