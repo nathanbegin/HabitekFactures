@@ -1133,6 +1133,9 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
   const location = useLocation();
   const currentSubView = location.pathname.split('/').pop();
 
+
+  const [isUploading, setIsUploading] = useState(false);
+
   // ------------- Effets / Sockets -------------
   useEffect(() => {
     if (location.pathname.endsWith('/manage-invoices') &&
@@ -1195,7 +1198,49 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
+    // -------- PATCH/POST multipart pour le remplacement de fichier --------
+  const replaceFactureFile = async (factureId, nouveauFichier) => {
+      if (!factureId || !nouveauFichier) return;
 
+      setIsUploading(true);
+      
+      // 1. Préparer le FormData
+      const formData = new FormData();
+      // Le nom 'fichier' doit correspondre à ce que Flask attend (ex: request.files['fichier'])
+      formData.append('fichier', nouveauFichier);
+      
+      try {
+          // Nous utilisons PATCH, mais un POST vers une route spécifique est aussi très courant
+          const res = await authorizedFetch(`${API_URL}/api/factures/${factureId}/remplacer-fichier`, {
+              method: 'POST', // ou PATCH
+              // IMPORTANT: Ne PAS ajouter l'en-tête 'Content-Type: multipart/form-data'. 
+              // Le navigateur le fait automatiquement et correctement pour FormData.
+              body: formData, 
+          });
+
+          const ok = res.ok;
+          const data = await res.json().catch(() => ({}));
+
+          if (!ok) {
+              alert(`Erreur remplacement du fichier: ${data.error || res.status}`);
+              return;
+          }
+
+          alert(`Fichier remplacé avec succès !`);
+          
+          // 2. Mettre à jour la liste des factures et fermer le modal
+          if (location.pathname.endsWith('/manage-invoices')) {
+              await fetchFactures(anneeFinanciere);
+          }
+          setEditingFacture(null); 
+
+      } catch (e) {
+          console.error("replaceFactureFile error:", e);
+          alert("Erreur lors du remplacement du fichier.");
+      } finally {
+          setIsUploading(false);
+      }
+  };
   // ---------------- API: Factures ----------------
   async function fetchFactures(year) {
     if (userRole !== 'soumetteur' && userRole !== 'gestionnaire' && userRole !== 'approbateur') {
@@ -1836,6 +1881,8 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                         annee={anneeFinanciere}
                         setAnnee={setAnneeFinanciere}
                         downloadFile={downloadFile}
+                        onFileReplace={replaceFactureFile}
+                        setIsUploading={setIsUploading}
                       />
                     </div>
                   </aside>
@@ -1858,6 +1905,8 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
                           downloadFile={downloadFile}
+                          onFileReplace={replaceFactureFile}
+                          setIsUploading={setIsUploading}
                         />
                       </div>
                     </div>
@@ -1885,6 +1934,8 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
                           downloadFile={downloadFile}
+                          onFileReplace={replaceFactureFile}
+                          setIsUploading={setIsUploading}
                         />
                         {editSubmitting && (
                           <div className="mt-3 text-sm text-gray-600">Mise à jour en cours…</div>
