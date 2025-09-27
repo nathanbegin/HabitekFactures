@@ -1298,65 +1298,78 @@ def remplacer_facture_fichier(facture_id):
     if conn is None:
         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
         
-    # 1. Vérifier la présence du fichier
+    # 1. Vérification et réception du fichier
     if 'fichier' not in request.files:
-        return jsonify({"error": "Aucun fichier fourni dans la requête."}), 400
+        return jsonify({"error": "Aucun fichier fourni dans la requête (attendu sous la clé 'fichier')."}), 400
     
     nouveau_fichier = request.files['fichier']
     if nouveau_fichier.filename == '':
         return jsonify({"error": "Nom de fichier invalide."}), 400
 
-    # 2. Sécuriser le nom du fichier et générer un nom unique
+    # 2. Sécuriser le nom du fichier (pour l'enregistrement)
     original_filename = nouveau_fichier.filename
-    # Ajoutez un timestamp ou un UUID pour garantir l'unicité
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    
+    # safe_filename est le nom du fichier sur le disque
     safe_filename = secure_filename(f"{timestamp}_{facture_id}_{original_filename}")
     
-    new_file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+    # new_file_path est le chemin complet (uploads/safe_filename)
+    upload_folder_config = app.config['UPLOAD_FOLDER']
+    new_file_path = os.path.join(upload_folder_config, safe_filename)
+
     
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # 3. Récupérer l'ancien chemin du fichier avant l'UPDATE
-        cur.execute("SELECT file_path FROM public.factures WHERE id = %s", (facture_id,))
+        cur.execute("SELECT chemin_fichier FROM public.factures WHERE id = %s", (facture_id,))
         ancienne_facture = cur.fetchone()
         
+        if not ancienne_facture:
+            return jsonify({"error": f"Facture avec ID {facture_id} introuvable."}), 404
+            
         # 4. Enregistrer le nouveau fichier sur le disque
         nouveau_fichier.save(new_file_path)
         
-        # 5. Mettre à jour la base de données
+        # 5. Mettre à jour la base de données: on ne met à jour que 'chemin_fichier'
         cur.execute("""
             UPDATE public.factures
-            SET file_path = %s, nom_original_fichier = %s
+            SET 
+                chemin_fichier = %s,
+                last_modified_by = %s,
+                last_modified_timestamp = NOW()
             WHERE id = %s
-        """, (new_file_path, original_filename, facture_id))
+        """, (new_file_path, g.user_id, facture_id)) 
         
-        # 6. Suppression de l'ancien fichier (IMPORTANT : SÉCURITÉ !)
-        if ancienne_facture and ancienne_facture['file_path']:
-            old_path = ancienne_facture['file_path']
-            # Ne supprimer que si le chemin est bien dans le dossier UPLOAD_FOLDER
-            if os.path.exists(old_path) and old_path.startswith(UPLOAD_FOLDER):
+        # 6. Suppression de l'ancien fichier
+        old_path = ancienne_facture['chemin_fichier']
+        if old_path:
+            # Sécurité: S'assurer que le chemin est bien dans notre dossier d'upload
+            if os.path.exists(old_path) and old_path.startswith(upload_folder_config):
                 os.remove(old_path)
         
         conn.commit()
         
-        # Émettre l'événement pour la mise à jour en temps réel (si vous utilisez SocketIO)
-        # socketio.emit("update_facture", {"id": facture_id}) 
+        # 7. Émettre l'événement SocketIO pour la mise à jour
+        socketio.emit("update_facture", {"id": facture_id}) 
         
+        # Retourne le nouveau chemin complet qui sera utilisé par le frontend
         return jsonify({"message": "Fichier remplacé avec succès", "new_file_path": new_file_path}), 200
 
     except Exception as e:
         conn.rollback()
-        traceback.print_exc()
-        # Si une erreur survient, tentez de supprimer le fichier nouvellement uploadé
+        traceback.print_exc() 
+        
+        # En cas d'erreur, tentez de supprimer le fichier nouvellement uploadé
         if os.path.exists(new_file_path):
             os.remove(new_file_path)
             
         return jsonify({"error": "Erreur lors du remplacement du fichier", "details": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
-
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 
