@@ -286,7 +286,7 @@ export default function FormFacture({
                     onClick={(e) => {
                         e.preventDefault(); // Empêche le défilement de la page
                         // Appel de la fonction de téléchargement avec l'ID et l'année
-                        downloadFile(initialData.id, annee); 
+                        downloadFile(initialData.numeroFacture, initialData.annee); 
                     }}
                     className="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer"
                     title="Cliquez pour télécharger le fichier"
