@@ -1857,6 +1857,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           onSubmit={addFacture}
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
+                          downloadFile={downloadFile}
                         />
                       </div>
                     </div>
@@ -1883,6 +1884,7 @@ function MainLayout({ userToken, userRole, handleLogout, authorizedFetch, client
                           initialData={editingFacture}
                           annee={anneeFinanciere}
                           setAnnee={setAnneeFinanciere}
+                          downloadFile={downloadFile}
                         />
                         {editSubmitting && (
                           <div className="mt-3 text-sm text-gray-600">Mise à jour en cours…</div>
