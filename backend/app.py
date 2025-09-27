@@ -1290,6 +1290,78 @@ def patch_facture(fid):
         conn.close()
 
 
+@app.route('/api/factures/<int:facture_id>/remplacer-fichier', methods=['POST', 'PATCH'])
+@token_required
+@role_required(['gestionnaire', 'approbateur', 'soumetteur']) # Adaptez les rôles
+def remplacer_facture_fichier(facture_id):
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+        
+    # 1. Vérifier la présence du fichier
+    if 'fichier' not in request.files:
+        return jsonify({"error": "Aucun fichier fourni dans la requête."}), 400
+    
+    nouveau_fichier = request.files['fichier']
+    if nouveau_fichier.filename == '':
+        return jsonify({"error": "Nom de fichier invalide."}), 400
+
+    # 2. Sécuriser le nom du fichier et générer un nom unique
+    original_filename = nouveau_fichier.filename
+    # Ajoutez un timestamp ou un UUID pour garantir l'unicité
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    safe_filename = secure_filename(f"{timestamp}_{facture_id}_{original_filename}")
+    
+    new_file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+    
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # 3. Récupérer l'ancien chemin du fichier avant l'UPDATE
+        cur.execute("SELECT file_path FROM public.factures WHERE id = %s", (facture_id,))
+        ancienne_facture = cur.fetchone()
+        
+        # 4. Enregistrer le nouveau fichier sur le disque
+        nouveau_fichier.save(new_file_path)
+        
+        # 5. Mettre à jour la base de données
+        cur.execute("""
+            UPDATE public.factures
+            SET file_path = %s, nom_original_fichier = %s
+            WHERE id = %s
+        """, (new_file_path, original_filename, facture_id))
+        
+        # 6. Suppression de l'ancien fichier (IMPORTANT : SÉCURITÉ !)
+        if ancienne_facture and ancienne_facture['file_path']:
+            old_path = ancienne_facture['file_path']
+            # Ne supprimer que si le chemin est bien dans le dossier UPLOAD_FOLDER
+            if os.path.exists(old_path) and old_path.startswith(UPLOAD_FOLDER):
+                os.remove(old_path)
+        
+        conn.commit()
+        
+        # Émettre l'événement pour la mise à jour en temps réel (si vous utilisez SocketIO)
+        # socketio.emit("update_facture", {"id": facture_id}) 
+        
+        return jsonify({"message": "Fichier remplacé avec succès", "new_file_path": new_file_path}), 200
+
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        # Si une erreur survient, tentez de supprimer le fichier nouvellement uploadé
+        if os.path.exists(new_file_path):
+            os.remove(new_file_path)
+            
+        return jsonify({"error": "Erreur lors du remplacement du fichier", "details": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+
+
+
 
 
 
