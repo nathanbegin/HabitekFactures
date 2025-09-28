@@ -2048,6 +2048,8 @@ def verify_pin():
     ok = data.get("pin") == PIN_CORRECT
     return jsonify({"success": ok}), (200 if ok else 401)
 
+
+#   API pour la gestion des utilisateurs
 @app.route("/api/register", methods=["POST"])
 def register_user():
     """
@@ -2241,7 +2243,7 @@ def update_user(user_id):
         cursor.close()
         conn.close()
 
-# Vous pourriez vouloir ajouter une route DELETE /api/users/<int:user_id> pour supprimer des utilisateurs (uniquement gestionnaire)
+# Route DELETE /api/users/<int:user_id> pour supprimer des utilisateurs (uniquement gestionnaire)
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire'])  # Seuls les gestionnaires peuvent supprimer un utilisateur
@@ -2274,6 +2276,8 @@ def delete_user(user_id):
         cur.close()
         conn.close()
 # Assurez-vous alors de gérer la suppression des factures et budgets associés si nécessaire, ou d'empêcher la suppression si des données y sont liées.
+
+
 
 ### API - Comptes de dépenses ###
 
