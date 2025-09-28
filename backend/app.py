@@ -46,13 +46,10 @@ app = Flask(__name__)
 
 # Définissez le fuseau horaire de Montréal
 MONTREAL_TIMEZONE = pytz.timezone('America/Montreal')
-# # --- DEBUG FUSEAUX HORAIRE ---
-# print("DEBUG UTC:", datetime.utcnow().isoformat())
-# print("DEBUG Local:", datetime.now().isoformat())
-# print("DEBUG Montréal:", MONTREAL_TIMEZONE.localize(datetime.now()).isoformat())
-# # ----------------------------
+
 # Limite la taille des fichiers uploadés à 2 Go
 app.config['MAX_CONTENT_LENGTH'] = 2048 * 1024 * 1024
+
 # Appliquer l'encodeur JSON personnalisé à l'application Flask
 app.json_encoder = CustomJSONEncoder # Ajoutez cette ligne
 
@@ -60,7 +57,6 @@ app.json_encoder = CustomJSONEncoder # Ajoutez cette ligne
 CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=["Content-Disposition"])
 
 # Initialisation de SocketIO pour la communication en temps réel
-# socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet", json=app.json)
 # Compteur global du nombre de clients connectés via SocketIO
 client_count = 0
@@ -81,22 +77,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # URL de connexion à la base de données PostgreSQL, récupérée depuis une variable d'environnement
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://minio:Habitek2025@localhost:5432/factures_db")
-
-
-
-# # Classe CustomJSONEncoder pour gérer la sérialisation de types non-standards
-# class CustomJSONEncoder(JSONEncoder):
-#     def default(self, obj):
-#         if isinstance(obj, datetime):
-#             # Formate les objets datetime en chaîne ISO 8601
-#             return obj.isoformat()
-#         if isinstance(obj, date): # Pour gérer les objets date si vous en avez (pas seulement datetime)
-#             return obj.isoformat()
-#         if isinstance(obj, Decimal):
-#             # Convertit les objets Decimal en chaîne (pour éviter la perte de précision)
-#             return str(obj)
-#         return super().default(obj) # Laisse l'encodeur par défaut gérer les autres types
-
 
 # Fonctions pour gérer le hachage et la vérification des mots de passe
 def hash_password(password: str) -> str:
@@ -405,6 +385,7 @@ def convert_to_json_serializable(obj):
        return obj.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
     return obj
 
+# Route racine pour tester si le serveur fonctionne
 @app.route("/")
 def home():
     """
@@ -414,218 +395,7 @@ def home():
     return "Flask fonctionne ✅"
 
 
-
-
-# @app.route('/api/factures', methods=['POST'])
-# @token_required
-# @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
-# def upload_facture():
-#     # Récupérer les données JSON de la requête
-#     # Tente d'abord de récupérer du formulaire (multipart/form-data), puis du JSON
-#     # data = request.form.to_dict()
-#     data = request.form
-#     if not data:
-#         data = request.get_json()
-#         if not data:
-#             return jsonify({"error": "Aucune donnée fournie ou format incorrect"}), 400
-
-#     # --- DÉBUT DES LIGNES DE DÉBOGAGE AJOUTÉES ---
-#     print(f"\n--- DEBUG POST /api/factures ---")
-#     print(f"DEBUG: Type de requête Content-Type: {request.headers.get('Content-Type')}")
-#     print(f"DEBUG: Contenu de request.form: {request.form}") # Affiche les champs du formulaire
-#     print(f"DEBUG: Contenu de request.files: {request.files}") # Affiche les fichiers
-#     # --- FIN DES LIGNES DE DÉBOGAGE AJOUTÉES ---
-
-#     # Extraction des champs requis de la facture
-#     numero_facture = data.get('numero_facture')
-#     date_facture = data.get('date_facture')
-#     fournisseur = data.get('fournisseur')
-#     description = data.get('description')
-#     montant = data.get('montant')
-#     devise = data.get('devise')
-#     statut = data.get('statut', 'soumis') # Statut par défaut 'soumis'
-#     categorie = data.get('categorie')
-#     ligne_budgetaire = data.get('ligne_budgetaire')
-#     type_= data.get('type')
-#     ubr = data.get('ubr')
-
-
-#     # --- Début de la gestion optionnelle du fichier ---
-#     file_path = None # Initialiser le chemin du fichier à None
-    
-#     file = request.files.get('fichier') # Utiliser .get() pour éviter une erreur si la clé 'fichier' n'est pas présente
-
-    
-#     if (file and file.filename != ''):
-#         print(f"DEBUG: Condition 'file and file.filename != ''' est VRAIE.")
-#         filename = secure_filename(file.filename)
-#         upload_folder = app.config['UPLOAD_FOLDER']
-
-#         # --- DÉBOGAGE DU CHEMIN ET CRÉATION DE DOSSIER ---
-#         print(f"DEBUG: UPLOAD_FOLDER configuré: {upload_folder}")
-#         # Assurez-vous que le répertoire de téléversement existe
-#         os.makedirs(upload_folder, exist_ok=True) # Cette ligne crée le dossier s'il n'existe pas
-#         print(f"DEBUG: Le dossier de téléversement '{upload_folder}' a été vérifié/créé.")
-#         # --- FIN DÉBOGAGE DU CHEMIN ---
-
-#         file_path = os.path.join(upload_folder, filename)
-#         print(f"DEBUG: Chemin complet où le fichier sera sauvegardé: {file_path}")
-
-#         try:
-#             file.save(file_path)
-#             print(f"DEBUG: Fichier '{filename}' sauvegardé avec succès dans '{file_path}'")
-#         except Exception as e:
-#             print(f"DEBUG ERROR: Échec de la sauvegarde du fichier: {e}")
-#             traceback.print_exc() # Cela imprimera le traceback complet de l'erreur
-#             return jsonify({"error": "Échec de la sauvegarde du fichier", "details": str(e)}), 500
-#     else:
-#         print("DEBUG: Condition 'file and file.filename != ''' est FAUSSE. Pas de fichier à sauvegarder.")
-#     # --- Fin de la gestion optionnelle du fichier ---
-
-
-#     # Vérifier si les champs requis (hors fichier) sont présents
-#     if not all([numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire]):
-#         # Le chemin_fichier n'est plus requis ici
-#         return jsonify({"error": "Champs requis manquants (numero_facture, date_facture, fournisseur, montant, devise, categorie, ligne_budgetaire)"}), 400
-
-
-#     # Validation basique du format de la date (ajuster selon votre besoin)
-#     try:
-#         datetime.strptime(date_facture, '%Y-%m-%d')
-#     except ValueError:
-#         # Supprimer le fichier sauvegardé s'il y a une erreur de date après la sauvegarde
-#         if file_path and os.path.exists(file_path):
-#              os.remove(file_path)
-#         return jsonify({"error": "Format de date invalide. Utilisez AAAA-MM-JJ"}), 400
-
-#     # Convertir le montant en Decimal
-#     try:
-#         montant = Decimal(montant)
-#     except InvalidOperation:
-#          # Supprimer le fichier sauvegardé s'il y a une erreur de montant après la sauvegarde
-#         if file_path and os.path.exists(file_path):
-#              os.remove(file_path)
-#         return jsonify({"error": "Format de montant invalide"}), 400
-
-
-#     conn = get_db_connection()
-#     # cur = conn.cursor()
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-#     try:
-#         # Vérifier s'il existe déjà une facture avec le même numéro
-#         cur.execute("SELECT id FROM factures WHERE numero_facture = %s", (numero_facture,))
-#         if cur.fetchone():
-#             # Si le numéro de facture existe déjà, supprimer le fichier sauvegardé (s'il y en a un)
-#             if file_path and os.path.exists(file_path):
-#                 os.remove(file_path)
-#             return jsonify({"error": f"Le numéro de facture {numero_facture} existe déjà"}), 409
-
-#        # Date de soumission actuelle (assurée d'être en UTC)
-#         # Crée un datetime conscient du fuseau horaire de Montréal, puis le convertit en UTC
-#         now_aware_local = MONTREAL_TIMEZONE.localize(datetime.now(), is_dst=None)
-#         date_soumission_utc = now_aware_local.astimezone(pytz.utc)  
-    
-#         # Insérer la nouvelle facture dans la base de données
-#         # Inclure les NOUVEAUX champs: created_by, categorie, ligne_budgetaire  
-#         # created_by est l'utilisateur actuellement authentifié (via g.user_id)
-#         # Utiliser la variable file_path qui sera None si aucun fichier n'a été uploadé
-#         print(f"\n--- DEBUG: Types des paramètres pour l'INSERT ---")
-#         print(f"DEBUG: numero_facture: Type={type(numero_facture)}, Value='{numero_facture}'")
-#         print(f"DEBUG: date_facture: Type={type(date_facture)}, Value='{date_facture}'")
-#         print(f"DEBUG: fournisseur: Type={type(fournisseur)}, Value='{fournisseur}'")
-#         print(f"DEBUG: description: Type={type(description)}, Value='{description}'")
-#         print(f"DEBUG: montant: Type={type(montant)}, Value='{montant}'")
-#         print(f"DEBUG: devise: Type={type(devise)}, Value='{devise}'")
-#         print(f"DEBUG: statut: Type={type(statut)}, Value='{statut}'")
-#         print(f"DEBUG: type: Type={type(type_)}, Value='{type_}'")
-#         print(f"DEBUG: type: Type={type(ubr)}, Value='{ubr}'")
-#         print(f"DEBUG: file_path: Type={type(file_path)}, Value='{file_path}'")
-#         print(f"DEBUG: g.user_id (id_soumetteur): Type={type(g.user_id)}, Value='{g.user_id}'")
-#         print(f"DEBUG: date_soumission_utc: Type={type(date_soumission_utc)}, Value='{date_soumission_utc}'")
-#         print(f"DEBUG: g.user_id (created_by): Type={type(g.user_id)}, Value='{g.user_id}'")
-#         print(f"DEBUG: categorie: Type={type(categorie)}, Value='{categorie}'")
-#         print(f"DEBUG: ligne_budgetaire: Type={type(ligne_budgetaire)}, Value='{ligne_budgetaire}'")
-#         print(f"--- FIN DEBUG: Types des paramètres ---")
-#         cur.execute(
-#             """
-#             INSERT INTO factures (
-#                 numero_facture, date_facture, fournisseur, description, montant, devise,
-#                 statut, type_facture, ubr, chemin_fichier, id_soumetteur, date_soumission,
-#                 created_by, categorie, ligne_budgetaire
-#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-#             RETURNING id;
-#             """,
-#             (numero_facture, date_facture, fournisseur, description, montant, devise,
-#              statut,type_, ubr, file_path, g.user_id, date_soumission_utc,
-#              g.user_id, categorie, ligne_budgetaire) # file_path sera None ou le chemin du fichier
-#         )
-#         facture_id = cur.fetchone()[0]
-#         conn.commit()
-
-#         # --- Récupérer la facture nouvellement créée pour l'émettre via SocketIO ---
-#         # Inclure les NOUVEAUX champs et les jointures pour les noms d'utilisateur associés
-#         cur.execute(
-#             """
-#             SELECT
-#                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-#                 f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
-#                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
-#                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
-#             FROM factures f
-#             JOIN users u ON f.id_soumetteur = u.id
-#             LEFT JOIN users uc ON f.created_by = uc.id -- Joindre pour le nom d'utilisateur de created_by
-#             LEFT JOIN users um ON f.last_modified_by = um.id -- Joindre pour le nom d'utilisateur de last_modified_by
-#             WHERE f.id = %s
-#             """, (facture_id,)
-#         )
-#         new_facture = cur.fetchone()
-
-#         if new_facture:
-#              # Convertir la ligne de résultat en dictionnaire pour un accès plus facile
-#             new_facture_dict = dict(new_facture)
-#             # Convertir les types non sérialisables en JSON
-#             #serializable_facture = convert_to_json_serializable(new_facture_dict)
-#             # Émettre l'événement SocketIO
-#             # --- CRITICAL DEBUG LINE ---
-#             try:
-#                 # Explicitly use app.json_encoder to see what it produces
-#                 json_payload_to_emit = json.dumps(new_facture_dict, cls=app.json_encoder)
-#                 print(f"\n--- DEBUG BACKEND: JSON payload as processed by CustomJSONEncoder (BEFORE SocketIO emit) ---\n{json_payload_to_emit}\n--- END DEBUG ---")
-#             except Exception as e:
-#                 print(f"DEBUG BACKEND ERROR: CustomJSONEncoder test failed to serialize DictRow: {e}")
-#                 import traceback # Ensure this is imported
-#                 traceback.print_exc()
-#             # --- END CRITICAL DEBUG LINE ---
-#             new_facture_dict = dict(new_facture)
-#             new_facture_dict['annee'] = date_facture[:4]  # extrait l'année en string à partir de 'YYYY-MM-DD'
-#             socketio.emit('new_facture', new_facture_dict)
-
-#         # --- Fin de la récupération et émission SocketIO ---
-
-
-#         return jsonify({"message": "Facture créée avec succès (fichier joint optionnel)", "id": facture_id}), 201
-
-#     except psycopg2.errors.UniqueViolation:
-#         conn.rollback()
-#         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'erreur de violation unique
-#         if file_path and os.path.exists(file_path):
-#             os.remove(file_path)
-#         print(f"DEBUG: UniqueViolation catch: Le numéro de facture {numero_facture} existe déjà.") # Debug précis
-#         traceback.print_exc() # Ajoutez le traceback ici aussi pour ce cas spécifique
-#         return jsonify({"error": f"Une facture avec le numéro {numero_facture} existe déjà."}), 409
-#     except Exception as e:
-#         conn.rollback()
-#         # Supprimer le fichier sauvegardé (s'il y en a un) en cas d'autre erreur de base de données
-#         if file_path and os.path.exists(file_path):
-#             os.remove(file_path)
-#         print(f"Erreur de base de données (CAPTURE GÉNÉRIQUE): {e}")
-#         # C'EST LA LIGNE CLÉ QUE NOUS VOULONS VÉRIFIER : assurez-vous qu'elle est là et que son output est capturé.
-#         traceback.print_exc()
-#         return jsonify({"error": "Échec de la sauvegarde de la facture dans la base de données.", "details": str(e)}), 500
-#     finally:
-#         cur.close()
-#         conn.close()
-
+# Route POST /api/factures pour créer une facture
 @app.route('/api/factures', methods=['POST'])
 @token_required
 @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
@@ -774,64 +544,7 @@ def upload_facture():
 
 
 
-
-
-#OLD VERSION 2025-09-22
-# @app.route('/api/factures', methods=['GET'])
-# @token_required
-# @role_required(['soumetteur', 'gestionnaire', 'approbateur']) # Tous peuvent lister les factures
-# def get_factures():
-#     """
-#     Récupère la liste des factures pour une année donnée.
-#     - Par défaut, utilise l'année en cours si aucune année n'est spécifiée.
-#     - Inclut les nouvelles colonnes et les noms d'utilisateur associés.
-#     - Retourne les factures triées par date_facture (du plus récent au plus ancien).
-#     Returns:
-#         JSON: Liste des factures ou message d'erreur.
-#     """
-#     # Récupérer l'année depuis les arguments de la requête, par défaut l'année courante
-#     year = request.args.get('year', type=int, default=datetime.now().year)
-
-#     conn = get_db_connection()
-#     if conn is None:
-#         return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-
-#     # Utiliser DictCursor pour que les résultats soient accessibles par nom de colonne
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-#     try:
-#         # --- Requête SELECT mise à jour pour inclure les nouvelles colonnes et les noms d'utilisateur ---
-#         cur.execute(
-#             """
-#             SELECT
-#                 f.id, f.numero_facture, f.date_facture, f.fournisseur, f.description, f.montant, f.devise,
-#                 f.statut, f.type_facture, f.ubr, f.chemin_fichier, f.id_soumetteur, f.date_soumission,
-#                 f.created_by, f.last_modified_by, f.last_modified_timestamp, f.categorie, f.ligne_budgetaire,
-#                 u.username as soumetteur_username, uc.username as created_by_username, um.username as last_modified_by_username
-#             FROM factures f
-#             JOIN users u ON f.id_soumetteur = u.id           -- Joindre pour le nom d'utilisateur du soumetteur
-#             LEFT JOIN users uc ON f.created_by = uc.id        -- Joindre pour le nom d'utilisateur de created_by
-#             LEFT JOIN users um ON f.last_modified_by = um.id  -- Joindre pour le nom d'utilisateur de last_modified_by
-#             WHERE EXTRACT(YEAR FROM date_facture) = %s
-#             ORDER BY date_facture DESC -- Tri par date de facture
-#             """, (year,) # Filtrer par année
-#         )
-#         factures = cur.fetchall() # Récupérer toutes les lignes
-
-#         # Convertir chaque ligne (DictRow) en dictionnaire et rendre JSON sérialisable
-#         factures_list = [convert_to_json_serializable(dict(row)) for row in factures]
-
-#         print(factures_list)
-
-#         return jsonify(factures_list), 200 # Retourner la liste des factures
-
-#     except Exception as e:
-#         print(f"Erreur de base de données lors de la récupération des factures : {e}")
-#         return jsonify({"error": "Échec de la récupération des factures.", "details": str(e)}), 500
-#     finally:
-#         # Fermer le curseur et la connexion
-#         cur.close()
-#         conn.close()
-
+# Route GET /api/factures pour lister les factures
 @app.route('/api/factures', methods=['GET'])
 @token_required
 @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
@@ -901,6 +614,7 @@ def get_factures():
     factures_list = [convert_to_json_serializable(dict(r)) for r in rows]
     return jsonify(factures_list), 200
 
+# Route GET /api/factures/<id>/fichier pour télécharger le fichier d'une facture
 @app.route("/api/factures/<int:id>/fichier", methods=["GET"])
 @token_required
 @role_required(['soumetteur', 'gestionnaire', 'approbateur'])
@@ -985,189 +699,7 @@ def get_file(id):
         conn.close()
         
 
-
-
-# @app.route("/api/factures/<int:fid>", methods=["PATCH"])
-# @token_required
-# @role_required(['gestionnaire', 'approbateur'])
-# def patch_facture(fid):
-#     data = request.get_json() or {}
-#     if not data:
-#         return jsonify({"error": "Aucune donnée"}), 400
-#     if "numero_facture" in data:
-#         return jsonify({"error": "numero_facture est en lecture seule"}), 400
-
-#     allowed = {
-#         "date_facture", "fournisseur", "description", "montant", "devise",
-#         "statut", "type_facture", "ubr", "chemin_fichier",
-#         "categorie", "ligne_budgetaire",
-#         "compte_depense_id"  # NEW: lier/délier un compte de dépense (colonne TEXT)
-#     }
-
-#     # --- Validations/normalisations ---
-#     # Montant -> Decimal (si fourni)
-#     if "montant" in data:
-#         try:
-#             data["montant"] = Decimal(str(data["montant"]))
-#         except InvalidOperation:
-#             return jsonify({"error": "Format de montant invalide"}), 400
-
-#     # Date (si fournie)
-#     if "date_facture" in data:
-#         try:
-#             datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
-#         except ValueError:
-#             return jsonify({"error": "Format date_facture invalide (AAAA-MM-JJ)"}), 400
-
-#     # NEW: compte_depense_id (TEXT) — accepter null/"" pour délier, sinon valider 'HABITEK###'
-#     if "compte_depense_id" in data:
-#         v = data["compte_depense_id"]
-#         if v in (None, "", "null", "None"):
-#             data["compte_depense_id"] = None
-#         else:
-#             if not re.match(r"^HABITEK\d{3,}$", str(v)):
-#                 return jsonify({"error": "compte_depense_id doit suivre le format HABITEK###"}), 400
-
-#     # Construction dynamique du SET
-#     sets, vals = [], []
-#     for k, v in data.items():
-#         if k in allowed:
-#             sets.append(f"{k} = %s")
-#             vals.append(v)
-
-#     if not sets:
-#         return jsonify({"error": "Aucun champ modifiable"}), 400
-
-#     # Audit
-#     sets.append("last_modified_by = %s")
-#     vals.append(g.user_id)
-#     sets.append("last_modified_timestamp = (now() at time zone 'utc')")
-
-#     vals.append(fid)
-
-#     conn = get_db_connection()
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-#     try:
-#         cur.execute(f"""
-#             UPDATE factures
-#             SET {", ".join(sets)}
-#             WHERE id = %s
-#             RETURNING *;
-#         """, vals)
-#         row = cur.fetchone()
-#         if not row:
-#             return jsonify({"error": "Facture introuvable"}), 404
-
-#         conn.commit()
-#         updated = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-#         socketio.emit("update_facture", updated)  # UI écoute déjà
-#         return jsonify(updated), 200
-
-#     except Exception as e:
-#         conn.rollback()
-#         traceback.print_exc()
-#         return jsonify({"error": "Erreur lors de la mise à jour", "details": str(e)}), 500
-#     finally:
-#         cur.close(); conn.close()
-# @app.route("/api/factures/<int:fid>", methods=["PATCH"])
-# @token_required
-# @role_required(['gestionnaire', 'approbateur'])
-# def patch_facture(fid):
-#     # La requête vient d'un FormData, on utilise request.form et request.files
-#     data = request.form.to_dict()
-#     file = request.files.get('fichier')
-#     remove_file = data.pop('remove_file', 'false').lower() == 'true'
-
-#     if not data and not file and not remove_file:
-#         return jsonify({"error": "Aucune donnée de mise à jour fournie"}), 400
-#     if "numero_facture" in data:
-#         return jsonify({"error": "Le champ numero_facture ne peut pas être modifié."}), 400
-
-#     conn = get_db_connection()
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-#     new_file_path_on_disk = None # Pour cleanup en cas d'erreur
-
-#     try:
-#         # 1. Récupérer l'état actuel de la facture
-#         cur.execute("SELECT chemin_fichier FROM factures WHERE id = %s", (fid,))
-#         facture_existante = cur.fetchone()
-#         if not facture_existante:
-#             return jsonify({"error": "Facture introuvable"}), 404
-#         current_file_path = facture_existante['chemin_fichier']
-
-#         # 2. Gérer la logique du fichier
-#         # Cas A: Un nouveau fichier est téléversé
-#         if file and file.filename:
-#             filename = secure_filename(file.filename)
-#             upload_folder = app.config['UPLOAD_FOLDER']
-#             os.makedirs(upload_folder, exist_ok=True)
-#             new_file_path_on_disk = os.path.join(upload_folder, filename)
-#             file.save(new_file_path_on_disk)
-#             # On met à jour le chemin dans les données à sauvegarder
-#             data['chemin_fichier'] = new_file_path_on_disk
-#             # Si un ancien fichier existait et qu'il est différent, on le supprime
-#             if current_file_path and os.path.exists(current_file_path) and current_file_path != new_file_path_on_disk:
-#                 os.remove(current_file_path)
-#         # Cas B: Demande explicite de suppression du fichier
-#         elif remove_file:
-#             if current_file_path and os.path.exists(current_file_path):
-#                 os.remove(current_file_path)
-#             # On met le chemin à NULL dans la base de données
-#             data['chemin_fichier'] = None
-
-#         # 3. Validation des champs
-#         allowed = {
-#             "date_facture", "fournisseur", "description", "montant", "devise",
-#             "statut", "type_facture", "ubr", "chemin_fichier",
-#             "categorie", "ligne_budgetaire", "compte_depense_id"
-#         }
-#         if "montant" in data and data["montant"]:
-#             try: data["montant"] = Decimal(str(data["montant"]))
-#             except InvalidOperation: return jsonify({"error": "Format de montant invalide"}), 400
-#         if "date_facture" in data and data["date_facture"]:
-#             try: datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
-#             except ValueError: return jsonify({"error": "Format date_facture invalide (AAAA-MM-JJ)"}), 400
-        
-#         # 4. Construction dynamique de la requête SQL
-#         sets, vals = [], []
-#         for k, v in data.items():
-#             if k in allowed:
-#                 sets.append(f"{k} = %s")
-#                 vals.append(v)
-        
-#         if not sets:
-#             return jsonify({"message": "Aucun champ à modifier n'a été fourni"}), 200
-
-#         # 5. Ajout des champs d'audit
-#         sets.append("last_modified_by = %s")
-#         vals.append(g.user_id)
-#         sets.append("last_modified_timestamp = (now() at time zone 'utc')")
-#         vals.append(fid)
-
-#         # 6. Exécution de la mise à jour
-#         cur.execute(f"UPDATE factures SET {', '.join(sets)} WHERE id = %s RETURNING *;", vals)
-#         updated_row = cur.fetchone()
-#         if not updated_row:
-#             return jsonify({"error": "La mise à jour a échoué"}), 500
-
-#         conn.commit()
-
-#         # 7. Émission Socket.IO et réponse
-#         updated_facture_dict = {k: convert_to_json_serializable(v) for k, v in dict(updated_row).items()}
-#         socketio.emit("update_facture", updated_facture_dict)
-#         return jsonify(updated_facture_dict), 200
-
-#     except Exception as e:
-#         conn.rollback()
-#         # Si une erreur survient après avoir sauvegardé un nouveau fichier, on le supprime
-#         if new_file_path_on_disk and os.path.exists(new_file_path_on_disk):
-#             os.remove(new_file_path_on_disk)
-#         traceback.print_exc()
-#         return jsonify({"error": "Erreur interne lors de la mise à jour", "details": str(e)}), 500
-#     finally:
-#         cur.close()
-#         conn.close()
-
+# Route PATCH /api/factures/<fid> pour modifier une facture (partiellement)
 @app.route("/api/factures/<int:fid>", methods=["PATCH"])
 @token_required
 @role_required(['gestionnaire', 'approbateur'])
@@ -1289,7 +821,7 @@ def patch_facture(fid):
         cur.close()
         conn.close()
 
-
+# Route POST /api/factures/<facture_id>/remplacer-fichier pour remplacer le fichier d'une facture
 @app.route('/api/factures/<int:facture_id>/remplacer-fichier', methods=['POST', 'PATCH'])
 @token_required
 @role_required(['gestionnaire', 'approbateur', 'soumetteur']) # Adaptez les rôles
@@ -1371,18 +903,7 @@ def remplacer_facture_fichier(facture_id):
         if conn:
             conn.close()
 
-
-
-
-
-
-
-
-
-
-
-
-
+# Route DELETE /api/factures/<id> pour supprimer une facture
 @app.route("/api/factures/<int:id>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent supprimer
@@ -1470,7 +991,7 @@ def delete_facture(id):
         conn.close()
 
 
-
+# Route PUT /api/factures/<id> pour mettre à jour une facture (remplacement complet)
 @app.route('/api/factures/<int:id>', methods=['PUT'])
 @token_required
 # @role_required(['gestionnaire', 'approbateur']) # S'assurer que seuls ces rôles peuvent modifier
@@ -1694,7 +1215,7 @@ def update_facture(id):
         conn.close()
 
 
-
+# Route GET /api/factures/export-csv pour exporter les factures au format CSV
 @app.route('/api/factures/export-csv', methods=['GET'])
 @token_required
 @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent exporter
@@ -1795,6 +1316,7 @@ def export_factures_csv():
 #       Routes CRUD pour budgets
 # -------------------------------
 
+# Route GET /api/budget pour récupérer les budgets
 @app.route("/api/budget", methods=["GET"])
 @token_required
 @role_required(['gestionnaire', 'approbateur']) # Seuls gestionnaire et approbateur peuvent voir le budget
@@ -1834,6 +1356,8 @@ def get_budgets():
         cur.close()
         conn.close()
 
+
+# Route POST /api/budget pour créer un nouveau budget
 @app.route("/api/budget", methods=["POST"])
 @token_required
 @role_required(['gestionnaire']) # Seuls les gestionnaires peuvent créer des entrées budget
@@ -1898,6 +1422,7 @@ def create_budget():
         cur.close()
         conn.close()
 
+# Route PUT /api/budget/<id> pour mettre à jour un budget existant
 @app.route("/api/budget/<int:id>", methods=["PUT"])
 @token_required
 @role_required(['gestionnaire']) # Seuls les gestionnaires peuvent modifier des entrées budget
@@ -1972,6 +1497,8 @@ def update_budget(id):
         cur.close()
         conn.close()
 
+
+# Route DELETE /api/budget/<id> pour supprimer un budget existant
 @app.route("/api/budget/<int:id>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire']) # Seuls les gestionnaires peuvent supprimer des entrées budget
@@ -2008,6 +1535,7 @@ def delete_budget(id):
         cur.close()
         conn.close()
 
+# Route GET /api/budget/revenue-types pour obtenir les types de revenus par type de fonds
 @app.route("/api/budget/revenue-types", methods=["GET"])
 @token_required # Nécessite d'être connecté pour voir les types de revenus
 # Pas de rôle spécifique requis, tout utilisateur connecté peut potentiellement voir
@@ -2033,6 +1561,7 @@ def get_revenue_types_alias():
     }
     return jsonify(revenue_types), 200
 
+# Route POST /api/budget/verify-pin pour vérifier un code PIN
 @app.route("/api/budget/verify-pin", methods=["POST"])
 @token_required # Nécessite d'être connecté pour vérifier le PIN
 @role_required(['gestionnaire']) # Seuls les gestionnaires utilisent le PIN pour certaines actions budgetaires
@@ -2044,12 +1573,18 @@ def verify_pin():
         JSON: Résultat de la vérification (succès ou échec).
     """
     data = request.get_json() or {}
-    PIN_CORRECT = "1234"  # TODO: Sécuriser en variable d'environnement
+    # Statique pour l'exemple; en production, utilisez une variable d'environnement ou un stockage sécurisé
+    PIN_CORRECT = "1234"  
     ok = data.get("pin") == PIN_CORRECT
     return jsonify({"success": ok}), (200 if ok else 401)
 
 
-#   API pour la gestion des utilisateurs
+
+# -------------------------------
+#       Routes CRUD pour utilisateurs
+# -------------------------------
+
+# Route POST /api/register pour créer un nouvel utilisateur
 @app.route("/api/register", methods=["POST"])
 def register_user():
     """
@@ -2103,6 +1638,7 @@ def register_user():
         cursor.close()
         conn.close()
 
+#  Route POST /api/login pour l'authentification et la génération de JWT
 @app.route("/api/login", methods=["POST"])
 def login():
     """
@@ -2161,8 +1697,8 @@ def login():
     finally:
         cursor.close()
         conn.close()
-# Ajoutez ces routes pour la gestion des utilisateurs
 
+# Route GET /api/users pour récupérer la liste des utilisateurs (uniquement gestionnaire)
 @app.route("/api/users", methods=["GET"])
 @token_required
 @role_required(['gestionnaire']) # Seuls les gestionnaires peuvent lister les utilisateurs
@@ -2190,6 +1726,7 @@ def get_users():
         cursor.close()
         conn.close()
 
+# Route PUT /api/users/<int:user_id> pour mettre à jour les informations d'un utilisateur (uniquement gestionnaire)
 @app.route("/api/users/<int:user_id>", methods=["PUT"])
 @token_required
 @role_required(['gestionnaire']) # Seuls les gestionnaires peuvent modifier les utilisateurs
@@ -2243,7 +1780,7 @@ def update_user(user_id):
         cursor.close()
         conn.close()
 
-# Route DELETE /api/users/<int:user_id> pour supprimer des utilisateurs (uniquement gestionnaire)
+# Route DELETE /api/users/<int:user_id> pour supprimer un utilisateur (uniquement gestionnaire)
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire'])  # Seuls les gestionnaires peuvent supprimer un utilisateur
@@ -2275,13 +1812,15 @@ def delete_user(user_id):
     finally:
         cur.close()
         conn.close()
-# Assurez-vous alors de gérer la suppression des factures et budgets associés si nécessaire, ou d'empêcher la suppression si des données y sont liées.
 
 
 
-### API - Comptes de dépenses ###
 
-# --- 1) CRÉER UN COMPTE ---
+# -------------------------------
+#       Routes CRUD pour comptes de dépenses
+# -------------------------------
+
+# Route POST /api/depense-comptes pour créer un nouveau compte de dépense
 @app.route("/api/depense-comptes", methods=["POST"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2326,7 +1865,7 @@ def create_compte_depense():
         cur.close()
         conn.close()
 
-# --- 2) LISTER LES COMPTES (CORRIGÉ) ---
+# Route GET /api/depense-comptes pour lister les comptes de dépenses avec filtres
 @app.route("/api/depense-comptes", methods=["GET"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2389,7 +1928,7 @@ def list_comptes_depenses():
         cur.close()
         conn.close()
 
-# --- 3) DÉTAIL D’UN COMPTE ---
+# Route GET /api/depense-comptes/<cid> pour obtenir un compte de dépense par ID avec ses factures
 @app.route("/api/depense-comptes/<string:cid>", methods=["GET"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2422,7 +1961,7 @@ def get_compte_depense(cid):
         cur.close()
         conn.close()
 
-# --- 4) MODIFIER UN COMPTE (CORRIGÉ) ---
+# Route PATCH /api/depense-comptes/<cid> pour mettre à jour un compte de dépense
 @app.route("/api/depense-comptes/<string:cid>", methods=["PATCH"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2484,7 +2023,7 @@ def patch_compte_depense(cid):
         conn.close()
 
 
-# --- 5) SUPPRIMER UN COMPTE ---
+# Route DELETE /api/depense-comptes/<cid> pour supprimer un compte de dépense
 @app.route("/api/depense-comptes/<string:cid>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2510,7 +2049,7 @@ def delete_compte_depense(cid):
         cur.close()
         conn.close()
 
-# --- 6) ATTACHER PLUSIEURS FACTURES ---
+# Route POST /api/depense-comptes/<cid>/factures pour attacher des factures à un compte de dépense
 @app.route("/api/depense-comptes/<string:cid>/factures", methods=["POST"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2549,7 +2088,7 @@ def attach_factures_to_compte(cid):
         cur.close()
         conn.close()
 
-# --- 7) DÉTACHER UNE FACTURE ---
+# Route DELETE /api/depense-comptes/<cid>/factures/<fid> pour détacher une facture d'un compte de dépense
 @app.route("/api/depense-comptes/<string:cid>/factures/<int:fid>", methods=["DELETE"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2580,7 +2119,8 @@ def detach_facture_from_compte(cid, fid):
         cur.close()
         conn.close()
 
-# --- 8) APPLIQUER L’UBR GLOBAL ---
+# Route à retirer, laisser commentée au besoin
+# Route POST /api/depense-comptes/<cid>/appliquer-global-ubr pour appliquer l'UBR global aux factures liées
 @app.route("/api/depense-comptes/<string:cid>/appliquer-global-ubr", methods=["POST"])
 @token_required
 @role_required(['gestionnaire'])
@@ -2617,7 +2157,7 @@ def apply_global_ubr(cid):
         cur.close()
         conn.close()
 
-
+# Fin des définitions de routes
 if __name__ == '__main__':
     """
     Point d'entrée de l'application.
@@ -2626,3 +2166,4 @@ if __name__ == '__main__':
     """
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
+# Fin du fichier app.py
