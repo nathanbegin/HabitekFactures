@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS app_user (
   fonction         varchar(1000),
   rôle             varchar(1000),
   CHECK (mode_préf_remb IS NULL OR mode_préf_remb IN (1,2)),
-  CHECK (uid BETWEEN 0 AND 1000)
+  CHECK (uid BETWEEN 1 AND 1000)
 );
 """,
 
