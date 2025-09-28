@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS app_user (
   fonction         varchar(1000),
   rôle             varchar(1000),
   CHECK (mode_préf_remb IS NULL OR mode_préf_remb IN (1,2)),
-  CHECK (uid BETWEEN 1 AND 1000)   
+  CHECK (uid BETWEEN 0 AND 1000)    -- 0 possible via insertion explicite ; IDENTITY démarre à 1
 );
 """,
 
@@ -200,9 +200,25 @@ CREATE TABLE IF NOT EXISTS factures_pj (
 );
 """,
 
-# Pièces jointes Comptes
+# === Migration : renommer l'ancienne table factures_cdd -> cdd_pj si présente ===
 """
-CREATE TABLE IF NOT EXISTS factures_cdd (
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema='public' AND table_name='factures_cdd'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema='public' AND table_name='cdd_pj'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.factures_cdd RENAME TO cdd_pj';
+  END IF;
+END $$;
+""",
+
+# Pièces jointes Comptes (nouveau nom : cdd_pj)
+"""
+CREATE TABLE IF NOT EXISTS cdd_pj (
   expense_pk  bigint REFERENCES compte_depenses(id) ON DELETE CASCADE,
   file_index  int CHECK (file_index >= 1),
   file_path   text,
