@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS app_user (
   prénom           varchar(1000) NOT NULL,
   nom              varchar(1000) NOT NULL,
   courriel         email_addr UNIQUE,
-  password_hash    text,                -- << ajouté pour le login (bcrypt)
+  password_hash    text,                -- << pour le login (bcrypt)
   code_permanent   varchar(254),
   adresse          varchar(1000),
   ville            varchar(1000),
@@ -133,7 +133,6 @@ END $$;
 """,
 
 # Index unique insensible à la casse sur l’email (pour login case-insensitive)
-# Remarque: le nom d'index doit être unique dans le schéma.
 "CREATE UNIQUE INDEX IF NOT EXISTS ux_app_user_courriel_lower ON app_user (LOWER(courriel));",
 
 # Factures
@@ -453,10 +452,73 @@ def apply_schema():
     finally:
         conn.close()
 
+# --------------------------------------------------------------------
+# 4) Seed: créer un compte admin (gestionnaire) mot de passe 'admin'
+# --------------------------------------------------------------------
+def seed_admin_user():
+    """
+    Crée un compte admin (gestionnaire) si absent.
+    Champs:
+      - prénom: 'Admin'
+      - nom: 'Système'
+      - courriel: ADMIN_EMAIL (défaut: admin@habitek.local)
+      - fonction: 'système'
+      - rôle: 'gestionnaire'
+      - password_hash: bcrypt(admin) ou ADMIN_PASSWORD_HASH si fourni
+    """
+    email    = os.environ.get("ADMIN_EMAIL", "admin@habitek.local")
+    role     = os.environ.get("ADMIN_ROLE", "gestionnaire")
+    prenom   = os.environ.get("ADMIN_PRENOM", "Admin")
+    nom      = os.environ.get("ADMIN_NOM", "Système")
+    fonction = os.environ.get("ADMIN_FONCTION", "système")
+
+    # Priorité au hash fourni (ex: CI)
+    pwd_hash_env = os.environ.get("ADMIN_PASSWORD_HASH")
+    password     = os.environ.get("ADMIN_PASSWORD", "admin")
+
+    if pwd_hash_env:
+        pwd_hash = pwd_hash_env
+    else:
+        try:
+            import bcrypt
+        except Exception as e:
+            print("❌ bcrypt non disponible, impossible de créer le mot de passe admin.")
+            print("   Installez 'bcrypt' ou fournissez ADMIN_PASSWORD_HASH.")
+            return
+        pwd_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(12)).decode("utf-8")
+
+    conn = connect_db(pg_db)
+    conn.autocommit = False
+    try:
+        with conn.cursor() as cur:
+            # Existe déjà ?
+            cur.execute("SELECT uid FROM app_user WHERE LOWER(courriel)=LOWER(%s) LIMIT 1;", (email,))
+            row = cur.fetchone()
+            if row:
+                print(f"ℹ️ Compte admin déjà présent ({email}), uid={row[0]}")
+            else:
+                cur.execute("""
+                    INSERT INTO app_user ("prénom", nom, courriel, password_hash, fonction, "rôle")
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING uid;
+                """, (prenom, nom, email, pwd_hash, fonction, role))
+                uid = cur.fetchone()[0]
+                print(f"✅ Compte admin créé: {email} (uid={uid}, rôle={role})")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print("❌ Erreur création compte admin:", e)
+        raise
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
     try:
         ensure_database_exists()
     except Exception as e:
         # Pas grave si pas de droit CREATEDB : on continue sur la base existante
         print("ℹ️ Création de base ignorée (pas de droit CREATEDB ?):", e)
+
     apply_schema()
+    # Seed admin (idempotent)
+    seed_admin_user()
