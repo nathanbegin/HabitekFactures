@@ -621,7 +621,7 @@ def patch_facture(fid):
     if not sets:
         return jsonify({"message": "Aucun champ autorisé fourni"}), 200
 
-    sql = f"UPDATE factures SET {', '.join(sets)}, updated_at = NOW() WHERE id=%s RETURNING id, fid, ref_cdd"
+    sql = f"UPDATE factures SET {', '.join(sets)}, date_derniere_modif = NOW() WHERE id=%s RETURNING id, fid, ref_cdd"
     vals.append(fid)
 
     conn = get_db_connection()
@@ -901,7 +901,7 @@ def delete_compte_depense(cid):
         cur.execute("""
             UPDATE factures
                SET ref_cdd = NULL,
-                   updated_at = NOW()
+                   date_derniere_modif = NOW()
              WHERE ref_cdd = %s
          RETURNING id
         """, (cid,))
