@@ -53,7 +53,7 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql://minio:Habitek2025@localhost:5432/habitek_tresorerie"
 )
-
+BUDGET_PIN = '1234'  # PIN pour accès en écriture au budget (à changer en prod)
 # Racine de stockage des fichiers (fixe comme demandé)
 APP_STORAGE_ROOT = os.path.abspath("backend/uploads")
 
