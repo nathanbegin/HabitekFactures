@@ -9,14 +9,16 @@ Covers:
 - Budgets CRUD + distincts + summary (+ events: budget.created/updated/deleted)
 - CDD (compte_depenses) CRUD + uploads/downloads + generated PDF (+ events)
 - Factures CRUD + uploads/downloads (+ events)
+- Optional: verify budget PIN (/api/budget/verify-pin)
 - Optional password change for current user (+ event: user.updated)
 
-Usage examples:
+Usage example:
   python3 api_tester.py --base-url http://localhost:5000 \
                         --register-public \
                         --prenom Alice --nom Dupont \
                         --email alice@example.org \
                         --password Test1234 \
+                        --budget-pin 123456 \
                         --ws \
                         --cleanup
 """
@@ -291,6 +293,18 @@ class APITester:
     def health(self):
         self._req("GET", "/api/health", expected=(200,))
 
+    # ---------------------- Budget verify PIN ----------------------
+    def budget_verify_pin(self, pin: str):
+        resp = self._req("POST", "/api/budget/verify-pin",
+                         expected=(200, 401, 400),
+                         json={"pin": pin})
+        try:
+            out = resp.json()
+        except Exception:
+            out = {"raw": resp.text}
+        print(f"[verify-pin] status={resp.status_code} payload={out}")
+        return resp.status_code, out
+
     # ---------------------- Budgets ----------------------
     def budgets_create(self, fy: str):
         payload = {"financial_year": fy, "fund_type": "Fonctionnement", "revenue_type": "Cotisations", "amount": 12345.67}
@@ -475,7 +489,7 @@ class APITester:
         return True
 
     # ---------------------- Orchestrate tests ----------------------
-    def run(self, do_register=False, prenom=None, nom=None, skip_budgets=False, skip_cdd=False, skip_factures=False, do_password_change=False, cleanup=False):
+    def run(self, do_register=False, prenom=None, nom=None, skip_budgets=False, skip_cdd=False, skip_factures=False, do_password_change=False, cleanup=False, budget_pin: Optional[str] = None):
         print(f"== Habitek API Tester == {self.base_url} (ws={'ON' if self.use_ws else 'OFF'})")
 
         # Optional public registration
@@ -491,6 +505,11 @@ class APITester:
 
         _step("Health")
         self.health()
+
+        # Optional budget verify-pin
+        if budget_pin:
+            _step("Budget verify-pin")
+            self.budget_verify_pin(budget_pin)
 
         # Budgets
         if not skip_budgets:
@@ -518,7 +537,7 @@ class APITester:
                 size = self.cdd_download_piece(cid, pl[0]["file_index"]); _log(f"Downloaded CDD piece bytes={size}")
             gp = self.cdd_save_generated_pdf(cid); _log("Saved generated PDF")
             patch = self.cdd_patch(cid); _log("Patched CDD")
-            # Ne pas supprimer ici : la facture suivante peut référencer ce CDD
+            # Do NOT delete here if invoices may reference this CDD
 
         # Factures
         if not skip_factures:
@@ -532,7 +551,7 @@ class APITester:
                 size = self.facture_download_piece(self.state["invoice_id"], pl[0]["file_index"]); _log(f"Downloaded facture piece bytes={size}")
             upd = self.facture_patch(self.state["invoice_id"]); _log("Patched facture")
 
-        # Cleanup final (respect FKs: d'abord factures, puis CDD)
+        # Cleanup final (respect FKs: delete invoices first, then CDD)
         if cleanup:
             if not skip_factures and self.state["invoice_id"]:
                 self.facture_delete(self.state["invoice_id"]); _log("Deleted facture")
@@ -571,12 +590,13 @@ def main():
     parser.add_argument("--prenom", help="First name for registration (default: Test)")
     parser.add_argument("--nom", help="Last name for registration (default: User)")
 
-    # Feature toggles
+    # Endpoint toggles
     parser.add_argument("--skip-budgets", action="store_true", help="Skip budget tests")
     parser.add_argument("--skip-cdd", action="store_true", help="Skip CDD tests")
     parser.add_argument("--skip-factures", action="store_true", help="Skip facture tests")
     parser.add_argument("--password-change", action="store_true", help="Also test self password change")
-    parser.add_argument("--cleanup", action="store_true", help="Delete created resources")
+    parser.add_argument("--budget-pin", help="PIN to test /api/budget/verify-pin (optional)")
+    parser.add_argument("--cleanup", action="store_true", help="Delete created resources at the end")
     parser.add_argument("--verbose", action="store_true", help="Verbose HTTP logs")
     parser.add_argument("--ws", action="store_true", help="Enable Socket.IO listening and event assertions")
 
@@ -585,7 +605,8 @@ def main():
     t = APITester(args.base_url, args.email, args.password, args.token, verbose=args.verbose, use_ws=args.ws)
     t.run(do_register=args.register_public, prenom=args.prenom, nom=args.nom,
           skip_budgets=args.skip_budgets, skip_cdd=args.skip_cdd, skip_factures=args.skip_factures,
-          do_password_change=args.password_change, cleanup=args.cleanup)
+          do_password_change=args.password_change, cleanup=args.cleanup,
+          budget_pin=args.budget_pin)
 
 
 if __name__ == "__main__":

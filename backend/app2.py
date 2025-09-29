@@ -650,6 +650,23 @@ def delete_facture(invoice_id):
     finally:
         cur.close(); conn.close()
 
+
+# -----------------------------------------------------------------------------
+# Budget PIN (pour accès en écriture au budget)
+# -----------------------------------------------------------------------------
+@app.route("/api/budget/verify-pin", methods=["POST"])
+@token_required  # Auth requise (même stratégie que le reste)
+def verify_budget_pin():
+    data = request.get_json(silent=True) or {}
+    pin = str(data.get("pin") or "").strip()
+    if not pin:
+        return jsonify({"error": "pin requis"}), 400
+
+    if pin == BUDGET_PIN:
+        return jsonify({"valid": True}), 200
+    return jsonify({"valid": False}), 401
+
+
 # -----------------------------------------------------------------------------
 # COMPTES DE DÉPENSES (CDD)
 # -----------------------------------------------------------------------------
