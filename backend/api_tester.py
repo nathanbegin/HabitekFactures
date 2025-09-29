@@ -292,7 +292,7 @@ class APITester:
             raise SystemExit(1)
         data = resp.json()
         self.token = data["token"]
-        self.headers["Authorization"] = f"Bearer {self.token}"
+        self.headers["Authorization"] = f"Bearer {self.token}"]
         self.state["user"] = data.get("user", {})
         print(f"{_tick(True)} logged in as {self.state['user']}")
 
@@ -349,7 +349,7 @@ class APITester:
             "type_cdd_int": type_cdd_int,
             "prénom_demandeur": prenom,
             "nom_demandeur": nom,
-            "date_soumis": datetime.utcnow().strftime("%Y-%m-%d")
+            "date_soumis": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
         resp = self._req("POST", "/api/depense-comptes", expected=(201,), json=payload)
         data = resp.json()
@@ -373,13 +373,15 @@ class APITester:
     def cdd_upload_piece(self, cid: str):
         pdf_bytes = _minimal_pdf_bytes("CDD Upload Piece")
         files = {"fichier": ("cdd_piece.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
-        resp = self._req("POST", f"/api/depense-comptes/{cid}/pieces", files=files)
+        resp = self._req("POST", f"/api/depense-comptes/{cid}/pieces", expected=(201,), files=files)
         data = resp.json()
         self.state["cdd_file_index"] = data.get("file_index")
         if self.ws:
-            ev = self.ws.wait_for("cdd.attachment.added",
-                                  predicate=lambda p: p.get("cid") == cid and p.get("file_index") == self.state["cdd_file_index"],
-                                  timeout=5)
+            ev = self.ws.wait_for(
+                "cdd.attachment.added",
+                predicate=lambda p: p.get("cid") == cid and p.get("file_index") == self.state["cdd_file_index"],
+                timeout=5
+            )
             print("WS cdd.attachment.added", "received" if ev else "not received", f"(cid={cid}, idx={self.state['cdd_file_index']})")
         return data
 
@@ -394,13 +396,19 @@ class APITester:
     def cdd_save_generated_pdf(self, cid: str):
         pdf = _minimal_pdf_bytes("Generated CDD PDF")
         b64 = base64.b64encode(pdf).decode()
-        resp = self._req("POST", f"/api/depense-comptes/{cid}/generated-pdf",
-                         json={"pdf_base64": b64})
+        resp = self._req(
+            "POST",
+            f"/api/depense-comptes/{cid}/generated-pdf",
+            expected=(201,),
+            json={"pdf_base64": b64}
+        )
         data = resp.json()
         if self.ws:
-            ev = self.ws.wait_for("cdd.attachment.added",
-                                  predicate=lambda p: p.get("cid") == cid and p.get("generated") is True,
-                                  timeout=5)
+            ev = self.ws.wait_for(
+                "cdd.attachment.added",
+                predicate=lambda p: p.get("cid") == cid and p.get("generated") is True,
+                timeout=5
+            )
             print("WS cdd.attachment.added (generated)", "received" if ev else "not received", f"(cid={cid})")
         return data
 
@@ -422,7 +430,7 @@ class APITester:
 
     # ---------------------- Factures ----------------------
     def facture_create(self, ref_cdd: Optional[str] = None):
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         data = {
             "date_facture": today,
             "fournisseur": "Papeterie ABC Inc.",
