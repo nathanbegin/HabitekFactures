@@ -10,9 +10,10 @@ Covers:
 - CDD (compte_depenses) CRUD + uploads/downloads + generated PDF (+ events)
 - Factures CRUD + uploads/downloads (+ events)
 - Optional: verify budget PIN (/api/budget/verify-pin)
+- Optional: interactive cleanup proposal to test all DELETE endpoints (factures -> CDD -> budgets)
 - Optional password change for current user (+ event: user.updated)
 
-Usage example:
+Usage examples:
   python3 api_tester.py --base-url http://localhost:5000 \
                         --register-public \
                         --prenom Alice --nom Dupont \
@@ -20,7 +21,7 @@ Usage example:
                         --password Test1234 \
                         --budget-pin 123456 \
                         --ws \
-                        --cleanup
+                        --cleanup-mode ask
 """
 
 import argparse
@@ -60,6 +61,13 @@ def _step(title: str):
 
 def _log(msg: str):
     print(f"[{_now_iso()}] {msg}")
+
+def _confirm(prompt: str) -> bool:
+    try:
+        ans = input(f"{prompt} [y/N]: ").strip().lower()
+        return ans in ("y", "yes", "o", "oui")
+    except EOFError:
+        return False
 
 
 # ---------------------- Minimal PDF ----------------------
@@ -202,7 +210,6 @@ class APITester:
             if not HAS_SIO:
                 raise RuntimeError("Install python-socketio & websocket-client to use --ws")
             self.ws = RealtimeListener(self.base_url, verbose=verbose)
-            # Start WS without Authorization (broadcast events are public)
             self.ws.start()
 
     # ---------------------- HTTP helpers ----------------------
@@ -257,7 +264,6 @@ class APITester:
             self.headers["Authorization"] = f"Bearer {self.token}"
             self.state["user"] = data.get("user")
             print(f"{_tick(True)} registered as {self.state['user']}")
-            # WS check
             if self.ws:
                 uid = self.state["user"]["uid"]
                 ev = self.ws.wait_for("user.created", predicate=lambda p: p.get("user", {}).get("uid") == uid, timeout=5)
@@ -489,7 +495,7 @@ class APITester:
         return True
 
     # ---------------------- Orchestrate tests ----------------------
-    def run(self, do_register=False, prenom=None, nom=None, skip_budgets=False, skip_cdd=False, skip_factures=False, do_password_change=False, cleanup=False, budget_pin: Optional[str] = None):
+    def run(self, do_register=False, prenom=None, nom=None, skip_budgets=False, skip_cdd=False, skip_factures=False, do_password_change=False, cleanup_mode: str = "ask", budget_pin: Optional[str] = None):
         print(f"== Habitek API Tester == {self.base_url} (ws={'ON' if self.use_ws else 'OFF'})")
 
         # Optional public registration
@@ -506,7 +512,6 @@ class APITester:
         _step("Health")
         self.health()
 
-        # Optional budget verify-pin
         if budget_pin:
             _step("Budget verify-pin")
             self.budget_verify_pin(budget_pin)
@@ -521,8 +526,7 @@ class APITester:
             dists = self.budgets_distincts(fy); _log(f"Distincts -> funds={len(dists['fund_types'])}, revenue={len(dists['revenue_types'])}")
             summ = self.budgets_summary(fy); _log(f"Summary -> keys={list(summ.keys())}")
             upd = self.budgets_update(self.state["budget_id"]); _log(f"Updated budget amount={upd.get('amount')}")
-            if cleanup:
-                self.budgets_delete(self.state["budget_id"]); _log("Deleted budget")
+            # delete tested later in final cleanup
 
         # CDD
         if not skip_cdd:
@@ -537,7 +541,7 @@ class APITester:
                 size = self.cdd_download_piece(cid, pl[0]["file_index"]); _log(f"Downloaded CDD piece bytes={size}")
             gp = self.cdd_save_generated_pdf(cid); _log("Saved generated PDF")
             patch = self.cdd_patch(cid); _log("Patched CDD")
-            # Do NOT delete here if invoices may reference this CDD
+            # delete tested later in final cleanup
 
         # Factures
         if not skip_factures:
@@ -550,13 +554,31 @@ class APITester:
             if pl:
                 size = self.facture_download_piece(self.state["invoice_id"], pl[0]["file_index"]); _log(f"Downloaded facture piece bytes={size}")
             upd = self.facture_patch(self.state["invoice_id"]); _log("Patched facture")
+            # delete tested later in final cleanup
 
-        # Cleanup final (respect FKs: delete invoices first, then CDD)
-        if cleanup:
-            if not skip_factures and self.state["invoice_id"]:
+        # Final cleanup proposal / execution (respect FKs)
+        do_cleanup = False
+        if cleanup_mode == "yes":
+            do_cleanup = True
+        elif cleanup_mode == "ask":
+            _step("Cleanup ?")
+            print("Resources candidates à supprimer :")
+            print(f"  - Facture id: {self.state.get('invoice_id')}")
+            print(f"  - CDD cid:    {self.state.get('cid')}")
+            print(f"  - Budget id:  {self.state.get('budget_id')}")
+            do_cleanup = _confirm("Voulez-vous supprimer ces ressources maintenant et tester les DELETE ?")
+
+        if do_cleanup:
+            _step("DELETE endpoints (cleanup)")
+            # 1) Factures
+            if not skip_factures and self.state.get("invoice_id"):
                 self.facture_delete(self.state["invoice_id"]); _log("Deleted facture")
-            if not skip_cdd and self.state["cid"]:
+            # 2) CDD
+            if not skip_cdd and self.state.get("cid"):
                 self.cdd_delete(self.state["cid"]); _log("Deleted CDD")
+            # 3) Budgets
+            if not skip_budgets and self.state.get("budget_id"):
+                self.budgets_delete(self.state["budget_id"]); _log("Deleted budget")
 
         # Optional password change for the current user
         if do_password_change and self.state.get("user", {}).get("uid"):
@@ -567,7 +589,6 @@ class APITester:
                 ev = self.ws.wait_for("user.updated", predicate=lambda p: p.get("uid") == uid, timeout=5)
                 print("WS user.updated", "received" if ev else "not received", f"(uid={uid})")
 
-        # Done
         if self.ws:
             self.ws.stop()
         print("\n✅ All selected tests completed successfully.")
@@ -596,16 +617,24 @@ def main():
     parser.add_argument("--skip-factures", action="store_true", help="Skip facture tests")
     parser.add_argument("--password-change", action="store_true", help="Also test self password change")
     parser.add_argument("--budget-pin", help="PIN to test /api/budget/verify-pin (optional)")
-    parser.add_argument("--cleanup", action="store_true", help="Delete created resources at the end")
+
+    # Cleanup strategy
+    parser.add_argument("--cleanup", action="store_true", help="(Deprecated) Delete created resources: same as --cleanup-mode yes")
+    parser.add_argument("--cleanup-mode", choices=["ask", "yes", "no"], default="ask",
+                        help="ask: prompt at the end; yes: auto-delete; no: keep data")
+
     parser.add_argument("--verbose", action="store_true", help="Verbose HTTP logs")
     parser.add_argument("--ws", action="store_true", help="Enable Socket.IO listening and event assertions")
 
     args = parser.parse_args()
 
+    # Back-compat: --cleanup overrides cleanup-mode to 'yes'
+    cleanup_mode = "yes" if args.cleanup else args.cleanup_mode
+
     t = APITester(args.base_url, args.email, args.password, args.token, verbose=args.verbose, use_ws=args.ws)
     t.run(do_register=args.register_public, prenom=args.prenom, nom=args.nom,
           skip_budgets=args.skip_budgets, skip_cdd=args.skip_cdd, skip_factures=args.skip_factures,
-          do_password_change=args.password_change, cleanup=args.cleanup,
+          do_password_change=args.password_change, cleanup_mode=cleanup_mode,
           budget_pin=args.budget_pin)
 
 
