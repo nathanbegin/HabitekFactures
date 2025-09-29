@@ -9,3 +9,8 @@ bcrypt
 pytz
 re
 urllib.parse
+PyJWT
+gunicorn
+requests
+python-socketio
+websocket-client
