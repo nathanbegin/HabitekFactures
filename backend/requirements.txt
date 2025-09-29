@@ -7,8 +7,6 @@ eventlet
 psycopg2-binary
 bcrypt
 pytz
-re
-urllib.parse
 PyJWT
 gunicorn
 requests

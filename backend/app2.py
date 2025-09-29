@@ -245,7 +245,7 @@ def register_user_public():
 
         user_payload = {"uid": uid, "prenom": prenom_db, "nom": nom_db, "courriel": courriel_db, "role": role_db}
         # WebSocket event
-        socketio.emit("user.created", {"user": user_payload}, broadcast=True)
+        socketio.emit("user.created", {"user": user_payload}, namespace="/")
 
         return jsonify({"message": "Utilisateur créé", "user": user_payload, "token": token}), 201
 
@@ -289,7 +289,7 @@ def change_password(uid):
             conn.rollback()
             return jsonify({"error":"Utilisateur introuvable"}), 404
         conn.commit()
-        socketio.emit("user.updated", {"uid": uid}, broadcast=True)
+        socketio.emit("user.updated", {"uid": uid}, namespace="/")
         return jsonify({"message":"Mot de passe mis à jour"}), 200
     except Exception as e:
         conn.rollback()
@@ -315,7 +315,7 @@ def delete_user(uid):
             conn.rollback()
             return jsonify({"error":"Utilisateur introuvable"}), 404
         conn.commit()
-        socketio.emit("user.deleted", {"uid": uid}, broadcast=True)
+        socketio.emit("user.deleted", {"uid": uid}, namespace="/")
         return jsonify({"message":"Utilisateur supprimé"}), 200
     except Exception as e:
         conn.rollback()
@@ -447,7 +447,7 @@ def upload_facture():
 
         conn.commit()
         payload = {"id": invoice_id, "fid": fid, "financial_year": fin_year}
-        socketio.emit("facture.created", payload, broadcast=True)
+        socketio.emit("facture.created", payload, namespace="/")
         return jsonify({"message": "Facture créée", **payload}), 201
 
     except Exception as e:
@@ -605,7 +605,7 @@ def patch_facture(fid):
             return jsonify({"error":"Facture introuvable"}), 404
         conn.commit()
         payload = {"id": row[0], "fid": row[1]}
-        socketio.emit("facture.updated", payload, broadcast=True)
+        socketio.emit("facture.updated", payload, namespace="/")
         return jsonify(payload), 200
     except Exception as e:
         conn.rollback()
@@ -641,7 +641,7 @@ def delete_facture(invoice_id):
                 app.logger.warning(f"Suppression fichier échouée ({p}): {e}")
 
         payload = {"id": row[0], "fid": row[1]}
-        socketio.emit("facture.deleted", payload, broadcast=True)
+        socketio.emit("facture.deleted", payload, namespace="/")
         return jsonify({"message": "Facture supprimée", **payload}), 200
     except Exception as e:
         conn.rollback()
@@ -687,7 +687,7 @@ def create_compte_depense():
         row = cur.fetchone()
         conn.commit()
         payload = {k: convert_to_json_serializable(v) for k, v in dict(row).items()}
-        socketio.emit("cdd.created", payload, broadcast=True)
+        socketio.emit("cdd.created", payload, namespace="/")
         return jsonify(payload), 201
     except Exception as e:
         conn.rollback()
@@ -813,7 +813,7 @@ def patch_compte_depense(cid):
             return jsonify({"error":"Compte introuvable"}), 404
         conn.commit()
         payload = {"id": row[0], "cid": row[1]}
-        socketio.emit("cdd.updated", payload, broadcast=True)
+        socketio.emit("cdd.updated", payload, namespace="/")
         return jsonify(payload), 200
     except Exception as e:
         conn.rollback()
@@ -843,7 +843,7 @@ def delete_compte_depense(cid):
         cur.execute("SELECT file_path FROM cdd_pj WHERE expense_pk=%s ORDER BY file_index", (expense_id,))
         paths = [r[0] for r in cur.fetchall()]
 
-        cur.execute("DELETE FROM compte_depenses WHERE id=%s RETURNING id, %s", (expense_id, cid))
+        cur.execute("DELETE FROM compte_depenses WHERE id=%s RETURNING id", (expense_id,))
         r = cur.fetchone()
         if not r:
             conn.rollback()
@@ -858,7 +858,7 @@ def delete_compte_depense(cid):
                 app.logger.warning(f"Suppression fichier CDD échouée ({p}): {e}")
 
         payload = {"id": expense_id, "cid": cid}
-        socketio.emit("cdd.deleted", payload, broadcast=True)
+        socketio.emit("cdd.deleted", payload, namespace="/")
         return jsonify({"message":"Compte supprimé", **payload}), 200
     except Exception as e:
         conn.rollback()
@@ -907,7 +907,7 @@ def upload_cdd_piece(cid):
         conn.commit()
 
         # (optionnel) notifier un ajout de pièce jointe
-        socketio.emit("cdd.attachment.added", {"cid": cid, "file_index": next_idx}, broadcast=True)
+        socketio.emit("cdd.attachment.added", {"cid": cid, "file_index": next_idx}, namespace="/")
 
         return jsonify({"message":"Pièce ajoutée","file_index":next_idx,"path":full_path}), 201
     except Exception as e:
@@ -1025,7 +1025,7 @@ def save_generated_cdd_pdf(cid):
         """, (expense_id, next_idx, full_path))
         conn.commit()
 
-        socketio.emit("cdd.attachment.added", {"cid": cid, "file_index": next_idx, "generated": True}, broadcast=True)
+        socketio.emit("cdd.attachment.added", {"cid": cid, "file_index": next_idx, "generated": True}, namespace="/")
         return jsonify({"message":"PDF généré sauvegardé","path":full_path,"file_index":next_idx}), 201
     except Exception as e:
         conn.rollback()
@@ -1134,7 +1134,7 @@ def create_budget():
         row = cur.fetchone()
         conn.commit()
         payload = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
-        socketio.emit("budget.created", payload, broadcast=True)
+        socketio.emit("budget.created", payload, namespace="/")
         return jsonify(payload), 201
     except Exception as e:
         conn.rollback(); traceback.print_exc()
@@ -1186,7 +1186,7 @@ def update_budget(bid):
             conn.rollback(); return jsonify({"error":"Budget introuvable"}), 404
         conn.commit()
         payload = {k: convert_to_json_serializable(v) for k,v in dict(row).items()}
-        socketio.emit("budget.updated", payload, broadcast=True)
+        socketio.emit("budget.updated", payload, namespace="/")
         return jsonify(payload), 200
     except Exception as e:
         conn.rollback(); traceback.print_exc()
@@ -1207,7 +1207,7 @@ def delete_budget(bid):
         if not row:
             conn.rollback(); return jsonify({"error":"Budget introuvable"}), 404
         conn.commit()
-        socketio.emit("budget.deleted", {"id": bid}, broadcast=True)
+        socketio.emit("budget.deleted", {"id": bid}, namespace="/")
         return jsonify({"message":"Budget supprimé", "id": bid}), 200
     except Exception as e:
         conn.rollback(); traceback.print_exc()
