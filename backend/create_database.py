@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS factures (
   poste_budgetaire varchar(255),
   uid_soumetteur   varchar(255),
   uid_approbateur  varchar(255),
-  ref_cdd          text,                                  -- référence textuelle au CDD (cid)
+  ref_cdd          text NULL,                                  -- référence textuelle au CDD (cid)
   CHECK (fid IS NULL OR fid ~ '^F[0-9]{4}-[0-9]{3}$')
 );
 """,

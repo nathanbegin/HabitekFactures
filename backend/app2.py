@@ -545,23 +545,25 @@ def download_facture_piece(invoice_id, file_index):
 
 @app.route("/api/factures/<int:fid>", methods=["PATCH"])
 @token_required
-@role_required(['gestionnaire', 'approbateur'])
+@role_required(['gestionnaire', 'approbateur', 'soumetteur'])
 def patch_facture(fid):
     content_type = (request.headers.get("Content-Type") or "").lower()
     data = {}
     if "application/json" in content_type:
-        data = request.get_json() or {}
+        data = (request.get_json(silent=True) or {})
     elif "multipart/form-data" in content_type:
         data = request.form.to_dict()
+
     if not data:
-        return jsonify({"message":"Aucun changement"}), 200
+        return jsonify({"message": "Aucun changement"}), 200
 
     allowed = {
         "date_facture","fournisseur","description","montant","devise","statut",
-        "categorie","catégorie","ligne_budgetaire","type","ubr","poste_budgetaire","ref_cdd",
-        "uid_approbateur"
+        "categorie","catégorie","ligne_budgetaire","type","ubr","poste_budgetaire",
+        "ref_cdd","uid_approbateur"
     }
 
+    # Validation / normalisation
     if "montant" in data and data["montant"] not in (None, ""):
         try:
             val = Decimal(str(data["montant"]))
@@ -570,15 +572,44 @@ def patch_facture(fid):
             data["montant"] = val
         except InvalidOperation:
             return jsonify({"error":"montant invalide"}), 400
-    if "date_facture" in data and data["date_facture"]:
-        try: datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
-        except ValueError: return jsonify({"error":"date_facture invalide (AAAA-MM-JJ)"}), 400
 
-    data.setdefault("uid_approbateur", str(g.user_id))
+    if "date_facture" in data and data["date_facture"]:
+        try:
+            datetime.strptime(str(data["date_facture"]), "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"error":"date_facture invalide (AAAA-MM-JJ)"}), 400
+
     if "categorie" in data and "catégorie" not in data:
         data["catégorie"] = data.pop("categorie")
 
+    # Par défaut l’initiateur est approbateur si non fourni
+    data.setdefault("uid_approbateur", str(g.user_id))
+
     sets, vals = [], []
+
+    # --- GESTION SPÉCIALE ref_cdd ---
+    # - None / "" / "null" => dissocier (SET NULL)
+    # - sinon, vérifier que le CDD existe
+    if "ref_cdd" in data:
+        raw = data.pop("ref_cdd")
+        if raw in (None, "", "null", "None"):
+            sets.append("ref_cdd = NULL")
+        else:
+            conn_chk = get_db_connection()
+            if conn_chk is None:
+                return jsonify({"error": "DB indisponible"}), 500
+            cur_chk = conn_chk.cursor()
+            try:
+                cur_chk.execute("SELECT 1 FROM compte_depenses WHERE cid=%s", (raw,))
+                if cur_chk.fetchone() is None:
+                    conn_chk.rollback()
+                    return jsonify({"error":"ref_cdd inconnu"}), 400
+            finally:
+                cur_chk.close(); conn_chk.close()
+            sets.append("ref_cdd = %s")
+            vals.append(raw)
+
+    # Champs standards autorisés
     for k, v in data.items():
         if k in allowed:
             if k == "catégorie":
@@ -590,7 +621,7 @@ def patch_facture(fid):
     if not sets:
         return jsonify({"message": "Aucun champ autorisé fourni"}), 200
 
-    sql = f"UPDATE factures SET {', '.join(sets)} WHERE id=%s RETURNING id, fid"
+    sql = f"UPDATE factures SET {', '.join(sets)}, updated_at = NOW() WHERE id=%s RETURNING id, fid, ref_cdd"
     vals.append(fid)
 
     conn = get_db_connection()
@@ -604,7 +635,7 @@ def patch_facture(fid):
             conn.rollback()
             return jsonify({"error":"Facture introuvable"}), 404
         conn.commit()
-        payload = {"id": row[0], "fid": row[1]}
+        payload = {"id": row[0], "fid": row[1], "ref_cdd": row[2]}
         socketio.emit("facture.updated", payload, namespace="/")
         return jsonify(payload), 200
     except Exception as e:
@@ -616,7 +647,7 @@ def patch_facture(fid):
 
 @app.route("/api/factures/<int:invoice_id>", methods=["DELETE"])
 @token_required
-@role_required(['gestionnaire'])
+@role_required(['gestionnaire','approbateur','soumetteur'])
 def delete_facture(invoice_id):
     conn = get_db_connection()
     if conn is None:
@@ -844,45 +875,71 @@ def patch_compte_depense(cid):
 @role_required(['gestionnaire'])
 def delete_compte_depense(cid):
     if not CID_RE.match(cid):
-        return jsonify({"error":"cid invalide (CYYYY-HABITEK###)"}), 400
+        return jsonify({"error": "cid invalide (CYYYY-HABITEK###)"}), 400
 
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "DB indisponible"}), 500
     cur = conn.cursor()
+
     try:
+        # 0) Vérif existence du CDD + récupère sa PK pour nettoyer les PJ
         cur.execute("SELECT id FROM compte_depenses WHERE cid=%s", (cid,))
         row = cur.fetchone()
         if not row:
             return jsonify({"error":"Compte introuvable"}), 404
         expense_id = row[0]
 
-        cur.execute("SELECT file_path FROM cdd_pj WHERE expense_pk=%s ORDER BY file_index", (expense_id,))
+        # 1) Lister les pièces jointes CDD (pour suppression sur disque après COMMIT)
+        cur.execute(
+            "SELECT file_path FROM cdd_pj WHERE expense_pk=%s ORDER BY file_index",
+            (expense_id,)
+        )
         paths = [r[0] for r in cur.fetchall()]
 
+        # 2) DISSOCIER les factures liées (ref_cdd -> NULL) et récupérer leurs IDs
+        cur.execute("""
+            UPDATE factures
+               SET ref_cdd = NULL,
+                   updated_at = NOW()
+             WHERE ref_cdd = %s
+         RETURNING id
+        """, (cid,))
+        detached_invoice_ids = [r[0] for r in cur.fetchall()]
+
+        # 3) Supprimer le CDD
         cur.execute("DELETE FROM compte_depenses WHERE id=%s RETURNING id", (expense_id,))
         r = cur.fetchone()
         if not r:
             conn.rollback()
             return jsonify({"error":"Suppression impossible"}), 400
 
+        # Valider les changements
         conn.commit()
 
-        for p in paths:
-            try:
-                if p and os.path.exists(p): os.remove(p)
-            except Exception as e:
-                app.logger.warning(f"Suppression fichier CDD échouée ({p}): {e}")
-
-        payload = {"id": expense_id, "cid": cid}
-        socketio.emit("cdd.deleted", payload, namespace="/")
-        return jsonify({"message":"Compte supprimé", **payload}), 200
     except Exception as e:
         conn.rollback()
         traceback.print_exc()
         return jsonify({"error":"Échec suppression", "details": str(e)}), 500
     finally:
         cur.close(); conn.close()
+
+    # 4) Nettoyage fichiers sur disque (hors transaction)
+    for p in paths:
+        try:
+            if p and os.path.exists(p):
+                os.remove(p)
+        except Exception as e:
+            app.logger.warning(f"Suppression fichier CDD échouée ({p}): {e}")
+
+    # 5) Événements temps réel : factures détachées puis CDD supprimé
+    for fid in detached_invoice_ids:
+        socketio.emit("facture.updated", {"id": fid}, namespace="/")
+    payload = {"id": expense_id, "cid": cid, "detached_invoices": detached_invoice_ids}
+    socketio.emit("cdd.deleted", payload, namespace="/")
+
+    return jsonify({"message":"Compte supprimé", **payload}), 200
+
 
 # Upload PJ CDD
 @app.route("/api/depense-comptes/<string:cid>/pieces", methods=["POST"])
