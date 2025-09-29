@@ -292,7 +292,7 @@ class APITester:
             raise SystemExit(1)
         data = resp.json()
         self.token = data["token"]
-        self.headers["Authorization"] = f"Bearer {self.token}"]
+        self.headers["Authorization"] = f"Bearer {self.token}"
         self.state["user"] = data.get("user", {})
         print(f"{_tick(True)} logged in as {self.state['user']}")
 
