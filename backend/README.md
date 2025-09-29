@@ -61,7 +61,7 @@ python backend/create_database.py
 
 6) **(Optionnel) PIN Budget**
 
-- Version simple (hardcodé dans `app.py`) : `BUDGET_PIN = "123456"`
+- Version simple (hardcodé dans `app.py`) : `BUDGET_PIN = "1234"`
 
 ---
 
@@ -108,7 +108,7 @@ python3 api_tester.py \
   --register-public \
   --prenom Alice --nom Dupont \
   --email alice@example.org --password Test1234 \
-  --budget-pin 123456 \
+  --budget-pin 1234 \
   --ws \
   --cleanup-mode ask
 ```
@@ -143,7 +143,7 @@ python3 api_tester.py \
 
 ### Budget — Vérification PIN
 #### `POST /api/budget/verify-pin` (JWT)
-**Body JSON** `{"pin":"123456"}`  
+**Body JSON** `{"pin":"1234"}`  
 **200** → `{"valid":true}`  |  **401** → `{"valid":false}`  |  **400** → `{"error":"pin requis"}`
 
 ---
