@@ -629,7 +629,7 @@ def main():
     args = parser.parse_args()
 
     # Back-compat: --cleanup overrides cleanup-mode to 'yes'
-    cleanup_mode = "yes" if args.cleanup else args.cleanup_mode
+    cleanup_mode = "ask" if args.cleanup else args.cleanup_mode
 
     t = APITester(args.base_url, args.email, args.password, args.token, verbose=args.verbose, use_ws=args.ws)
     t.run(do_register=args.register_public, prenom=args.prenom, nom=args.nom,
