@@ -19,14 +19,6 @@ Usage examples:
                         --password Test1234 \
                         --ws \
                         --cleanup
-
-  # If the account already exists (409), the script automatically falls back to login.
-
-Environment variables (fallbacks):
-  API_BASE, API_EMAIL, API_PASSWORD, API_TOKEN
-
-Requires: Python 3.9+
-  pip install requests python-socketio websocket-client
 """
 
 import argparse
@@ -43,7 +35,7 @@ from typing import Optional, Dict, Any, Tuple, Callable
 
 try:
     import requests
-except Exception as e:
+except Exception:
     print("This script requires 'requests'. Install with: pip install requests")
     raise
 
@@ -438,8 +430,10 @@ class APITester:
             "montant": "57.90",
             "devise": "CAD",
             "statut": "soumise",
-            "ref_cdd": ref_cdd or ""
         }
+        if ref_cdd:
+            data["ref_cdd"] = ref_cdd
+
         pdf_bytes = _minimal_pdf_bytes("Facture Upload Piece")
         files = {"fichier": ("facture_piece.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
         resp = self._req("POST", "/api/factures", expected=(201,), data=data, files=files)
@@ -524,8 +518,7 @@ class APITester:
                 size = self.cdd_download_piece(cid, pl[0]["file_index"]); _log(f"Downloaded CDD piece bytes={size}")
             gp = self.cdd_save_generated_pdf(cid); _log("Saved generated PDF")
             patch = self.cdd_patch(cid); _log("Patched CDD")
-            if cleanup:
-                self.cdd_delete(cid); _log("Deleted CDD")
+            # Ne pas supprimer ici : la facture suivante peut référencer ce CDD
 
         # Factures
         if not skip_factures:
@@ -538,8 +531,13 @@ class APITester:
             if pl:
                 size = self.facture_download_piece(self.state["invoice_id"], pl[0]["file_index"]); _log(f"Downloaded facture piece bytes={size}")
             upd = self.facture_patch(self.state["invoice_id"]); _log("Patched facture")
-            if cleanup:
+
+        # Cleanup final (respect FKs: d'abord factures, puis CDD)
+        if cleanup:
+            if not skip_factures and self.state["invoice_id"]:
                 self.facture_delete(self.state["invoice_id"]); _log("Deleted facture")
+            if not skip_cdd and self.state["cid"]:
+                self.cdd_delete(self.state["cid"]); _log("Deleted CDD")
 
         # Optional password change for the current user
         if do_password_change and self.state.get("user", {}).get("uid"):
